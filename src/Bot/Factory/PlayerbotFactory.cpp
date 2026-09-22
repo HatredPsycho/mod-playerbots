@@ -41,6 +41,7 @@
 #include "SpellMgr.h"
 #include "Trainer.h"
 #include "World.h"
+#include "mod-ascension-compat/src/AscensionCustomClassData.h"
 #include "mod-ascension-compat/src/AscensionSpecialization.h"
 #include <array>
 #include <unordered_set>
@@ -2323,10 +2324,47 @@ void Shuffle(std::vector<uint32>& items)
 //     }
 // }
 
+// A new Conquest of Azeroth character gets its starting kit from mod-ascension-compat, which
+// replaces the CharStartOutfit.dbc outfit at creation. Rebuilding a low-level CoA bot from that
+// outfit instead left it without any equipment after the randomizer cleared its items.
+static void StoreCoaStarterItems(Player* bot)
+{
+    for (AscensionCompatData::LiveStarterItem const& entry : AscensionCompatData::LiveStarterItems)
+    {
+        if (entry.ClassId != bot->getClass() || entry.ItemId == 6948)
+            continue;
+
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(entry.ItemId);
+        if (!proto || (proto->Class == ITEM_CLASS_CONSUMABLE && proto->SubClass == ITEM_SUBCLASS_FOOD))
+            continue;
+
+        if (bot->HasItemCount(entry.ItemId, entry.Count, true))
+            continue;
+
+        if (entry.Slot < EQUIPMENT_SLOT_END)
+        {
+            uint16 dest;
+            if (bot->CanEquipNewItem(entry.Slot, dest, entry.ItemId, false) == EQUIP_ERR_OK &&
+                bot->EquipNewItem(dest, entry.ItemId, true))
+                continue;
+        }
+
+        ItemPosCountVec dest;
+        if (bot->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry.ItemId, entry.Count) == EQUIP_ERR_OK)
+            bot->StoreNewItem(dest, entry.ItemId, true);
+    }
+}
+
 void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
 {
     if (level < 5)
     {
+        if (IsAscensionCustomClassId(bot->getClass()))
+        {
+            StoreCoaStarterItems(bot);
+            return;
+        }
+
         // original items
         if (CharStartOutfitEntry const* oEntry = GetCharStartOutfitEntry(bot->getRace(), bot->getClass(), bot->getGender()))
         {
