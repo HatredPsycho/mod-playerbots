@@ -41,8 +41,8 @@
 #include "SpellMgr.h"
 #include "Trainer.h"
 #include "World.h"
-#include "mod-ascension-compat/src/AscensionCustomClassData.h"
-#include "mod-ascension-compat/src/AscensionSpecialization.h"
+#include "AscensionCustomClassData.h"
+#include "AscensionSpecialization.h"
 #include <array>
 #include <unordered_set>
 #include <utility>
@@ -1661,7 +1661,7 @@ void PlayerbotFactory::ClearEverything()
 
 void PlayerbotFactory::ClearSpells()
 {
-    // Conquest of Azeroth classes (12 and above) get their abilities from mod-ascension-compat,
+    // Conquest of Azeroth classes (12 and above) get their abilities from the CoA core,
     // which grants them at login and reconciles them on every level change. Wiping them here
     // leaves the bot with nothing to cast until its next login, since InitClassSpells only
     // knows the vanilla classes.
@@ -2324,7 +2324,7 @@ void Shuffle(std::vector<uint32>& items)
 //     }
 // }
 
-// A new Conquest of Azeroth character gets its starting kit from mod-ascension-compat, which
+// A new Conquest of Azeroth character gets its starting kit from the CoA core, which
 // replaces the CharStartOutfit.dbc outfit at creation. Rebuilding a low-level CoA bot from that
 // outfit instead left it without any equipment after the randomizer cleared its items.
 static void StoreCoaStarterItems(Player* bot)

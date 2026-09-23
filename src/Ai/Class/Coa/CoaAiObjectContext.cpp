@@ -20,7 +20,7 @@
 #include "SpellMgr.h"
 #include "Strategy.h"
 #include "Trigger.h"
-#include "mod-ascension-compat/src/AscensionSpecialization.h"
+#include "AscensionSpecialization.h"
 
 #include <algorithm>
 #include <array>
@@ -57,7 +57,7 @@ enum AbilityKind : uint16
 /*
  * Class abilities, indexed by class id, ordered by required level.
  *
- * Most CoA abilities are scripted (dummy or script effects), so what mod-ascension-compat says
+ * Most CoA abilities are scripted (dummy or script effects), so what the CoA core says
  * a class can learn is the only reliable list of what it can cast.
  */
 struct CoaAbility
@@ -357,7 +357,7 @@ std::unordered_map<uint8, ClassKit> const& ClassAbilities()
             }
         }
 
-        LOG_INFO("playerbots", "coa: {} abilities ({} higher ranks) from mod-ascension-compat, {} classes",
+        LOG_INFO("playerbots", "coa: {} abilities ({} higher ranks) from the CoA core, {} classes",
                  count, ranks, byClass.size());
         LOG_INFO("playerbots", "coa: {} heals, {} area attacks, {} buffs, {} defensives, {} dispels, {} interrupts",
                  heals, aoe, buffs, defensives, dispels, interrupts);

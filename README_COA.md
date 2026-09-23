@@ -53,7 +53,7 @@ challenges module much lighter with many bots online.
 2. Build and install the server as usual:
    [AzerothCore installation guide](https://www.azerothcore.org/wiki/installation) and
    [mod-playerbots installation guide](https://github.com/mod-playerbots/mod-playerbots/wiki/Installation-Guide).
-   Only `mod-ascension-compat` (already in the core) and `mod-playerbots` are needed.
+   Only `mod-playerbots` is needed; the CoA code is part of the core.
    On Windows, copy `libmysql.dll`, `libcrypto-3-x64.dll`, `libssl-3-x64.dll` and `legacy.dll` next to
    `worldserver.exe`.
 

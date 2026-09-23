@@ -6,7 +6,7 @@
  */
 #include "CoaGenericContext.h"
 
-#include "mod-ascension-compat/src/AscensionSpecialization.h"
+#include "AscensionSpecialization.h"
 
 #include "CellImpl.h"
 #include "GridNotifiers.h"
@@ -143,7 +143,7 @@ bool CoaResourceTrigger::IsActive()
         return false;
 
     // The Ascension-specific resources (Static, Felfury, Insanity, Solar Power
-    // and the rest) are not reachable: mod-ascension-compat's public API
+    // and the rest) are not reachable: the CoA core's public API
     // exposes specializations, talents and class abilities, but nothing to read
     // a custom resource. So only the core powers below work here.
     //

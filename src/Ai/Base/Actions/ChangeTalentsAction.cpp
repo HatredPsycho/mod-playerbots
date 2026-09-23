@@ -6,7 +6,7 @@
 
 #include "ChangeTalentsAction.h"
 #include "AiFactory.h"
-#include "mod-ascension-compat/src/AscensionSpecialization.h"
+#include "AscensionSpecialization.h"
 #include "AiObjectContext.h"
 #include "ChatHelper.h"
 #include "CoaSpecLookup.h"
@@ -74,7 +74,7 @@ bool ChangeTalentsAction::Execute(Event event)
             param = param.substr(5);
             // CoA classes have no Blizzard talent tabs, so the premade spec
             // lists below are empty for them. Their specialization lives in
-            // mod-ascension-compat and is what decides role, position and
+            // the CoA core and is what decides role, position and
             // rotation - see CoaSpecStrategies.h.
             out << (IsCoaClass(bot) ? CoaSpecPick(param) : SpecPick(param));
             botAI->ResetStrategies();
@@ -96,7 +96,7 @@ bool ChangeTalentsAction::Execute(Event event)
             << "|h|cffffffff";
 
         // CoA classes have no Blizzard talent tabs: FormatClass counts those and always reports
-        // "(0/0/0)". For them, the specialization mod-ascension-compat holds.
+        // "(0/0/0)". For them, report the specialization the CoA core holds.
         if (CoaSpecStrategy const* coaSpec = GetCoaSpecStrategyFor(bot))
         {
             out << coaSpec->specName;

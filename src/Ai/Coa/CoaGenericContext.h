@@ -232,7 +232,7 @@ private:
  * otherwise have to be written differently for every class, and not at all for
  * resources without a fixed maximum in the table.
  *
- * Only mod-ascension-compat knows those maxima, and its public API does not
+ * Only the CoA core knows those maxima, and its public API does not
  * expose them, so this trigger currently reaches the CORE powers alone: mana,
  * rage, energy, runic power, focus, happiness. A name it does not know leaves
  * the trigger off - a misspelled line therefore makes the bot quiet, not wild.
