@@ -1932,7 +1932,13 @@ void RandomPlayerbotMgr::Randomize(Player* bot)
     if (bot->InBattleground())
         return;
 
-    if (bot->GetLevel() < 3 || (bot->GetLevel() < 56 && bot->getClass() == CLASS_DEATH_KNIGHT))
+    // A bot below level 3 is rebuilt from scratch, which rolls its level again
+    // inside the configured range. When that range tops out below 3 the roll can
+    // only return the bot to where it started, so a level 1 population could never
+    // grow: every login rerolled the levels the bots had earned. Leave those bots
+    // alone and let the branch below keep the level they reached.
+    if ((bot->GetLevel() < 3 && bot->GetLevel() < sPlayerbotAIConfig.randomBotMaxLevel)
+        || (bot->GetLevel() < 56 && bot->getClass() == CLASS_DEATH_KNIGHT))
     {
         RandomizeFirst(bot);
     }
