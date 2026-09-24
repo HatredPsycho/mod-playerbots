@@ -1416,6 +1416,152 @@ AiPlayerbot.CoaHealerManaReserve = 35
 # Default: 15
 AiPlayerbot.CoaCasterManaReserve = 15
 
+# How a group of a player and bots fares in each fight, written to CoaBots.log when the fight
+# ends: time each member spent under 50% and under 25% health, deaths, who received the healing
+# and how much was overheal, the healers' mana from the pull to the end, and how long something
+# other than the tank was being hit. Only groups with a real player in them are followed.
+# Default: 1 (enabled)
+AiPlayerbot.CoaGroupTelemetry = 1
+
+# Healers of Conquest of Azeroth in a group: heal whoever is under 25% health first and
+# the tank before the others at equal health, pick the heal for how urgent it is (the
+# fastest when someone is dropping, one that fits the missing health otherwise), stay
+# within 18 yards of the tank and in its line of sight, keep their mana for healing
+# instead of spending it on damage, and tell the group when they run low.
+# Read again by ".reload config", so a dungeon can be run with and without it.
+# Default: 1 (enabled)
+AiPlayerbot.CoaSmartHeal = 1
+
+# Tanks of Conquest of Azeroth: of the enemies hitting someone else, take first the one
+# on the healer, then the one on whoever is lowest, rather than the nearest one.
+# Read again by ".reload config".
+# Default: 1 (enabled)
+AiPlayerbot.CoaSmartTank = 1
+
+#    AiPlayerbot.CoaTankOpenerSeconds
+#        Description: With CoaSmartTank, a CoA damage dealer lets the tank open: on a target no tank
+#                     has touched yet it waits at most this many seconds, then goes all out. Read
+#                     again by .reload config.
+#        Default:     2
+#                     0 - no wait
+
+AiPlayerbot.CoaTankOpenerSeconds = 2
+
+#    AiPlayerbot.CoaThreatHold
+#        Description: With CoaSmartTank, a CoA damage dealer also holds its attacks on a target where
+#                     its threat reaches this percent of the tank's (aggro passes at 110% in melee,
+#                     130% at range). Off by default: holding aggro is the tank's job.
+#        Default:     0 - off
+
+AiPlayerbot.CoaThreatHold = 0
+
+# Conquest of Azeroth specializations bots never play, by id, comma separated. A bot holding one
+# switches to another of its role, and ".playerbots coa" never recruits one.
+#   101 Venomancer Vizier: heals from a scarab form that blocks its heals.
+#    51 Tinker Invention: knows its heals but hardly casts them (Razorfen Downs, 21/09).
+# Read again by ".reload config".
+# Default: 51,101
+AiPlayerbot.CoaExcludedSpecializations = 51,101
+
+#    AiPlayerbot.CoaOffensiveHealerSpecs
+#        Description: Healer specializations whose damage is their healing: they keep dealing damage
+#                     whatever their mana (the healer mana reserve would take their heals away).
+#                     Read again by .reload config.
+#        Default:     40 (Cultist Heretic)
+
+AiPlayerbot.CoaOffensiveHealerSpecs = 40
+
+#
+#    AiPlayerbot.CoaHealsExcluded
+#        Description: Heals a bot must not consider, by their English name, separated by commas.
+#                     A bot builds its heal kit from every heal it knows, not from its rotation:
+#                     this is the only place that makes it forget a spell. The spell keeps all its
+#                     other effects, it merely stops counting as a heal. Read once at startup, when
+#                     each class's spell table is built, so it costs nothing in play.
+#                     Needs a restart, not .reload config.
+#        Default:     Nanobot Reconstruction (Tinker) - its own description reads "healing for 0",
+#                     and measurement agrees: 4724 mana for 76 points of useful healing.
+#                     Leave empty to set nothing aside.
+#
+
+AiPlayerbot.CoaHealsExcluded = "Nanobot Reconstruction"
+
+#
+#    AiPlayerbot.CoaLfgBots
+#        Description: Bots answer players looking for a group in chat. A player who says
+#                     "lfg bot heal", "lfg bot tank", "lfg bot dps", "lfg bot heal tank dps" or just
+#                     "lfg bot" (every role) in a listened channel is whispered by free bots of its
+#                     faction able to play those roles, with their class, specialization and level.
+#                     The player invites the ones it wants; an invited bot joins at once and
+#                     teleports next to the player (into its dungeon if need be). For realms where
+#                     /who hides the bots. Read again by .reload config, as are the settings below.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLfgBots = 1
+
+#    AiPlayerbot.CoaLfgChannels
+#        Description: Comma separated names of the chat channels listened to. A channel whose name
+#                     starts with one of them is heard: "General" covers "General - Elwynn Forest".
+#                     The client's channel numbers (/1, /2...) differ from player to player, the names
+#                     do not. Usual names: General, Trade, LocalDefense, LookingForGroup, World.
+#        Default:     General,LookingForGroup,World
+
+AiPlayerbot.CoaLfgChannels = Zone,Newcomers,World
+
+#    AiPlayerbot.CoaLfgRequireBotWord
+#        Description: Whether the request must contain the word "bot". Off, "lfg heal" said by a
+#                     player looking for other players is answered by bots too.
+#        Default:     1 - "lfg bot heal" only
+#                     0 - "lfg heal" as well
+
+AiPlayerbot.CoaLfgRequireBotWord = 1
+
+#    AiPlayerbot.CoaLfgTankOffers, AiPlayerbot.CoaLfgHealOffers, AiPlayerbot.CoaLfgDpsOffers
+#        Description: How many bots whisper an offer for each role asked for (0 to 5). Different
+#                     classes when there are some.
+#        Default:     2, 2, 3
+
+AiPlayerbot.CoaLfgTankOffers = 2
+AiPlayerbot.CoaLfgHealOffers = 2
+AiPlayerbot.CoaLfgDpsOffers = 3
+
+#    AiPlayerbot.CoaLfgLevelRange
+#        Description: A bot within this many levels of the player keeps its level and gear; one
+#                     further away is rebuilt at the player's level (gear, talents, spells) before it
+#                     whispers.
+#        Default:     2
+
+AiPlayerbot.CoaLfgLevelRange = 2
+
+#    AiPlayerbot.CoaLfgOfferMinutes
+#        Description: How long an offer holds: meanwhile the bot is offered to nobody else and
+#                     accepts that player's invitation. Afterwards it goes back to its own life.
+#        Default:     5
+
+AiPlayerbot.CoaLfgOfferMinutes = 5
+
+#    AiPlayerbot.CoaLfgCooldown
+#        Description: Seconds before the same player is answered again for the same role.
+#        Default:     30
+
+AiPlayerbot.CoaLfgCooldown = 15
+
+#    AiPlayerbot.CoaLfgAnnounceMinutes
+#        Description: Every so many minutes, a message to the whole realm on how to ask the bots.
+#        Default:     10
+#                     0 - never
+
+AiPlayerbot.CoaLfgAnnounceMinutes = 10
+
+#    AiPlayerbot.CoaLfgAnnounceText
+#        Description: That message. Empty: "[Bots] Need a healer, a tank or damage? Say lfg bot
+#                     heal, lfg bot tank, lfg bot dps or lfg bot heal tank dps in the General or
+#                     LookingForGroup channel, then invite the bots that whisper you."
+#        Default:     (empty)
+
+AiPlayerbot.CoaLfgAnnounceText =
+
 # Quality a looted item must reach to be written to the "playerbots.loot" logger:
 # 3 rare (blue), 4 epic, 5 legendary. Nothing is written unless worldserver.conf
 # points that logger at an appender, and only bots are ever logged.
@@ -2661,8 +2807,13 @@ AiPlayerbot.RandomBotSayWithoutMaster = 0
 # buff cast, out of mana...) and random bots answering in a whisper what a player writes in a channel.
 # At 0 they keep quiet; answers to a player's commands and questions, and a bot's hello and goodbye,
 # are always sent. RandomBotTalk (bots talking in the public channels) is a separate setting.
-# Default: 1 (enabled)
-AiPlayerbot.BotsWhisperPublic = 1
+# Default: 0 (disabled) - a word in a channel used to bring a wall of whispers.
+AiPlayerbot.BotsWhisperPublic = 0
+
+# How many of the bots that hear a player write in a channel may answer him, in percent. They all
+# hear him, so a high value buries the player under answers; a bot called by its name still answers.
+# Default: 5
+AiPlayerbot.PublicReplyChance = 5
 
 #
 #

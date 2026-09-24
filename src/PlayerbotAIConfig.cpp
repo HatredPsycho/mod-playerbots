@@ -298,7 +298,8 @@ bool PlayerbotAIConfig::Initialize()
     randomBotEmote = sConfigMgr->GetOption<bool>("AiPlayerbot.RandomBotEmote", false);
     randomBotSuggestDungeons = sConfigMgr->GetOption<bool>("AiPlayerbot.RandomBotSuggestDungeons", true);
     randomBotSayWithoutMaster = sConfigMgr->GetOption<bool>("AiPlayerbot.RandomBotSayWithoutMaster", false);
-    botsWhisperPublic = sConfigMgr->GetOption<bool>("AiPlayerbot.BotsWhisperPublic", true);
+    botsWhisperPublic = sConfigMgr->GetOption<bool>("AiPlayerbot.BotsWhisperPublic", false);
+    publicReplyChance = sConfigMgr->GetOption<uint32>("AiPlayerbot.PublicReplyChance", 5);
 
     // broadcastChanceMaxValue is used in urand(1, broadcastChanceMaxValue) for broadcasts,
     // lowering it will increase the chance, setting it to 0 will disable broadcasts
@@ -731,6 +732,29 @@ bool PlayerbotAIConfig::Initialize()
     coaSpecRotations = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSpecRotations", false);
     coaHealerManaReserve = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaHealerManaReserve", 35);
     coaCasterManaReserve = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaCasterManaReserve", 15);
+    coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", true);
+    coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
+    coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
+    coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
+    coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
+    coaExcludedSpecializations.clear();
+    LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "51,101"),
+                              coaExcludedSpecializations);
+    coaOffensiveHealerSpecs.clear();
+    LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaOffensiveHealerSpecs", "40"),
+                              coaOffensiveHealerSpecs);
+    // Des soins que la mesure a trouvés vides. Un bot compose sa trousse de soin à partir de tout
+    // ce qu'il connaît, pas à partir de sa rotation : retirer la ligne de rotation ne suffit pas à
+    // lui faire oublier le sort, il faut le lui refuser ici. La liste est lue une seule fois, au
+    // démarrage, et appliquée quand la table des sorts est construite : en jeu, elle ne coûte rien.
+    coaHealsExcluded.clear();
+    {
+        std::vector<std::string> names;
+        LoadListString<std::vector<std::string>>(
+            sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaHealsExcluded", "Nanobot Reconstruction"), names);
+        for (std::string const& name : names)
+            coaHealsExcluded.insert(name);
+    }
     lootLogMinQuality = sConfigMgr->GetOption<uint32>("AiPlayerbot.LootLogMinQuality", ITEM_QUALITY_RARE);
     autoLearnQuestSpells = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoLearnQuestSpells", true);
     autoTeleportForLevel = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoTeleportForLevel", false);
