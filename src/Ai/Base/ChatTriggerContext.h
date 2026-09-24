@@ -33,6 +33,7 @@ public:
         creators["aura"] = &ChatTriggerContext::aura;
         creators["drop"] = &ChatTriggerContext::drop;
         creators["share"] = &ChatTriggerContext::share;
+        creators["share gear"] = &ChatTriggerContext::share_gear;
         creators["q"] = &ChatTriggerContext::q;
         creators["ll"] = &ChatTriggerContext::ll;
         creators["ss"] = &ChatTriggerContext::ss;
@@ -248,6 +249,7 @@ private:
     static Trigger* ss(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "ss"); }
     static Trigger* drop(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "drop"); }
     static Trigger* share(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "share"); }
+    static Trigger* share_gear(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "share gear"); }
     static Trigger* quests(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "quests"); }
     static Trigger* stats(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "stats"); }
     static Trigger* leave(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "leave"); }
