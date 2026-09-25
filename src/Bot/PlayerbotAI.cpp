@@ -696,7 +696,10 @@ void PlayerbotAI::HandleCommand(uint32 type, std::string const& text, Player& fr
     {
         Event event("do", "", &fromPlayer);
         std::string action = filtered.substr(filtered.find(" ") + 1);
-        DoSpecificAction(action, event);
+        // A sentence in party chat that happens to begin with "do" is not a failed order: without
+        // this, "do you remember the fight?" answers every player with one "unknown action" per bot.
+        // A whisper still reports it, because there the word can only have been meant as one.
+        DoSpecificAction(action, event, type != CHAT_MSG_WHISPER);
     }
 
     if (ChatHelper::parseValue("command", filtered).substr(0, 3) == "do ")
