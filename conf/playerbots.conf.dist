@@ -149,8 +149,14 @@ AiPlayerbot.GroupInvitationPermission = 2
 # 1 = enabled (prevents bots from automatically leaving the group)
 AiPlayerbot.KeepAltsInGroup = 0
 
-# Auto-login all player alts as altbots on player login
+# Log the player's own alts in as altbots on login. The group the player left is restored first,
+# so its members come back in the shape they had - a party stays a party, a raid stays a raid.
 AiPlayerbot.BotAutologin = 0
+
+# How many alts to log in when there is no saved group to go by, the most recently played first.
+# 0 brings in every character of the account, which forms a raid once there are more than five.
+# Default: 0 (all)
+AiPlayerbot.BotAutologinCount = 0
 
 # Allow/deny inviting altbots from the player's account
 AiPlayerbot.AllowAccountBots = 1
