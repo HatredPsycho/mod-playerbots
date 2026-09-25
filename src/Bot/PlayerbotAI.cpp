@@ -1440,6 +1440,29 @@ int32 PlayerbotAI::CalculateGlobalCooldown(uint32 spellid)
 
 void PlayerbotAI::HandleMasterIncomingPacket(WorldPacket const& packet)
 {
+    // Talking to a quest giver is the master asking as surely as a typed order is: what the bot
+    // reports back belongs to that click. Without this the quest lines - which quests it can take,
+    // which it just handed in - are dropped as unasked-for chatter wherever BotsWhisperPublic is
+    // off. Spells and movement are left out on purpose; those are the chatter that setting exists
+    // to stop.
+    switch (packet.GetOpcode())
+    {
+        case CMSG_QUESTGIVER_HELLO:
+        case CMSG_GOSSIP_HELLO:
+        case CMSG_GAMEOBJ_USE:
+        case CMSG_QUESTGIVER_QUERY_QUEST:
+        case CMSG_QUESTGIVER_ACCEPT_QUEST:
+        case CMSG_QUESTGIVER_COMPLETE_QUEST:
+        case CMSG_QUEST_CONFIRM_ACCEPT:
+        case CMSG_PUSHQUESTTOPARTY:
+            if (Player* master = GetMaster())
+                if (!GET_PLAYERBOT_AI(master))
+                    lastCommandAt = time(nullptr);
+            break;
+        default:
+            break;
+    }
+
     masterIncomingPacketHandlers.AddPacket(packet);
 }
 
