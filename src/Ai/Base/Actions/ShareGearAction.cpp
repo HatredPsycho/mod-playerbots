@@ -50,8 +50,10 @@ namespace
 
 float ShareGearAction::Gain(Player* player, Item* item)
 {
+    // swap has to be true: FindEquipSlot only reports a slot that is still empty otherwise, and a
+    // geared player has none, so every candidate would look unable to wear anything.
     uint16 dest = 0;
-    if (player->CanEquipItem(NULL_SLOT, dest, item, false) != EQUIP_ERR_OK)
+    if (player->CanEquipItem(NULL_SLOT, dest, item, true) != EQUIP_ERR_OK)
         return 0.0f;
 
     StatsWeightCalculator calculator(player);
