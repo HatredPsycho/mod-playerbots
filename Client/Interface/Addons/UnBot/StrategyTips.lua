@@ -1,0 +1,71 @@
+
+ClassStrategyCO = {};
+ClassStrategyNC = {};
+
+-- Adds the "coa" strategy (Conquest of Azeroth classes, 12 to 32).
+-- Format: {command sent to the bot, button label, tooltip description}.
+function InitializeStrategy()
+	ClassStrategyCO = {
+		[1] = {"coa","CoA rotation","Uses Conquest of Azeroth class abilities (classes 12 to 32). Enable it for every CoA class bot."},
+		[2] = {"grind","Autonomous","Without a target in combat, the bot looks for one in its line of sight."},
+		[3] = {"attack weak","Free attack","In combat, the bot picks its targets freely."},
+		[4] = {"attack force","Passive attack","In combat, the bot picks no target: you must designate it."},
+		[5] = {"tank","Single-target tank","The bot holds one monster at a time, then moves to the next."},
+		[6] = {"tank aoe","Multi-target tank","The bot tries to hold every monster of the fight."},
+		[7] = {"tank assist","Tank assist","The bot attacks the group tank's target."},
+		[8] = {"dps","Single-target DPS","The bot hits one monster at a time, then moves to the next."},
+		[9] = {"dps aoe","AoE DPS","Against several monsters, the bot uses its area abilities."},
+		[10] = {"dps assist","DPS assist","The bot helps kill the group's monsters."},
+		[11] = {"dps debuff","Damage over time","The bot applies its damage over time effects."},
+		[12] = {"heal","Healing","The bot heals wounded group members and stops dealing damage."},
+		[13] = {"aoe","Area attacks","The bot uses its area damage abilities."},
+		[14] = {"flee","Keep distance","When its target reaches melee range, the bot backs off."},
+		[15] = {"fire","Fire","The mage uses Fire spells."},
+		[16] = {"fire aoe","Fire AoE","Against several monsters, the mage uses area Fire spells."},
+		[17] = {"frost","Frost","The mage uses Frost spells."},
+		[18] = {"frost aoe","Frost AoE","Against several monsters, the mage uses area Frost spells."},
+		[19] = {"arcane","Arcane","The mage uses Arcane spells."},
+		[20] = {"threat","Threat control","The bot holds back damage to avoid pulling aggro."},
+		[21] = {"conserve mana","Save mana","The bot saves mana, at the cost of lower damage."},
+		[22] = {"shadow","Shadow","The warlock or priest uses Shadow spells."},
+		[23] = {"shadow aoe","Shadow AoE","Against several monsters, area Shadow spells (warlock, priest)."},
+		[24] = {"shadow debuff","Shadow over time","Applies Shadow damage over time effects (warlock, priest)."},
+		[25] = {"melee","Melee","The bot stays in melee range of its target (shaman)."},
+		[26] = {"melee aoe","Melee AoE","The bot hits several targets in melee (shaman)."},
+		[27] = {"rshadow","Shadow resist aura","The paladin enables Shadow Resistance Aura."},
+		[28] = {"rfrost","Frost resist aura","The paladin enables Frost Resistance Aura."},
+		[29] = {"rfire","Fire resist aura","The paladin enables Fire Resistance Aura."},
+		[30] = {"barmor","Devotion Aura","The paladin enables Devotion Aura."},
+		[31] = {"bspeed","Crusader Aura","The paladin enables Crusader Aura (mount speed)."},
+		[32] = {"rnature","Nature resist","The hunter enables Aspect of the Wild."},
+		[33] = {"bhealth","Health buffs","The bot gives its health buffs."},
+		[34] = {"bmana","Support buffs","The bot gives its support buffs."},
+		[35] = {"bdps","Offensive buffs","The bot gives its offensive buffs."},
+		[36] = {"bear","Bear form","The druid fights in bear form."},
+		[37] = {"cat","Cat form","The druid fights in cat form."},
+		[38] = {"cat aoe","Cat AoE","The druid hits several targets in cat form."},
+		[39] = {"caster","Ranged spells","The bot fights with ranged spells (druid, shaman)."},
+		[40] = {"caster aoe","Area spells","Against several monsters, ranged area spells (druid, shaman)."},
+		[41] = {"caster debuff","Spells over time","Applies ranged damage over time effects (druid, shaman)."},
+		[42] = {"totems","Totems","The shaman places totems."},
+		[43] = {"loot","Loot","In combat, the bot loots nearby corpses."},
+		[44] = {"naxx","Naxxramas","Behaviour tuned for Naxxramas (in that dungeon only)."},
+	};
+
+	ClassStrategyNC = {
+		[1] = {"grind","Autonomous","Out of combat, the bot looks for monsters to attack in its line of sight."},
+		[2] = {"move random","Roam","Out of combat, the bot wanders around."},
+		[3] = {"attack weak","Free attack","Out of combat, the bot picks its target freely when a fight starts."},
+		[4] = {"attack force","Passive attack","Out of combat, the bot attacks nothing: you must designate the target."},
+		[5] = {"bhealth","Health buffs","Out of combat, the bot gives its health buffs."},
+		[6] = {"bmana","Support buffs","Out of combat, the bot gives its support buffs."},
+		[7] = {"bdps","Offensive buffs","Out of combat, the bot gives its offensive buffs."},
+		[8] = {"emote","Emotes","Out of combat, the bot does emotes from time to time."},
+		[9] = {"food","Rest","After combat, the bot eats and drinks if needed."},
+		[10] = {"loot","Loot","After combat, the bot loots nearby corpses."},
+		[11] = {"stay","Stay","Out of combat, the bot stays put."},
+		[12] = {"follow","Follow","Out of combat, the bot follows you."},
+		[13] = {"quest","Quests","Out of combat, the bot accepts and turns in quests of the NPC you interact with."},
+		[14] = {"naxx","Naxxramas","Behaviour tuned for Naxxramas (in that dungeon only)."},
+	};
+end
