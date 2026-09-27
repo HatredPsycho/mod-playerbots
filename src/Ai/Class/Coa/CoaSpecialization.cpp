@@ -22,6 +22,8 @@
 #include "Random.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedDefines.h"
+#include "SpellAuras.h"
+#include "SpellInfo.h"
 #include "World.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
@@ -519,6 +521,28 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
     return chosen;
 }
 
+// Takes off the tank stances a bot wears (its own lasting auras raising its threat): one recruited
+// to heal or deal damage kept the one it wore before, and pulled the monsters off the tank.
+void DropThreatStances(Player* bot)
+{
+    std::vector<uint32> worn;
+    for (auto const& [id, application] : bot->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        SpellInfo const* info = aura->GetSpellInfo();
+        if (aura->GetCasterGUID() != bot->GetGUID() || info->IsPassive() || aura->GetMaxDuration() >= 0)
+            continue;
+        for (SpellEffectInfo const& effect : info->Effects)
+            if (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_THREAT && effect.CalcValue() > 0)
+            {
+                worn.push_back(info->Id);
+                break;
+            }
+    }
+    for (uint32 spellId : worn)
+        bot->RemoveAurasDueToSpell(spellId);
+}
+
 bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosenFits, uint32 levelTolerance,
                        std::string& message)
 {
@@ -569,6 +593,9 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
 
     // Points for every level it just skipped.
     ApplyCoaTalents(chosen);
+
+    if (role != CoaRole::Tank)
+        DropThreatStances(chosen);
 
     return true;
 }
