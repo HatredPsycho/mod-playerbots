@@ -1579,45 +1579,8 @@ void PlayerbotMgr::HandleCommand(uint32 type, std::string const text)
     }
 }
 
-// A quest the player shares with the group is taken at once by the group's bots on the player's map to
-// which the core offered it (it set them the player as "divider"), the answer going back to the player.
-// The trigger path ("quest share") never took it: in game the bots neither accepted nor declined, the
-// dungeon finder's ones included (jealous-sound #5074, 27/09).
-void PlayerbotMgr::AcceptSharedQuest(WorldPacket const& packet)
-{
-    Player* sharer = GetMaster();
-    Group* group = sharer ? sharer->GetGroup() : nullptr;
-    if (!group)
-        return;
-
-    WorldPacket copy(packet);
-    copy.rpos(0);
-    uint32 questId = 0;
-    copy >> questId;
-    Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-    if (!quest)
-        return;
-
-    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-    {
-        Player* bot = ref->GetSource();
-        if (!bot || bot == sharer || !GET_PLAYERBOT_AI(bot) || bot->GetMap() != sharer->GetMap() ||
-            bot->GetDivider() != sharer->GetGUID())
-            continue;
-
-        bot->SetDivider(ObjectGuid::Empty);
-        if (!bot->CanTakeQuest(quest, false) || !bot->CanAddQuest(quest, false))
-            continue;
-
-        sharer->SendPushToPartyResponse(bot, QUEST_PARTY_MSG_ACCEPT_QUEST);
-        bot->AddQuestAndCheckCompletion(quest, sharer);
-    }
-}
-
 void PlayerbotMgr::HandleMasterIncomingPacket(WorldPacket const& packet)
 {
-    if (packet.GetOpcode() == CMSG_PUSHQUESTTOPARTY)
-        AcceptSharedQuest(packet);
     for (PlayerBotMap::const_iterator it = GetPlayerBotsBegin(); it != GetPlayerBotsEnd(); ++it)
     {
         Player* const bot = it->second;
