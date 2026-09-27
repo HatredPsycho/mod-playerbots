@@ -400,3 +400,48 @@ DELETE FROM `playerbots_custom_strategy`
 --       avant : ranger-farstrider 'can cast::Falconstrike>cast::Falconstrike!82'
 DELETE FROM `playerbots_custom_strategy`
  WHERE `name` LIKE 'ranger-%' AND `action_line` LIKE '%::Falconstrike!%';
+
+-- 18. Starcaller Moon Priest soigne en frappant (25/09/2026). Chez le joueur (7 joueurs, 8 389 lancers),
+--     Lunar Eclipse, Lunar Lance et Moonflow declenchent Aspect of the Goddess et Moonwater sur les
+--     allies : la moitie de ses soins. Nos bots gardaient Lunar Eclipse pour l'urgence et Lunar Lance en
+--     priorite 1, et ne soignaient presque pas. La rotation entiere est celle mesuree sur l'arene de test
+--     (avec CoaOffensiveHealerSpecs = 40,43 et le tir sans baguette). Rejouable : effacee puis reecrite.
+DELETE FROM `playerbots_custom_strategy` WHERE `name` = 'starcaller-moon-priest';
+INSERT INTO `playerbots_custom_strategy` (`owner`, `name`, `idx`, `action_line`) VALUES
+    (0, 'starcaller-moon-priest', 1, 'party member critical health>cast heal party::Moonwell Splash!92'),
+    (0, 'starcaller-moon-priest', 2, 'party member critical health>cast::Lunar Eclipse!91'),
+    (0, 'starcaller-moon-priest', 3, 'medium group heal setting>cast heal party::Prayer of Elune!90'),
+    (0, 'starcaller-moon-priest', 4, 'medium group heal setting>cast::Lunar Eclipse!89'),
+    (0, 'starcaller-moon-priest', 5, 'medium group heal setting>cast heal party::Moonflow!88'),
+    (0, 'starcaller-moon-priest', 6, 'buff missing::Aspect of the Goddess>cast buff::Aspect of the Goddess!87'),
+    (0, 'starcaller-moon-priest', 7, 'cure party::Elune''s Purification>cast cure party::Elune''s Purification!86'),
+    (0, 'starcaller-moon-priest', 8, 'cure party::Prayer of Elune>cast cure party::Prayer of Elune!85'),
+    (0, 'starcaller-moon-priest', 9, 'party member medium health>cast heal party::Touch of Moonlight!84'),
+    (0, 'starcaller-moon-priest', 10, 'party member low health>cast heal party::Hand of Elune!83'),
+    (0, 'starcaller-moon-priest', 11, 'low mana>cast::Celestial Awakening!82'),
+    (0, 'starcaller-moon-priest', 12, 'low mana>cast::Moon Arrow!81'),
+    (0, 'starcaller-moon-priest', 13, 'buff missing::Reverse Magic>cast buff::Reverse Magic!30'),
+    (0, 'starcaller-moon-priest', 14, 'can cast::Stellar Convergence>cast::Stellar Convergence!77'),
+    (0, 'starcaller-moon-priest', 17, 'buff missing::Celestial Form>cast buff::Celestial Form!26'),
+    (0, 'starcaller-moon-priest', 18, 'can cast::Moonwell>cast::Moonwell!21'),
+    (0, 'starcaller-moon-priest', 19, 'buff missing::Greater Arcane Protection>cast buff party::Greater Arcane Protection!23'),
+    (0, 'starcaller-moon-priest', 20, 'buff missing::Greater Celestial Mind>cast buff party::Greater Celestial Mind!22'),
+    (0, 'starcaller-moon-priest', 21, 'can cast::Tidal Rebirth>cast::Tidal Rebirth!20'),
+    (0, 'starcaller-moon-priest', 22, 'can cast::Grace of the Moon>cast::Grace of the Moon!19'),
+    (0, 'starcaller-moon-priest', 23, 'can cast::Arcane Protection>cast::Arcane Protection!16'),
+    (0, 'starcaller-moon-priest', 25, 'can cast::Elune''s Purification>cast::Elune''s Purification!14'),
+    (0, 'starcaller-moon-priest', 27, 'can cast::Eclipse of Fury>cast::Eclipse of Fury!12'),
+    (0, 'starcaller-moon-priest', 29, 'can cast::Celestial Cleave>cast::Celestial Cleave!11'),
+    (0, 'starcaller-moon-priest', 30, 'can cast::Celestial Awakening>cast::Celestial Awakening!8'),
+    (0, 'starcaller-moon-priest', 31, 'buff missing::Lunar Eclipse>cast buff::Lunar Eclipse!10'),
+    (0, 'starcaller-moon-priest', 32, 'can cast::Stellar Drift>cast::Stellar Drift!7'),
+    (0, 'starcaller-moon-priest', 33, 'can cast::Celestial Mind>cast::Celestial Mind!5'),
+    (0, 'starcaller-moon-priest', 34, 'can cast::Huntress Shot>cast::Huntress Shot!80'),
+    (0, 'starcaller-moon-priest', 35, 'can cast::Moon Arrow>cast::Moon Arrow!3'),
+    (0, 'starcaller-moon-priest', 36, 'can cast::Celestial Strike>cast::Celestial Strike!29'),
+    (0, 'starcaller-moon-priest', 37, 'can cast::Starsunder>cast::Starsunder!2'),
+    (0, 'starcaller-moon-priest', 38, 'debuff missing::Lunar Lance>cast debuff::Lunar Lance!76'),
+    (0, 'starcaller-moon-priest', 39, 'can cast::Auto Shot>cast::Auto Shot!3'),
+    (0, 'starcaller-moon-priest', 40, 'can cast::Wand>cast::Wand!1'),
+    (0, 'starcaller-moon-priest', 41, 'can cast::Lunar Eclipse>cast::Lunar Eclipse!79'),
+    (0, 'starcaller-moon-priest', 42, 'can cast::Lunar Lance>cast::Lunar Lance!78');
