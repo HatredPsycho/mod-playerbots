@@ -525,8 +525,19 @@ void PlayerbotAI::RejoinLfgDungeon()
         bot->ResurrectPlayer(1.0f);
         bot->SpawnCorpseBones();
     }
-    if (bot->IsAlive() && !bot->IsFalling())
-        sLFGMgr->TeleportPlayer(bot, false);
+    if (!bot->IsAlive())
+        return;
+
+    // Whatever it was doing on its own stops first: a dungeon finder bot kept roaming the world, the
+    // core counts a slope it walks down as a fall, and the teleport was refused every time (Error 2).
+    if (bot->IsFalling() || bot->HasUnitState(UNIT_STATE_JUMPING))
+    {
+        bot->StopMoving();
+        bot->GetMotionMaster()->Clear();
+        bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
+        bot->ClearUnitState(UNIT_STATE_JUMPING);
+    }
+    sLFGMgr->TeleportPlayer(bot, false);
 }
 
 void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal)

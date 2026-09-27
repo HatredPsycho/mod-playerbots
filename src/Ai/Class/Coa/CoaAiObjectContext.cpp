@@ -654,6 +654,22 @@ bool OnSameInstance(Player* a, Player* b)
     return a->IsInWorld() && b->IsInWorld() && a->GetMapId() == b->GetMapId() && a->GetInstanceId() == b->GetInstanceId();
 }
 
+// The player the group plays for: the bot's master, or, for a bot of the dungeon finder (it has none),
+// the real player of its group on its instance. The tank of a dungeon finder group never pulled.
+Player* GroupPlayer(PlayerbotAI* botAI, Player* bot)
+{
+    Player* master = botAI->GetMaster();
+    if (master && !GET_PLAYERBOT_AI(master))
+        return master;
+    if (Group* group = bot->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->GetSource())
+                if (member != bot && !GET_PLAYERBOT_AI(member) && OnSameInstance(bot, member))
+                    return member;
+    return nullptr;
+}
+
+
 // The living tank of the bot's group on its own map instance, other than the bot itself.
 Player* GroupTank(Player* bot)
 {
@@ -1638,8 +1654,7 @@ public:
         if (said || !SmartHeal() || bot->getPowerType() != POWER_MANA || GetCoaRole(bot) != CoaRole::Heal ||
             !bot->IsInCombat() || bot->GetPowerPct(POWER_MANA) >= 20.0f)
             return false;
-        Player* master = botAI->GetMaster();
-        return master && !GET_PLAYERBOT_AI(master) && bot->GetGroup();
+        return bot->GetGroup() && GroupPlayer(botAI, bot);
     }
 };
 
@@ -2167,8 +2182,8 @@ public:
         if (!sPlayerbotAIConfig.coaSmartTank || !PlayerbotAI::IsTank(bot) || bot->IsInCombat() || !bot->IsAlive() ||
             !bot->GetMap()->IsDungeon())
             return false;
-        Player* master = botAI->GetMaster();
-        if (!master || GET_PLAYERBOT_AI(master) || !OnSameInstance(bot, master))
+        Player* master = GroupPlayer(botAI, bot);
+        if (!master || !OnSameInstance(bot, master))
             return false;
         time_t const last = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->lastAutoPull;
         return time(nullptr) - last >= AutoPullPause && GroupReadyToPull(bot) && NextPull(botAI, bot, master);
@@ -2182,7 +2197,7 @@ public:
 
     bool Execute(Event /*event*/) override
     {
-        Player* master = botAI->GetMaster();
+        Player* master = GroupPlayer(botAI, bot);
         Unit* target = master ? NextPull(botAI, bot, master) : nullptr;
         if (!target)
             return false;
@@ -2408,17 +2423,30 @@ public:
         creators["coa ranged"] = &CoaStrategyFactoryInternal::coa_ranged;
         creators["coa tank"] = &CoaStrategyFactoryInternal::coa_tank;
         creators["coa heal"] = &CoaStrategyFactoryInternal::coa_heal;
-        creators["coa buff"] = &CoaStrategyFactoryInternal::coa_buff;
-        creators["coa auto pull"] = &CoaStrategyFactoryInternal::coa_auto_pull;
-        creators["nc"] = &CoaStrategyFactoryInternal::nc;
     }
 
 private:
     static Strategy* coa(PlayerbotAI* botAI) { return new CoaCombatStrategy(botAI); }
-    static Strategy* coa_auto_pull(PlayerbotAI* botAI) { return new CoaAutoPullStrategy(botAI); }
     static Strategy* coa_ranged(PlayerbotAI* botAI) { return new CoaCombatStrategy(botAI, true); }
     static Strategy* coa_tank(PlayerbotAI* botAI) { return new CoaTankStrategy(botAI); }
     static Strategy* coa_heal(PlayerbotAI* botAI) { return new CoaHealStrategy(botAI); }
+};
+
+// The out-of-combat strategies, which a bot holds together. In the factory above their names were
+// siblings of one another: adding "coa auto pull" took "coa buff" off every tank, and "nc" then took
+// the auto pull off (a dungeon finder tank never pulled, 27/09).
+class CoaNonCombatStrategyFactoryInternal : public NamedObjectContext<Strategy>
+{
+public:
+    CoaNonCombatStrategyFactoryInternal() : NamedObjectContext<Strategy>(false, false)
+    {
+        creators["coa buff"] = &CoaNonCombatStrategyFactoryInternal::coa_buff;
+        creators["coa auto pull"] = &CoaNonCombatStrategyFactoryInternal::coa_auto_pull;
+        creators["nc"] = &CoaNonCombatStrategyFactoryInternal::nc;
+    }
+
+private:
+    static Strategy* coa_auto_pull(PlayerbotAI* botAI) { return new CoaAutoPullStrategy(botAI); }
     static Strategy* coa_buff(PlayerbotAI* botAI) { return new CoaBuffStrategy(botAI); }
     static Strategy* nc(PlayerbotAI* botAI) { return new CoaNonCombatStrategy(botAI); }
 };
@@ -2621,6 +2649,7 @@ void CoaAiObjectContext::BuildSharedStrategyContexts(SharedNamedObjectContextLis
 {
     AiObjectContext::BuildSharedStrategyContexts(strategyContexts);
     strategyContexts.Add(new CoaStrategyFactoryInternal());
+    strategyContexts.Add(new CoaNonCombatStrategyFactoryInternal());
 }
 
 void CoaAiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Action>& actionContexts)

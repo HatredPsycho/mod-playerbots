@@ -392,3 +392,11 @@ UPDATE `playerbots_custom_strategy`
 --               tinker-mechanics  'can cast::Parachute Pack>cast::Parachute Pack!6'
 DELETE FROM `playerbots_custom_strategy`
  WHERE `name` LIKE 'tinker-%' AND `action_line` LIKE '%::Parachute Pack!%';
+
+-- 17. Falconstrike (Ranger Farstrider) n'est pas un sort a lancer : chez le joueur, un Quick Shot sur
+--     cinq (ou le suivant d'un Horn) se change en Falconstrike, qui appelle un War Falcon. Le bot connait
+--     le sort et la rotation le lancait des qu'il le pouvait, sans temps de recharge : un faucon a
+--     chaque lancer, une nuee autour du bot (vu en jeu le 27/09). Quick Shot reste et fait le reste.
+--       avant : ranger-farstrider 'can cast::Falconstrike>cast::Falconstrike!82'
+DELETE FROM `playerbots_custom_strategy`
+ WHERE `name` LIKE 'ranger-%' AND `action_line` LIKE '%::Falconstrike!%';
