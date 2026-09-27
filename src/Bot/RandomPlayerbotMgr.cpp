@@ -2646,6 +2646,9 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
 
     RandomPlayerbotFactory::AssignBotToArenaTeam(bot);
 
+    // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
+    PlayerbotFactory::DressNakedCoaStarter(bot);
+
     if (sPlayerbotAIConfig.randomBotFixedLevel)
     {
         bot->SetPlayerFlag(PLAYER_FLAGS_NO_XP_GAIN);

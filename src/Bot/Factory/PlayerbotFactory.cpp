@@ -1661,7 +1661,7 @@ void PlayerbotFactory::ClearEverything()
 
 void PlayerbotFactory::ClearSpells()
 {
-    // Conquest of Azeroth classes (12 and above) get their abilities from the CoA core,
+    // Conquest of Azeroth classes (12 and above) get their abilities from mod-ascension-compat,
     // which grants them at login and reconciles them on every level change. Wiping them here
     // leaves the bot with nothing to cast until its next login, since InitClassSpells only
     // knows the vanilla classes.
@@ -2088,6 +2088,9 @@ void PlayerbotFactory::AddItemStats(uint32 mod, uint8& sp, uint8& ap, uint8& tan
 
 bool PlayerbotFactory::CanEquipWeapon(ItemTemplate const* proto)
 {
+    if (proto->SubClass == ITEM_SUBCLASS_WEAPON_WAND && CoaSpecNeedsShootingWeapon(bot))
+        return false;
+
     switch (bot->getClass())
     {
         case CLASS_PRIEST:
@@ -2324,7 +2327,7 @@ void Shuffle(std::vector<uint32>& items)
 //     }
 // }
 
-// A new Conquest of Azeroth character gets its starting kit from the CoA core, which
+// A new Conquest of Azeroth character gets its starting kit from mod-ascension-compat, which
 // replaces the CharStartOutfit.dbc outfit at creation. Rebuilding a low-level CoA bot from that
 // outfit instead left it without any equipment after the randomizer cleared its items.
 static void StoreCoaStarterItems(Player* bot)
@@ -2353,6 +2356,18 @@ static void StoreCoaStarterItems(Player* bot)
         if (bot->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry.ItemId, entry.Count) == EQUIP_ERR_OK)
             bot->StoreNewItem(dest, entry.ItemId, true);
     }
+}
+
+void PlayerbotFactory::DressNakedCoaStarter(Player* bot)
+{
+    if (bot->GetLevel() >= 5 || !IsAscensionCustomClassId(bot->getClass()))
+        return;
+
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        if (bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            return;
+
+    StoreCoaStarterItems(bot);
 }
 
 void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
