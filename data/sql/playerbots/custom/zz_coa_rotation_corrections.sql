@@ -383,3 +383,12 @@ UPDATE `playerbots_custom_strategy`
  WHERE `name` IN ('cultist-dreadnought', 'felsworn-tyrant', 'knight-of-xoroth-defiance', 'primalist-mountain-king',
                   'starcaller-moon-guard', 'sun-cleric-seraphim', 'templar-oathkeeper', 'witch-hunter-black-knight')
    AND `action_line` REGEXP '^buff missing::(Agonizing Presence|Twilight Domain|Demonic Power|Heart of the Mountain|Lunar Authority|Sol Invictus|Divine Stand|Night''s Watch)>';
+
+-- 16. Parachute Pack (Tinker) equipe le groupe de parachutes : de l'utilitaire de voyage, pas un sort
+--     de combat. Les trois rotations le lancaient, et les joueurs voyaient les bots en parachute
+--     (Discord, 27/09).
+--       avant : tinker-demolition 'can cast::Parachute Pack>cast::Parachute Pack!6'
+--               tinker-invention  'can cast::Parachute Pack>cast::Parachute Pack!10'
+--               tinker-mechanics  'can cast::Parachute Pack>cast::Parachute Pack!6'
+DELETE FROM `playerbots_custom_strategy`
+ WHERE `name` LIKE 'tinker-%' AND `action_line` LIKE '%::Parachute Pack!%';
