@@ -286,6 +286,15 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
         }
     }
 
+    // An off-hand item is no upgrade while a two-handed weapon holds both hands: the empty off-hand
+    // slot made it look like one (a Felsworn with a staff rolled for an Aboriginal Rod, jealous-sound #5081).
+    if (dstSlot == EQUIPMENT_SLOT_OFFHAND && !bot->CanTitanGrip())
+    {
+        Item* mainHand = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_MAINHAND);
+        if (mainHand && mainHand->GetTemplate()->InventoryType == INVTYPE_2HWEAPON)
+            return ITEM_USAGE_NONE;
+    }
+
     for (uint8 i = 0; i < possibleSlots; i++)
     {
         bool shouldEquipInSlot = shouldEquip;

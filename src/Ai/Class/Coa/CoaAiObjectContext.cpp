@@ -1562,6 +1562,24 @@ public:
     }
 };
 
+// A healer out of healing reach of the tank or out of its sight, in a fight: no heal of it can land
+// there. Its rotation outranks "coa far from tank" (priorities 30 to 92 against 18), so a Cultist
+// healer left on the Deadmines platform kept casting Gaze of C'Thun and wanding the whole boss fight
+// (jealous-sound #5094). This one outranks the rotation.
+class CoaOutOfHealingReachTrigger : public Trigger
+{
+public:
+    CoaOutOfHealingReachTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa out of healing reach") {}
+
+    bool IsActive() override
+    {
+        if (!SmartHeal() || GetCoaRole(bot) != CoaRole::Heal || !(bot->IsInCombat() || GroupFighting(bot)))
+            return false;
+        Player* tank = GroupTank(bot);
+        return tank && (bot->GetDistance(tank) > sPlayerbotAIConfig.healDistance || !bot->IsWithinLOSInMap(tank));
+    }
+};
+
 // Moves back within StayNearTank of the tank, between two casts.
 class CoaStayNearTankAction : public MovementAction
 {
@@ -2058,6 +2076,7 @@ public:
         // attacks, below every heal - and a word to the group when the mana runs out.
         triggers.push_back(new TriggerNode("coa tank needs hot", { NextAction("coa hot", ACTION_MEDIUM_HEAL - 1) }));
         triggers.push_back(new TriggerNode("coa far from tank", { NextAction("coa stay near tank", ACTION_MEDIUM_HEAL - 2) }));
+        triggers.push_back(new TriggerNode("coa out of healing reach", { NextAction("coa stay near tank", ACTION_EMERGENCY + 5) }));
         triggers.push_back(new TriggerNode("coa healer low mana", { NextAction("coa say low mana", ACTION_MEDIUM_HEAL + 8) }));
     }
 
@@ -2437,6 +2456,7 @@ public:
         creators["coa group member dead"] = &CoaTriggerFactoryInternal::coa_group_member_dead;
         creators["coa lost the player"] = &CoaTriggerFactoryInternal::coa_lost_the_player;
         creators["coa far from tank"] = &CoaTriggerFactoryInternal::coa_far_from_tank;
+        creators["coa out of healing reach"] = &CoaTriggerFactoryInternal::coa_out_of_healing_reach;
         creators["coa healer low mana"] = &CoaTriggerFactoryInternal::coa_healer_low_mana;
     }
 
@@ -2449,6 +2469,7 @@ private:
     static Trigger* coa_group_member_dead(PlayerbotAI* botAI) { return new CoaGroupMemberDeadTrigger(botAI); }
     static Trigger* coa_lost_the_player(PlayerbotAI* botAI) { return new CoaLostThePlayerTrigger(botAI); }
     static Trigger* coa_far_from_tank(PlayerbotAI* botAI) { return new CoaFarFromTankTrigger(botAI); }
+    static Trigger* coa_out_of_healing_reach(PlayerbotAI* botAI) { return new CoaOutOfHealingReachTrigger(botAI); }
     static Trigger* coa_healer_low_mana(PlayerbotAI* botAI) { return new CoaLowManaTrigger(botAI); }
 };
 
