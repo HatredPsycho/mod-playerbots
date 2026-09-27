@@ -1596,7 +1596,11 @@ void PlayerbotMgr::HandleMasterIncomingPacket(WorldPacket const& packet)
     {
         Player* const bot = it->second;
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
-        if (botAI && botAI->GetMaster() == GetMaster())
+        // A quest shared with the group reaches the bots of the group too: the dungeon finder's bots
+        // have no master, and never took a quest shared in the dungeon (jealous-sound #5074).
+        bool const sharedWithGroup = packet.GetOpcode() == CMSG_PUSHQUESTTOPARTY && GetMaster() &&
+                                     bot->GetGroup() && bot->GetGroup() == GetMaster()->GetGroup();
+        if (botAI && (botAI->GetMaster() == GetMaster() || sharedWithGroup))
             botAI->HandleMasterIncomingPacket(packet);
     }
 

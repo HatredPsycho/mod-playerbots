@@ -14,6 +14,7 @@
 #include "Group.h"
 #include "MovementActions.h"
 #include "NamedObjectContext.h"
+#include "NonCombatStrategy.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "Spell.h"
@@ -243,6 +244,19 @@ bool StandsIn(Player* bot, SpellInfo const* stance)
         SpellInfo const* worn = aura->GetSpellInfo();
         if (worn->Id == stance->Id || (category && worn->GetCategory() == category) ||
             (worn->SpellName[0] && stance->SpellName[0] && !strcmp(worn->SpellName[0], stance->SpellName[0])))
+            return true;
+    }
+    return false;
+}
+
+// Whether the bot wears a stance of its own that raises its threat.
+bool WearsThreatStance(Player* bot)
+{
+    for (auto const& [id, application] : bot->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        if (aura->GetCasterGUID() == bot->GetGUID() && !aura->GetSpellInfo()->IsPassive() &&
+            RaisesThreat(aura->GetSpellInfo()))
             return true;
     }
     return false;
@@ -1798,13 +1812,14 @@ public:
         bool const tank = GetCoaRole(bot) == CoaRole::Tank;
         bool const knowsTankStance = tank && std::any_of(spells.begin(), spells.end(), [](Usable const& spell)
             { return (spell.kind & KIND_STANCE) && RaisesThreat(spell.info); });
-        bool const inTankStance = std::any_of(spells.begin(), spells.end(), [this](Usable const& spell)
-            { return (spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && StandsIn(bot, spell.info); });
+        // Worn, not merely of the same name: Reaper has two "Dominion", the tank stance 807735 and a proc
+        // buff 803999, and the second one made a tank believe it stood in its stance.
+        bool const inTankStance = WearsThreatStance(bot);
 
         // A damage dealer or a healer standing in a tank stance (its rotation used to put it on) steps out.
         if (!tank)
             for (Usable const& spell : spells)
-                if ((spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && StandsIn(bot, spell.info))
+                if ((spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && bot->HasAura(spell.info->Id))
                     bot->RemoveAurasDueToSpell(spell.info->Id);
 
         time_t const now = time(nullptr);
@@ -2373,6 +2388,17 @@ public:
     }
 };
 
+// The base out-of-combat strategy every WotLK class registers as "nc": its timer checks the mount
+// state (mounting up with the master, getting off). The CoA classes had none, so "mount" was listed
+// but nothing ever asked, and bots walked beside a mounted player (found in game, 27/09).
+class CoaNonCombatStrategy : public NonCombatStrategy
+{
+public:
+    CoaNonCombatStrategy(PlayerbotAI* botAI) : NonCombatStrategy(botAI) {}
+
+    std::string const getName() override { return "nc"; }
+};
+
 class CoaStrategyFactoryInternal : public NamedObjectContext<Strategy>
 {
 public:
@@ -2384,6 +2410,7 @@ public:
         creators["coa heal"] = &CoaStrategyFactoryInternal::coa_heal;
         creators["coa buff"] = &CoaStrategyFactoryInternal::coa_buff;
         creators["coa auto pull"] = &CoaStrategyFactoryInternal::coa_auto_pull;
+        creators["nc"] = &CoaStrategyFactoryInternal::nc;
     }
 
 private:
@@ -2393,6 +2420,7 @@ private:
     static Strategy* coa_tank(PlayerbotAI* botAI) { return new CoaTankStrategy(botAI); }
     static Strategy* coa_heal(PlayerbotAI* botAI) { return new CoaHealStrategy(botAI); }
     static Strategy* coa_buff(PlayerbotAI* botAI) { return new CoaBuffStrategy(botAI); }
+    static Strategy* nc(PlayerbotAI* botAI) { return new CoaNonCombatStrategy(botAI); }
 };
 
 class CoaActionFactoryInternal : public NamedObjectContext<Action>

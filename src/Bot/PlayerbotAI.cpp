@@ -29,6 +29,7 @@
 #include "LootObjectStack.h"
 #include "MapMgr.h"
 #include "MotionMaster.h"
+#include "MoveSpline.h"
 #include "MoveSplineInit.h"
 #include "NewRpgStrategy.h"
 #include "ObjectGuid.h"
@@ -477,6 +478,57 @@ void PlayerbotAI::UpdateAIGroupMaster()
     }
 }
 
+// A bot sends no landing packet: a fall flag set by a dismount, a jump or a knockback stayed on it,
+// and the dungeon finder refused to teleport it into the dungeon ("could NOT be teleported ... Error:
+// 2", LFG_TELEPORTERROR_FALLING), leaving the player's own bots outside (jealous-sound #4299, #4818,
+// #5372). Standing on the ground and on no falling path, it has landed.
+void PlayerbotAI::ClearStaleFall()
+{
+    bool const falling = bot->HasUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
+    bool const jumping = bot->HasUnitState(UNIT_STATE_JUMPING);
+    if ((!falling && !jumping) || bot->IsFlying() || bot->IsInFlight() || bot->IsInWater())
+        return;
+    if (bot->movespline->Initialized() && !bot->movespline->Finalized())
+        return;
+
+    float const ground = bot->GetMapHeight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
+    if (ground <= INVALID_HEIGHT || bot->GetPositionZ() - ground > 2.0f)
+        return;
+
+    if (falling)
+        bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FALLING | MOVEMENTFLAG_FALLING_FAR);
+    if (jumping)
+        bot->ClearUnitState(UNIT_STATE_JUMPING);
+}
+
+// A bot of a dungeon finder group left outside its dungeon while the run goes on: dead or a ghost when
+// the group was teleported ("Error: 1", the tank of a solo queue stayed at the graveyard), falling
+// ("Error: 2"), or released at a graveyard after a death inside. It is brought back to life and sent
+// into the dungeon the way the dungeon finder does it, as a player would walk back in.
+void PlayerbotAI::RejoinLfgDungeon()
+{
+    Group* group = bot->GetGroup();
+    if (!group || !group->isLFGGroup() || bot->IsBeingTeleported())
+        return;
+
+    time_t const now = time(nullptr);
+    if (now - lfgRejoinAt < 5)
+        return;
+
+    uint32 const mapId = sLFGMgr->GetDungeonMapId(group->GetGUID());
+    if (!mapId || bot->GetMapId() == mapId || sLFGMgr->GetState(group->GetGUID()) != lfg::LFG_STATE_DUNGEON)
+        return;
+
+    lfgRejoinAt = now;
+    if (!bot->IsAlive())
+    {
+        bot->ResurrectPlayer(1.0f);
+        bot->SpawnCorpseBones();
+    }
+    if (bot->IsAlive() && !bot->IsFalling())
+        sLFGMgr->TeleportPlayer(bot, false);
+}
+
 void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal)
 {
 
@@ -488,6 +540,9 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
 
     if (!bot->GetMap())
         return; // instances are created and destroyed on demand
+
+    ClearStaleFall();
+    RejoinLfgDungeon();
 
     // kinda expensive call to make on every single updateAI, do we really need this information?
     std::string const mapString = WorldPosition(bot).isOverworld() ? std::to_string(bot->GetMapId()) : "I";
