@@ -884,7 +884,8 @@ std::string const ItemUsageValue::GetConsumableType(ItemTemplate const* proto, b
             if (spellInfo)
                 for (int i = 0; i < 3; i++)
                 {
-                    if (spellInfo->Effects[i].Effect == SPELL_EFFECT_ENERGIZE && hasMana)
+                    if (spellInfo->Effects[i].Effect == SPELL_EFFECT_ENERGIZE && hasMana &&
+                        spellInfo->Effects[i].MiscValue == POWER_MANA)
                         return "mana potion";
 
                     if (spellInfo->Effects[i].Effect == SPELL_EFFECT_HEAL)

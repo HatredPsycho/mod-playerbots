@@ -470,10 +470,14 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
         if (skip.count(bot->GetGUID()))
             continue;
 
-        // The bot is added to the group directly, past the invitation checks, so the realm's
-        // cross-faction rule has to be applied here: an Alliance player was handed a Forsaken
-        // healer, whom the first city guard outside the dungeon would have attacked.
-        if (bot->GetTeamId() != master->GetTeamId() && !sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP))
+        // The bot is added to the group directly, past the invitation checks, so the faction rule
+        // has to be applied here: an Alliance player was handed a Forsaken healer, whom the first
+        // city guard outside the dungeon would have attacked. A realm that allows cross-faction
+        // groups still gets bots of the player's faction (jealous-sound #5266: six Horde tanks in a
+        // row for an Alliance player, attacked by the Gnomeregan Exiles, deaf to "co ?" said in
+        // Common), unless AiPlayerbot.CoaRecruitSameFaction is off.
+        if (bot->GetTeamId() != master->GetTeamId() &&
+            (sPlayerbotAIConfig.coaRecruitSameFaction || !sWorld->getBoolConfig(CONFIG_ALLOW_TWO_SIDE_INTERACTION_GROUP)))
             continue;
 
         if (classId && bot->getClass() != classId)
@@ -554,6 +558,13 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
         // Its gear was chosen for the specialization it had: a Venomancer made a healer kept the
         // strength and stamina of a tank, not a point of intellect (healer trial of 21/09).
         PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(false);
+    }
+    else if (CoaSpecNeedsShootingWeapon(chosen))
+    {
+        // A bot geared before the rule still holds a wand and cannot fire its shot.
+        Item const* ranged = chosen->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+        if (!ranged || ranged->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
+            PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(false);
     }
 
     // Points for every level it just skipped.

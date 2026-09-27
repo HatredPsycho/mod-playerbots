@@ -2087,6 +2087,9 @@ void PlayerbotFactory::AddItemStats(uint32 mod, uint8& sp, uint8& ap, uint8& tan
 
 bool PlayerbotFactory::CanEquipWeapon(ItemTemplate const* proto)
 {
+    if (proto->SubClass == ITEM_SUBCLASS_WEAPON_WAND && CoaSpecNeedsShootingWeapon(bot))
+        return false;
+
     switch (bot->getClass())
     {
         case CLASS_PRIEST:

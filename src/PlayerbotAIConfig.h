@@ -401,6 +401,8 @@ public:
     bool coaGroupTelemetry;
     bool coaSmartHeal;
     bool coaSmartTank;
+    bool coaRecruitSameFaction;
+    bool coaBotSurname;
     uint32 coaThreatHold;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;

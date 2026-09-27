@@ -349,3 +349,37 @@ UPDATE `playerbots_custom_strategy`
    SET `action_line` = 'can cast::Piercing Augmentation>cast::Piercing Augmentation!82'
  WHERE `name` = 'tinker-mechanics'
    AND `action_line` = 'can cast::Piercing Augmentation>cast::Piercing Augmentation!8';
+
+-- 14. Moon Gaze (Bloodmage) n'est pas un buff : il fait passer le personnage en Cursed Form pendant
+--     5 minutes, « unable to move, attack, or cast spells or abilities » hors de la barre de la
+--     forme, que les bots ne savent pas utiliser. Les trois rotations le relancaient des que
+--     l'aura manquait : le bot restait assis cinq minutes, soigneur compris (jealous-sound #4836,
+--     #5143, #5196).
+--       avant : bloodmage-eternal     'buff missing::Moon Gaze>cast buff::Moon Gaze!11'
+--               bloodmage-fleshweaver 'buff missing::Moon Gaze>cast buff::Moon Gaze!8'
+--               bloodmage-sanguine    'buff missing::Moon Gaze>cast buff::Moon Gaze!8'
+DELETE FROM `playerbots_custom_strategy`
+ WHERE `name` LIKE 'bloodmage-%' AND `action_line` LIKE '%::Moon Gaze!%';
+
+-- 15. Les postures de tank, celles qui augmentent la menace (Agonizing Presence, Twilight Domain,
+--     Demonic Power, Heart of the Mountain, Lunar Authority, Sol Invictus, Divine Stand, Night's
+--     Watch, Tower Formation), etaient dans les rotations des specs dps et soigneur : un Witch Hunter
+--     dps en Night's Watch prenait les monstres au tank (jealous-sound #5320, #4462). Chez les tanks,
+--     elles etaient en priorite 5 a 14 et presque jamais lancees (#5063, #5173). Elles quittent les
+--     specs dps et soigneur, et passent en priorite 95 chez les tanks, comme Beetle Form et Tower
+--     Formation. Hors combat, la strategie "coa buff" les met aussi : un tank prend la sienne, les
+--     autres jamais.
+--       avant, chez les tanks : cultist-dreadnought Twilight Domain !5, felsworn-tyrant Agonizing
+--       Presence !10, knight-of-xoroth-defiance Demonic Power !5, primalist-mountain-king Heart of
+--       the Mountain !13, starcaller-moon-guard Lunar Authority !14, sun-cleric-seraphim Sol
+--       Invictus !5, templar-oathkeeper Divine Stand !11, witch-hunter-black-knight Night's Watch !6
+DELETE FROM `playerbots_custom_strategy`
+ WHERE `name` NOT IN ('cultist-dreadnought', 'felsworn-tyrant', 'knight-of-xoroth-defiance', 'primalist-mountain-king',
+                      'starcaller-moon-guard', 'sun-cleric-seraphim', 'templar-oathkeeper', 'witch-hunter-black-knight',
+                      'guardian-vanguard', 'venomancer-fortitude')
+   AND `action_line` REGEXP '^buff missing::(Agonizing Presence|Twilight Domain|Demonic Power|Heart of the Mountain|Lunar Authority|Sol Invictus|Divine Stand|Night''s Watch|Tower Formation)>';
+UPDATE `playerbots_custom_strategy`
+   SET `action_line` = CONCAT(SUBSTRING_INDEX(`action_line`, '!', 1), '!95')
+ WHERE `name` IN ('cultist-dreadnought', 'felsworn-tyrant', 'knight-of-xoroth-defiance', 'primalist-mountain-king',
+                  'starcaller-moon-guard', 'sun-cleric-seraphim', 'templar-oathkeeper', 'witch-hunter-black-knight')
+   AND `action_line` REGEXP '^buff missing::(Agonizing Presence|Twilight Domain|Demonic Power|Heart of the Mountain|Lunar Authority|Sol Invictus|Divine Stand|Night''s Watch)>';

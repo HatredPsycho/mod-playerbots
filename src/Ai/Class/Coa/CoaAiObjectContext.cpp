@@ -210,6 +210,44 @@ bool IsStance(SpellInfo const* info)
     return aura;
 }
 
+// A stance that raises the threat its bearer causes: a tank's.
+bool RaisesThreat(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_THREAT && effect.CalcValue() > 0)
+            return true;
+    return false;
+}
+
+// Swimming and breathing under water: a form to travel in, not to stand in.
+bool IsTravelForm(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_MOD_INCREASE_SWIM_SPEED ||
+                                effect.ApplyAuraName == SPELL_AURA_WATER_BREATHING))
+            return true;
+    return false;
+}
+
+// Whether the bot stands in this stance or in another of its family: any rank of it, or a stance of
+// the same spell category. Runic Tattoos share category 200 and come in several ranks; looking for the
+// exact spell id, the bot thought it wore none and put on a second tattoo, then a third (#5059).
+bool StandsIn(Player* bot, SpellInfo const* stance)
+{
+    uint32 const category = stance->GetCategory();
+    for (auto const& [id, application] : bot->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        if (aura->GetCasterGUID() != bot->GetGUID() || aura->GetSpellInfo()->IsPassive())
+            continue;
+        SpellInfo const* worn = aura->GetSpellInfo();
+        if (worn->Id == stance->Id || (category && worn->GetCategory() == category) ||
+            (worn->SpellName[0] && stance->SpellName[0] && !strcmp(worn->SpellName[0], stance->SpellName[0])))
+            return true;
+    }
+    return false;
+}
+
 // What a spell does, looking two levels into the spells it triggers: CoA abilities often
 // carry their heal, taunt or aura in a triggered spell.
 void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
@@ -1734,7 +1772,22 @@ public:
         // (five Boons, twenty-two Runic Tattoos): take one only while standing in none, or
         // two of them would take turns for ever.
         bool const inStance = std::any_of(spells.begin(), spells.end(), [this](Usable const& spell)
-            { return (spell.kind & KIND_STANCE) && bot->HasAura(spell.info->Id); });
+            { return (spell.kind & KIND_STANCE) && StandsIn(bot, spell.info); });
+
+        // A tank takes its tank stance, the one raising its threat (Felsworn Agonizing Presence), in
+        // place of any other it stood in: the first stance known was taken and kept, and tanks were
+        // seen in dungeons without theirs (jealous-sound #5063, #5173). The others never take it.
+        bool const tank = GetCoaRole(bot) == CoaRole::Tank;
+        bool const knowsTankStance = tank && std::any_of(spells.begin(), spells.end(), [](Usable const& spell)
+            { return (spell.kind & KIND_STANCE) && RaisesThreat(spell.info); });
+        bool const inTankStance = std::any_of(spells.begin(), spells.end(), [this](Usable const& spell)
+            { return (spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && StandsIn(bot, spell.info); });
+
+        // A damage dealer or a healer standing in a tank stance (its rotation used to put it on) steps out.
+        if (!tank)
+            for (Usable const& spell : spells)
+                if ((spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && StandsIn(bot, spell.info))
+                    bot->RemoveAurasDueToSpell(spell.info->Id);
 
         time_t const now = time(nullptr);
         if (recent.size() > 64)
@@ -1748,8 +1801,15 @@ public:
                     continue;
 
                 // A stance is the bot's own, and only when it stands in none.
-                if ((spell.kind & KIND_STANCE) && (member != bot || inStance))
-                    continue;
+                if (spell.kind & KIND_STANCE)
+                {
+                    bool const threat = RaisesThreat(spell.info);
+                    // A travel form (Sea Serpent Form: swim speed, water breathing) is no stance to fight in.
+                    if (member != bot || (threat && !tank) || IsTravelForm(spell.info))
+                        continue;
+                    if (knowsTankStance ? (!threat || inTankStance) : inStance)
+                        continue;
+                }
 
                 // A healer keeps out of a form its heals cannot be cast in.
                 if ((spell.kind & KIND_STANCE) && GetCoaRole(bot) == CoaRole::Heal && FormBlocksHeals(bot, spell.info))
