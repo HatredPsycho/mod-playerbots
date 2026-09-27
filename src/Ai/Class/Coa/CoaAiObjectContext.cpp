@@ -249,6 +249,29 @@ bool StandsIn(Player* bot, SpellInfo const* stance)
     return false;
 }
 
+// Whether the unit wears this buff, its "Greater" form, or the plain form of a "Greater" one, from anyone.
+bool WearsBuffNamed(Unit* unit, SpellInfo const* buff)
+{
+    if (!buff->SpellName[0] || !*buff->SpellName[0])
+        return false;
+    std::string name(buff->SpellName[0]);
+    std::string const greater = "Greater ";
+    if (name.rfind(greater, 0) == 0)
+        name = name.substr(greater.size());
+    for (auto const& [id, application] : unit->GetAppliedAuras())
+    {
+        SpellInfo const* worn = application->GetBase()->GetSpellInfo();
+        if (!worn->SpellName[0])
+            continue;
+        std::string wornName(worn->SpellName[0]);
+        if (wornName.rfind(greater, 0) == 0)
+            wornName = wornName.substr(greater.size());
+        if (wornName == name && worn->IsPositive())
+            return true;
+    }
+    return false;
+}
+
 // Whether the bot wears a stance of its own that raises its threat.
 bool WearsThreatStance(Player* bot)
 {
@@ -1869,6 +1892,11 @@ public:
                 // One buff per category: several of a displacing group would
                 // chase each other forever. See HasBuffOfCategory.
                 if (HasBuffOfCategory(member, spell.info->GetCategory(), spell.info->Id))
+                    continue;
+
+                // Nor the same buff over its greater form or the other way round, whoever cast it: a Witch
+                // Hunter bot put Knight's Edict on a player who wore Greater Knight's Edict (#5385).
+                if (WearsBuffNamed(member, spell.info))
                     continue;
 
                 // The aura may come from a triggered spell under another id: do not recast
