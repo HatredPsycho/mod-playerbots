@@ -1262,6 +1262,7 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     // Clear LFG list
     LfgDungeons[TEAM_ALLIANCE].clear();
     LfgDungeons[TEAM_HORDE].clear();
+    bool needTankOrHeal[2] = {false, false};
 
     for (std::vector<Player*>::iterator i = players.begin(); i != players.end(); ++i)
     {
@@ -1284,8 +1285,15 @@ void RandomPlayerbotMgr::CheckLfgQueue()
 
                 LfgDungeons[player->GetTeamId()].push_back(dungeon->id);
             }
+
+            uint8 roles = sLFGMgr->GetRoles(player->GetGUID());
+            if (!(roles & lfg::PLAYER_ROLE_TANK) || !(roles & lfg::PLAYER_ROLE_HEALER))
+                needTankOrHeal[player->GetTeamId()] = true;
         }
     }
+
+    LfgNeedTankOrHeal[TEAM_ALLIANCE] = needTankOrHeal[TEAM_ALLIANCE];
+    LfgNeedTankOrHeal[TEAM_HORDE] = needTankOrHeal[TEAM_HORDE];
 
     LOG_DEBUG("playerbots", "LFG Queue check finished");
 }

@@ -12,6 +12,8 @@
 #include "ObjectGuid.h"
 #include "PlayerbotCommandServer.h"
 #include "PlayerbotMgr.h"
+#include <array>
+#include <atomic>
 #include <unordered_set>
 
 struct BattlegroundInfo
@@ -152,6 +154,8 @@ public:
     std::map<uint32, std::map<uint32, std::map<TeamId, uint32>>> VisualBots;
     std::map<uint32, std::map<uint32, std::map<uint32, uint32>>> Supporters;
     std::map<TeamId, std::vector<uint32>> LfgDungeons;
+    // A queued real player of this team still lacks a tank or a healer: damage dealers hold back.
+    std::array<std::atomic<bool>, 2> LfgNeedTankOrHeal{};
     void CheckBgQueue();
     void CheckLfgQueue();
     void CheckPlayers();
