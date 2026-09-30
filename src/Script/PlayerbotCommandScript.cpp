@@ -13,6 +13,8 @@
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
 
+#include <sstream>
+
 using namespace Acore::ChatCommands;
 
 class playerbots_commandscript : public CommandScript
@@ -57,6 +59,7 @@ public:
 
     // .playerbots coa tank|heal|dps [class] : recruit a Conquest of Azeroth bot for that role, of
     // that class when one is named (".playerbots coa heal sun cleric").
+    // .playerbots coa raid [size] [tanks] [healers] : fills a raid with bots (25: 3 tanks, 6 healers).
     static bool HandleCoaRecruitCommand(ChatHandler* handler, char const* args)
     {
         Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
@@ -64,6 +67,21 @@ public:
         std::size_t const space = line.find(' ');
         std::string const wanted = line.substr(0, space);
         std::string const className = space == std::string::npos ? "" : line.substr(space + 1);
+
+        if (wanted == "raid")
+        {
+            if (!master)
+                return false;
+            uint32 numbers[3] = {};
+            std::istringstream in(className);
+            for (uint32& number : numbers)
+                if (!(in >> number))
+                    break;
+            std::string message;
+            RecruitCoaRaid(master, numbers[0], numbers[1], numbers[2], message);
+            handler->SendSysMessage(message);
+            return true;
+        }
 
         CoaRole role;
         if (wanted == "tank")
@@ -74,7 +92,8 @@ public:
             role = CoaRole::Dps;
         else
         {
-            handler->SendSysMessage("Usage: .playerbots coa tank|heal|dps [class], e.g. .playerbots coa heal sun cleric");
+            handler->SendSysMessage("Usage: .playerbots coa tank|heal|dps [class], e.g. .playerbots coa heal sun cleric; "
+                                    ".playerbots coa raid [size] [tanks] [healers], e.g. .playerbots coa raid 25");
             return true;
         }
 
