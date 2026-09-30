@@ -408,6 +408,7 @@ public:
     uint32 coaThreatHold;
     bool coaAttackLoop;
     bool coaSpellReplacement;
+    bool coaAttackCheckBench;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
