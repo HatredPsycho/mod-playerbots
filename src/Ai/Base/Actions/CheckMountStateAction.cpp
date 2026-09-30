@@ -73,8 +73,10 @@ bool CheckMountStateAction::Execute(Event /*event*/)
     if (bot->HasFeatherFallAura())
     {
         float floorZ = bot->GetMapHeight(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
-        if (floorZ != INVALID_HEIGHT && floorZ != VMAP_INVALID_HEIGHT_VALUE &&
-            bot->GetPositionZ() - floorZ <= PARACHUTE_LAND_THRESHOLD)
+        bool const noFloor = floorZ == INVALID_HEIGHT || floorZ == VMAP_INVALID_HEIGHT_VALUE;
+        // Inside an instance (a dungeon finder teleport lands on the ground) and wherever no floor can be
+        // measured the parachute would otherwise stay forever and keep the bot hovering in place.
+        if (noFloor || bot->GetMap()->Instanceable() || bot->GetPositionZ() - floorZ <= PARACHUTE_LAND_THRESHOLD)
             bot->RemoveAurasByType(SPELL_AURA_FEATHER_FALL);
     }
     ClearStaleFlightFlags();
@@ -238,7 +240,9 @@ bool CheckMountStateAction::Mount()
     if (spellsIt != mountData.allSpells.end())
     {
         auto& spells = spellsIt->second;
-        if (TryRandomMountFiltered(spells, masterSpeed))
+        // CoA teaches riding 300 to bots too: under the fast mount level a bot owns only its 60% mount, which the
+        // speed filter dropped behind a master on a 100% mount, and it walked (jealous-sound/azerothcore-wotlk-coa#5596).
+        if (TryRandomMountFiltered(spells, masterSpeed) || TryRandomMountFiltered(spells, 0))
             return true;
     }
 

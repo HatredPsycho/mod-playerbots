@@ -15,6 +15,7 @@
 #include "BattlegroundMgr.h"
 #include "LFGMgr.h"
 #include "Group.h"
+#include "InstanceSaveMgr.h"
 #include "GroupMgr.h"
 #include "ItemTemplate.h"
 #include "Log.h"
@@ -32,6 +33,8 @@
 #include "AscensionSpecialization.h"
 #include "AscensionCoATalentData.h"
 #include "AscensionSpellProgressionData.h"
+#include "AscensionCustomClassData.h"
+#include "AscensionLiveBaselineData.h"
 
 #include <algorithm>
 #include <cctype>
@@ -44,6 +47,7 @@
 #include <mutex>
 #include <sstream>
 #include <unordered_map>
+#include <unordered_set>
 
 namespace
 {
@@ -353,6 +357,8 @@ bool EnsureCoaSpecialization(Player* bot)
     }
 
     std::vector<uint32> const& candidates = byRole[chosenRole];
+    if (candidates.empty())
+        return false;
     uint32 const specializationId = candidates[Hash(bot->GetGUID().GetCounter(), 0x50494B4Bu) % candidates.size()];   // 'PIKK'
 
     // The specialization a character is created with decides nothing about the group: keep it only
@@ -409,10 +415,57 @@ uint32 ApplyCoaTalents(Player* bot)
             itr->second = pick.Rank;
     }
 
+    // Entries of one free-choice group exclude each other: the core removes the others when one is set.
+    // Keeping two of them in the build made the bot swap them back and forth on every refresh.
+    auto const freeGroupOf = [](uint32 entryId) -> uint32
+    {
+        for (AscensionCompatData::CoASelectableFreeEntry const& free : AscensionCompatData::CoASelectableFreeEntries)
+            if (free.EntryId == entryId)
+                return free.GroupId;
+        return 0;
+    };
+    for (size_t i = wanted.size(); i-- > 0;)
+    {
+        uint32 const group = freeGroupOf(wanted[i].first);
+        if (!group)
+            continue;
+        for (size_t j = 0; j < i; ++j)
+            if (freeGroupOf(wanted[j].first) == group)
+            {
+                wanted.erase(wanted.begin() + j);
+                --i;
+                --j;
+            }
+    }
+
+    // The core teaches the class baseline again right after any change (SynchronizeProgression), so
+    // lowering an entry whose spell is part of that baseline never sticks and was redone every refresh.
+    auto const coreGrants = [bot](uint32 spellId)
+    {
+        for (AscensionLiveBaseline::Spell const& spell : AscensionLiveBaseline::Spells)
+            if (spell.ClassId == bot->getClass() && spell.SpellId == spellId &&
+                (!spell.RaceId || spell.RaceId == bot->getRace()))
+                return true;
+        for (AscensionCompatData::ClassSpell const& spell : AscensionCompatData::ClassSpells)
+            if (spell.ClassId == bot->getClass() && spell.SpellId == spellId && spell.RequiredLevel <= bot->GetLevel())
+                return true;
+        return false;
+    };
+
+    // Two entries can hold the same spell: taking it away from the one the build does not want took it
+    // from the wanted one too, which was raised again next time, for ever.
+    std::unordered_set<uint32> wantedSpells;
+    for (auto const& [entryId, rank] : wanted)
+        if (AscensionCompatData::CoATalentEntry const* entry = entryOf(entryId))
+            for (uint32 r = 0; r < rank && r < entry->SpellIds.size(); ++r)
+                if (entry->SpellIds[r])
+                    wantedSpells.insert(entry->SpellIds[r]);
+
     // Down first: a bot brought down in level kept the entries of the level it had, the core only ever
     // raises them (Fiery Judgement, spell level 31, on a level 3 Witch Hunter). Every entry of its class
     // above what the build holds at this level goes back down, to 0 when the build has none of it yet.
     uint32 lowered = 0;
+    std::string changes;
     for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
     {
         if (entry.ClassId != bot->getClass())
@@ -420,8 +473,14 @@ uint32 ApplyCoaTalents(Player* bot)
         auto itr = std::find_if(wanted.begin(), wanted.end(),
             [&entry](std::pair<uint32, uint8> const& w) { return w.first == entry.EntryId; });
         uint32 const allowed = itr == wanted.end() ? 0 : itr->second;
-        if (GetAscensionTalentRank(bot, entry.EntryId) > allowed && SetAscensionTalentRank(bot, entry.EntryId, allowed))
+        uint32 const current = GetAscensionTalentRank(bot, entry.EntryId);
+        if (current <= allowed || coreGrants(entry.SpellIds[current - 1]) || wantedSpells.count(entry.SpellIds[current - 1]))
+            continue;
+        if (SetAscensionTalentRank(bot, entry.EntryId, allowed) && GetAscensionTalentRank(bot, entry.EntryId) < current)
+        {
             ++lowered;
+            changes += " -" + std::to_string(entry.EntryId);
+        }
     }
     // The higher ranks of an ability taken away stay otherwise: the rank table learns rank 2+ from the
     // first one, and nothing removes them with it.
@@ -436,12 +495,16 @@ uint32 ApplyCoaTalents(Player* bot)
 
     uint32 raised = 0;
     for (auto const& [entryId, rank] : wanted)
-        if (GetAscensionTalentRank(bot, entryId) < rank && SetAscensionTalentRank(bot, entryId, rank))
+        if (GetAscensionTalentRank(bot, entryId) < rank && SetAscensionTalentRank(bot, entryId, rank) &&
+            GetAscensionTalentRank(bot, entryId) >= rank)
+        {
             ++raised;
+            changes += " +" + std::to_string(entryId);
+        }
 
     if (raised || lowered)
-        LOG_INFO("playerbots", "coa: {} (class {}, level {}, specialization {}) raised {}, lowered {} talent entries ({} orphan ranks)",
-                 bot->GetName(), bot->getClass(), bot->GetLevel(), specializationId, raised, lowered, orphans);
+        LOG_INFO("playerbots", "coa: {} (class {}, level {}, specialization {}) raised {}, lowered {} talent entries ({} orphan ranks):{}",
+                 bot->GetName(), bot->getClass(), bot->GetLevel(), specializationId, raised, lowered, orphans, changes);
     return raised;
 }
 
@@ -612,8 +675,8 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
         // Keep the array alive: a reference into the temporary would dangle.
         std::array<std::vector<uint32>, 3> const byRole = SpecializationsByRole(chosen->getClass());
         std::vector<uint32> const& candidates = byRole[uint8(role)];
-        uint32 const specialization = candidates[urand(0, candidates.size() - 1)];
-        if (!SwitchAscensionSpecialization(chosen, specialization))
+        uint32 const specialization = candidates.empty() ? 0 : candidates[urand(0, candidates.size() - 1)];
+        if (!specialization || !SwitchAscensionSpecialization(chosen, specialization))
         {
             message = "Could not give " + chosen->GetName() + " a specialization.";
             return false;
@@ -668,6 +731,27 @@ void CoaLeaveBattlegroundQueues(Player* bot)
     }
 }
 
+void CoaDropForeignInstanceBinds(Player* bot, Player* master)
+{
+    if (!bot || !master || !sRandomPlayerbotMgr.IsRandomBot(bot))
+        return;
+    for (uint8 difficulty = 0; difficulty < MAX_DIFFICULTY; ++difficulty)
+    {
+        std::vector<InstanceSave*> foreign;
+        for (auto const& [mapId, bind] : sInstanceSaveMgr->PlayerGetBoundInstances(bot->GetGUID(), Difficulty(difficulty)))
+            if (bind.save && !(bind.save->GetMapId() == master->GetMapId() &&
+                               bind.save->GetInstanceId() == master->GetInstanceId()))
+                foreign.push_back(bind.save);
+        for (InstanceSave* save : foreign)
+            sInstanceSaveMgr->PlayerUnbindInstance(bot->GetGUID(), save->GetMapId(), save->GetDifficulty(), true, bot);
+    }
+}
+
+bool CoaInOtherInstance(Player* bot, Player* master)
+{
+    return bot && master && bot->GetMapId() == master->GetMapId() && bot->GetInstanceId() != master->GetInstanceId();
+}
+
 bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 classId)
 {
     Group* group = master->GetGroup();
@@ -714,10 +798,11 @@ bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 cla
         return false;
     }
     CoaLeaveBattlegroundQueues(chosen);
+    CoaDropForeignInstanceBinds(chosen, master);
 
     // After joining the group, so the bot may enter the master's dungeon instance.
     chosen->TeleportTo(master->GetMapId(), master->GetPositionX(), master->GetPositionY(), master->GetPositionZ(),
-                       master->GetOrientation());
+                       master->GetOrientation(), 0, nullptr, CoaInOtherInstance(chosen, master));
 
     if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(chosen))
     {
