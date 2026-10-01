@@ -736,7 +736,7 @@ bool PlayerbotAIConfig::Initialize()
     coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", false);
     coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
     coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
-    coaBossKnowledge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBossKnowledge", false);
+    coaBossKnowledge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBossKnowledge", true);
     coaRecruitSameFaction = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRecruitSameFaction", true);
     coaBotSurname = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBotSurname", true);
     coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
