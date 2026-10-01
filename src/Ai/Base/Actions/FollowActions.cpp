@@ -287,14 +287,6 @@ bool FollowAction::isUseful()
     if (botAI->HasStrategy("master fishing", BOT_STATE_NON_COMBAT))
         return ServerFacade::instance().IsDistanceGreaterThan(distance, sPlayerbotAIConfig.fishingDistanceFromMaster);
 
-    // A tank holds the front between pulls in a dungeon: with a player who is not the tank standing back (a
-    // healer), it walked back to them after every kill (jealous-sound/azerothcore-wotlk-coa#5753). It follows
-    // again as soon as that player is far or out of sight.
-    if (fTarget && fTarget->IsPlayer() && bot->GetMap()->IsDungeon() && !bot->IsInCombat() && botAI->IsTank(bot) &&
-        !GET_PLAYERBOT_AI(fTarget->ToPlayer()) && !botAI->IsTank(fTarget->ToPlayer(), true) &&
-        bot->IsWithinDistInMap(fTarget, 30.0f) && bot->IsWithinLOSInMap(fTarget))
-        return false;
-
     return ServerFacade::instance().IsDistanceGreaterThan(distance, formation->GetMaxDistance());
 }
 
