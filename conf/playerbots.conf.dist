@@ -3038,31 +3038,3 @@ AiPlayerbot.TargetPosRecalcDistance = 0.1
 
 # Allow bots to be summoned near innkeepers
 AiPlayerbot.SummonAtInnkeepersEnabled = 1
-
-#
-
-#
-#    AiPlayerbot.CoaGroupDiscipline
-#        What a CoA bot may not do while it is somebody's group member.
-#
-#        Two things bots did in instances, both because the rotation takes anything hostile it finds:
-#
-#          - A fear, a confusion or a knockback does not hold the enemy, it takes it somewhere else -
-#            out of the tank's reach and off every area ability the group has placed. A fear carries
-#            no damage, is no taunt and is no interrupt, so the attack filter let it through for
-#            every bot.
-#          - A healer attacked. The threat brake only holds back damage dealers, so a healer's damage
-#            was unmetered, and that is what pulled mobs off the tank. Healing puts threat on
-#            everything in the fight and cannot be helped; damage can.
-#
-#        Both are refusals, not penalties: a badly rated ability still goes off the moment nothing
-#        rates better, and one fear is enough to put a mob in the next room.
-#
-#        0 - off, bots keep their whole kit everywhere
-#        1 - in a group that has somebody else in it (default)
-#        2 - always, solo included
-#
-#    Default: 1
-#
-
-AiPlayerbot.CoaGroupDiscipline = 1

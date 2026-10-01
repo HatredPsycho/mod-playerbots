@@ -60,8 +60,7 @@ enum AbilityKind : uint16
     KIND_INTERRUPT  = 0x0800,
     KIND_CONTROL    = 0x1000,  // stuns, fears, polymorphs... never aimed at a group member
     KIND_STANCE     = 0x2000,  // a form or stance on the caster that never expires
-    KIND_RESURRECT  = 0x4000,  // brings a dead ally back
-    KIND_SCATTER    = 0x8000   // drives the enemy out of the pack: fear, confusion, a knockback
+    KIND_RESURRECT  = 0x4000   // brings a dead ally back
 };
 
 /*
@@ -330,17 +329,6 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
         // group member by stunning or transforming it.
         if (aura && !self && IsControlAura(effect))
             ability.kind |= KIND_CONTROL;
-
-        // Fear, confusion and a knockback do not just hold the enemy, they take it somewhere else.
-        // Inside an instance that is what scatters a pack across two rooms, pulls a mob out of the
-        // tank's reach and off every area ability the group has placed. Marked apart from the rest
-        // of the control so the combat engine can keep it out of a group's rotation while a stun or
-        // a root, which leave the enemy where it stands, stay in.
-        if (!self && ((aura && (effect.ApplyAuraName == SPELL_AURA_MOD_FEAR ||
-                                effect.ApplyAuraName == SPELL_AURA_MOD_CONFUSE)) ||
-                      effect.Effect == SPELL_EFFECT_KNOCK_BACK ||
-                      effect.Effect == SPELL_EFFECT_KNOCK_BACK_DEST))
-            ability.kind |= KIND_SCATTER;
 
         bool const periodicHeal = aura && effect.ApplyAuraName == SPELL_AURA_PERIODIC_HEAL;
         bool const heal = effect.Effect == SPELL_EFFECT_HEAL || effect.Effect == SPELL_EFFECT_HEAL_PCT ||
@@ -679,72 +667,6 @@ void DropManaSpells(Player* bot, std::vector<Usable>& spells)
     spells.erase(std::remove_if(spells.begin(), spells.end(), [bot](Usable const& spell)
         { return spell.info->PowerType == POWER_MANA && spell.info->CalcPowerCost(bot, spell.info->GetSchoolMask()) > 0; }),
         spells.end());
-}
-
-/*
- * What a bot may not do while it is somebody's group member, however well the rotation otherwise
- * rates it. Two rules, both from watching instance runs:
- *
- *   - Fear, confusion and knockbacks (KIND_SCATTER) do not hold the enemy, they take it somewhere
- *     else: out of the tank's reach and off every area ability the group has placed. IsAttack let
- *     them through for every bot, because a fear carries no KIND_DAMAGE, is not a taunt and is not
- *     an interrupt, so it fell to that function's last return and came back true.
- *
- *   - A healer does not attack. CoaThreatMultiplier holds back damage dealers only - it returns 1.0
- *     for every role that is not Dps - so a healer's damage was unmetered, and that is what pulled
- *     mobs off the tank. Healing puts threat on everything in the fight and cannot be helped;
- *     damage can.
- *
- * Both are refusals rather than penalties. A badly rated ability still goes off the moment nothing
- * rates better, and one fear is enough to put a mob in the next room.
- *
- * AiPlayerbot.CoaGroupDiscipline: 0 off, 1 in a group (the default), 2 always.
- */
-bool GroupDisciplineActive(Player* bot)
-{
-    static uint8 const mode = [] {
-        int32 const value = sConfigMgr->GetOption<int32>("AiPlayerbot.CoaGroupDiscipline", 1);
-        return uint8(value < 0 ? 0 : (value > 2 ? 2 : value));
-    }();
-
-    if (!mode)
-        return false;
-    if (mode == 2)
-        return true;
-
-    Group* group = bot->GetGroup();
-    return group && group->GetMembersCount() > 1;
-}
-
-/*
- * Whether the bot has nothing hostile to offer at all, so an attacking action must not be selected
- * in the first place.
- *
- * Filtering the list alone was not enough, and the way it failed is worth keeping written down. The
- * attack action starts the melee swing before it looks at its spells, so a healer whose list came
- * back empty still swung its weapon every tick: that is damage, and it kept the bot permanently in
- * combat, so it never reached the non-combat engine - which is where "coa resurrect" hangs, off
- * CoaBuffStrategy. One missing guard, two symptoms: healers dealing damage instead of healing, and
- * nobody picking the dead up.
- */
-bool GroupDisciplineForbidsHostile(Player* bot)
-{
-    return GetCoaRole(bot) == CoaRole::Heal && GroupDisciplineActive(bot);
-}
-
-void ApplyGroupDiscipline(Player* bot, std::vector<Usable>& spells)
-{
-    if (spells.empty() || !GroupDisciplineActive(bot))
-        return;
-
-    bool const healer = GetCoaRole(bot) == CoaRole::Heal;
-    spells.erase(std::remove_if(spells.begin(), spells.end(), [healer](Usable const& spell)
-                                {
-                                    if (spell.kind & KIND_SCATTER)
-                                        return true;
-                                    return healer && (spell.kind & (KIND_DAMAGE | KIND_HOSTILE)) != 0;
-                                }),
-                 spells.end());
 }
 
 // Puts the cheapest heals first. Low on mana a bot would otherwise keep offering its biggest heal,
@@ -1439,11 +1361,6 @@ public:
         if (!target || !target->IsAlive())
             return false;
 
-        // Before the swing: a healer under group discipline has nothing to do here, and starting the
-        // melee anyway is what kept it in combat for good.
-        if (GroupDisciplineForbidsHostile(bot))
-            return false;
-
         // Playerbots only starts the melee swing for melee bots. A ranged CoA bot caught in melee
         // (a level 1 Ranger: its shot has a minimum range) would then stand there doing nothing and
         // die, so swing the weapon while the target is in reach; spells still go first when they can.
@@ -1458,8 +1375,7 @@ public:
         // (and its weapon), keeping the rest for heals.
         bool const saveMana = SavingManaForHeals(bot);
 
-        std::vector<Usable> usable = KnownAbilities(bot, [tank](uint16 kind) { return IsAttack(kind, tank); });
-        ApplyGroupDiscipline(bot, usable);
+        std::vector<Usable> const usable = KnownAbilities(bot, [tank](uint16 kind) { return IsAttack(kind, tank); });
         if (usable.empty())
             return false;
 
@@ -1506,7 +1422,7 @@ public:
     bool isUseful() override
     {
         Unit* target = AI_VALUE(Unit*, "current target");
-        return target && target->IsAlive() && !GroupDisciplineForbidsHostile(bot);
+        return target && target->IsAlive();
     }
 
 private:
@@ -1541,7 +1457,6 @@ public:
             { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
         if (SavingManaForHeals(bot))
             DropManaSpells(bot, spells);
-        ApplyGroupDiscipline(bot, spells);
 
         return RecordUsage(USAGE_AOE, CastFirst(botAI, bot, spells, target));
     }
@@ -1549,7 +1464,7 @@ public:
     bool isUseful() override
     {
         Unit* target = AI_VALUE(Unit*, "current target");
-        return target && target->IsAlive() && !GroupDisciplineForbidsHostile(bot) && ClassHas(bot, KIND_AOE) &&
+        return target && target->IsAlive() && ClassHas(bot, KIND_AOE) &&
                HasReadyAbility(botAI, bot,[](uint16 kind) { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
     }
 };
