@@ -8,6 +8,7 @@
 
 #include "Action.h"
 #include "AttackAction.h"
+#include "CoaCombatEngine.h"
 #include "CoaSpecialization.h"
 #include "CombatStrategy.h"
 #include "DatabaseEnv.h"
@@ -1347,6 +1348,64 @@ Unit* FindCaster(PlayerbotAI* botAI, Player* bot)
     return nullptr;
 }
 
+/*
+ * The order in which an action tries its abilities.
+ *
+ * Without the combat engine this is the kit rotation the bot has always used: start after the last
+ * ability that went off, so it works through everything it knows instead of spamming the first that
+ * fits. That is the right default solo, and it is why no ability is written down per class.
+ *
+ * In group content the engine scores them against a snapshot of the fight and the best goes first
+ * (CoaCombatEngine.h). Only the order changes: benching, the mana reserve, the strict cast check and
+ * the usage counters all stay where they are, and when the engine is off or has one candidate the
+ * sequence is byte for byte the old one.
+ */
+std::vector<size_t> AbilityOrder(PlayerbotAI* botAI, Player* bot, Unit* target,
+                                 std::vector<Usable> const& usable, CoaCombatEngine::Role role,
+                                 size_t next)
+{
+    std::vector<size_t> order;
+    order.reserve(usable.size());
+
+    if (usable.size() < 2 || !CoaCombatEngine::Active(bot))
+    {
+        for (size_t i = 0; i < usable.size(); ++i)
+            order.push_back((next + i) % usable.size());
+        return order;
+    }
+
+    std::vector<CoaCombatEngine::Candidate> candidates;
+    candidates.reserve(usable.size());
+    for (Usable const& spell : usable)
+    {
+        CoaCombatEngine::Candidate candidate;
+        candidate.info = spell.info;
+        candidate.damage = (spell.kind & KIND_DAMAGE) != 0;
+        candidate.aoe = (spell.kind & KIND_AOE) != 0;
+        candidate.heal = (spell.kind & KIND_HEAL) != 0;
+        candidate.groupHeal = (spell.kind & KIND_GROUP_HEAL) != 0;
+        candidate.hot = (spell.kind & KIND_HOT) != 0;
+        candidate.taunt = (spell.kind & KIND_TAUNT) != 0;
+        candidate.defensive = (spell.kind & KIND_DEFENSIVE) != 0;
+        candidate.control = (spell.kind & KIND_CONTROL) != 0;
+        candidates.push_back(candidate);
+    }
+
+    uint8 const enemies = botAI->GetAiObjectContext()->GetValue<uint8>("attackers count")->Get();
+    CoaCombatEngine::Order(CoaCombatEngine::Take(bot, target, enemies), role, candidates);
+
+    std::unordered_map<SpellInfo const*, size_t> position;
+    position.reserve(usable.size());
+    for (size_t i = 0; i < usable.size(); ++i)
+        position.emplace(usable[i].info, i);
+
+    for (CoaCombatEngine::Candidate const& candidate : candidates)
+        if (auto const found = position.find(candidate.info); found != position.end())
+            order.push_back(found->second);
+
+    return order;
+}
+
 class CoaAttackAction : public Action
 {
 public:
@@ -1381,11 +1440,9 @@ public:
 
         time_t const now = time(nullptr);
 
-        // Rotate through the abilities, starting after the last one that went off, so a
-        // bot uses its whole kit instead of spamming the first ability that works.
-        for (size_t i = 0; i < usable.size(); ++i)
+        for (size_t const index : AbilityOrder(botAI, bot, target, usable,
+                 tank ? CoaCombatEngine::ROLE_TANK : CoaCombatEngine::ROLE_DPS, next))
         {
-            size_t const index = (next + i) % usable.size();
             SpellInfo const* info = usable[index].info;
 
             Strikes& strikes = failures[info->Id];
