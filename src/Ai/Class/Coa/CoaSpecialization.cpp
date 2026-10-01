@@ -919,6 +919,17 @@ bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std
         }
     }
 
+    // The raid panel counts tanks and healers from the group roles: each bot shows the one it plays.
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        if (Player* member = ref->GetSource())
+            if (GET_PLAYERBOT_AI(member))
+            {
+                CoaRole const role = GetCoaRole(member);
+                group->SetLfgRoles(member->GetGUID(), role == CoaRole::Tank   ? lfg::PLAYER_ROLE_TANK
+                                                      : role == CoaRole::Heal ? lfg::PLAYER_ROLE_HEALER
+                                                                              : lfg::PLAYER_ROLE_DAMAGE);
+            }
+
     LOG_INFO("playerbots", "coa: {} built a raid of {}: {} tanks, {} healers, {} damage dealers recruited",
              master->GetName(), size, got[uint8(CoaRole::Tank)], got[uint8(CoaRole::Heal)], got[uint8(CoaRole::Dps)]);
 
