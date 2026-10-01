@@ -8,7 +8,6 @@
 
 #include "Action.h"
 #include "AttackAction.h"
-#include "CoaCombatEngine.h"
 #include "CoaSpecialization.h"
 #include "CombatStrategy.h"
 #include "DatabaseEnv.h"
@@ -683,19 +682,48 @@ void DropManaSpells(Player* bot, std::vector<Usable>& spells)
 }
 
 /*
- * Takes fear, confusion and knockbacks out of a group's rotation (KIND_SCATTER).
+ * What a bot may not do while it is somebody's group member, however well the rotation otherwise
+ * rates it. Two rules, both from watching instance runs:
  *
- * The attack path refuses them through the combat engine, which works through an order. The area
- * path casts the first ability that works instead, so it needs them gone from the list: an area
- * knockback is the worst of the lot, it scatters the whole pack at once.
+ *   - Fear, confusion and knockbacks (KIND_SCATTER) do not hold the enemy, they take it somewhere
+ *     else: out of the tank's reach and off every area ability the group has placed. IsAttack let
+ *     them through for every bot, because a fear carries no KIND_DAMAGE, is not a taunt and is not
+ *     an interrupt, so it fell to that function's last return and came back true.
+ *
+ *   - A healer does not attack. CoaThreatMultiplier holds back damage dealers only - it returns 1.0
+ *     for every role that is not Dps - so a healer's damage was unmetered, and that is what pulled
+ *     mobs off the tank. Healing puts threat on everything in the fight and cannot be helped;
+ *     damage can.
+ *
+ * Both are refusals rather than penalties. A badly rated ability still goes off the moment nothing
+ * rates better, and one fear is enough to put a mob in the next room.
+ *
+ * AiPlayerbot.CoaGroupDiscipline: 0 off, 1 in a group (the default), 2 always.
  */
-void DropScatterSpells(Player* bot, std::vector<Usable>& spells)
+void ApplyGroupDiscipline(Player* bot, std::vector<Usable>& spells)
 {
-    if (!CoaCombatEngine::Active(bot))
+    static uint8 const mode = [] {
+        int32 const value = sConfigMgr->GetOption<int32>("AiPlayerbot.CoaGroupDiscipline", 1);
+        return uint8(value < 0 ? 0 : (value > 2 ? 2 : value));
+    }();
+
+    if (!mode || spells.empty())
         return;
 
-    spells.erase(std::remove_if(spells.begin(), spells.end(),
-                                [](Usable const& spell) { return (spell.kind & KIND_SCATTER) != 0; }),
+    if (mode == 1)
+    {
+        Group* group = bot->GetGroup();
+        if (!group || group->GetMembersCount() <= 1)
+            return;
+    }
+
+    bool const healer = GetCoaRole(bot) == CoaRole::Heal;
+    spells.erase(std::remove_if(spells.begin(), spells.end(), [healer](Usable const& spell)
+                                {
+                                    if (spell.kind & KIND_SCATTER)
+                                        return true;
+                                    return healer && (spell.kind & (KIND_DAMAGE | KIND_HOSTILE)) != 0;
+                                }),
                  spells.end());
 }
 
@@ -1377,83 +1405,6 @@ Unit* FindCaster(PlayerbotAI* botAI, Player* bot)
     return nullptr;
 }
 
-/*
- * The order in which an action tries its abilities.
- *
- * Without the combat engine this is the kit rotation the bot has always used: start after the last
- * ability that went off, so it works through everything it knows instead of spamming the first that
- * fits. That is the right default solo, and it is why no ability is written down per class.
- *
- * In group content the engine scores them against a snapshot of the fight and the best goes first
- * (CoaCombatEngine.h). Only the order changes: benching, the mana reserve, the strict cast check and
- * the usage counters all stay where they are, and when the engine is off or has one candidate the
- * sequence is byte for byte the old one.
- */
-std::vector<size_t> AbilityOrder(PlayerbotAI* botAI, Player* bot, Unit* target,
-                                 std::vector<Usable> const& usable, CoaCombatEngine::Role role,
-                                 size_t next)
-{
-    std::vector<size_t> order;
-    order.reserve(usable.size());
-
-    if (usable.size() < 2 || !CoaCombatEngine::Active(bot))
-    {
-        for (size_t i = 0; i < usable.size(); ++i)
-            order.push_back((next + i) % usable.size());
-        return order;
-    }
-
-    std::vector<CoaCombatEngine::Candidate> candidates;
-    candidates.reserve(usable.size());
-    for (Usable const& spell : usable)
-    {
-        CoaCombatEngine::Candidate candidate;
-        candidate.info = spell.info;
-        candidate.damage = (spell.kind & KIND_DAMAGE) != 0;
-        candidate.aoe = (spell.kind & KIND_AOE) != 0;
-        candidate.heal = (spell.kind & KIND_HEAL) != 0;
-        candidate.groupHeal = (spell.kind & KIND_GROUP_HEAL) != 0;
-        candidate.hot = (spell.kind & KIND_HOT) != 0;
-        candidate.taunt = (spell.kind & KIND_TAUNT) != 0;
-        candidate.defensive = (spell.kind & KIND_DEFENSIVE) != 0;
-        candidate.control = (spell.kind & KIND_CONTROL) != 0;
-        candidate.scatter = (spell.kind & KIND_SCATTER) != 0;
-        candidates.push_back(candidate);
-    }
-
-    uint8 const enemies = botAI->GetAiObjectContext()->GetValue<uint8>("attackers count")->Get();
-    CoaCombatEngine::Order(CoaCombatEngine::Take(bot, target, enemies), role, candidates);
-
-    std::unordered_map<SpellInfo const*, size_t> position;
-    position.reserve(usable.size());
-    for (size_t i = 0; i < usable.size(); ++i)
-        position.emplace(usable[i].info, i);
-
-    // A refused ability is left out of the order entirely, so it is never tried. An action whose
-    // whole offer was refused reports no cast and the bot falls through to its other actions, which
-    // is the intended outcome for a healer in a group: it heals instead of attacking.
-    for (CoaCombatEngine::Candidate const& candidate : candidates)
-        if (!candidate.disqualified)
-            if (auto const found = position.find(candidate.info); found != position.end())
-                order.push_back(found->second);
-
-    return order;
-}
-
-/// The engine's role for this bot, from the role its specialization carries.
-CoaCombatEngine::Role EngineRole(Player* bot)
-{
-    switch (GetCoaRole(bot))
-    {
-        case CoaRole::Tank:
-            return CoaCombatEngine::ROLE_TANK;
-        case CoaRole::Heal:
-            return CoaCombatEngine::ROLE_HEAL;
-        default:
-            return CoaCombatEngine::ROLE_DPS;
-    }
-}
-
 class CoaAttackAction : public Action
 {
 public:
@@ -1482,14 +1433,18 @@ public:
         // (and its weapon), keeping the rest for heals.
         bool const saveMana = SavingManaForHeals(bot);
 
-        std::vector<Usable> const usable = KnownAbilities(bot, [tank](uint16 kind) { return IsAttack(kind, tank); });
+        std::vector<Usable> usable = KnownAbilities(bot, [tank](uint16 kind) { return IsAttack(kind, tank); });
+        ApplyGroupDiscipline(bot, usable);
         if (usable.empty())
             return false;
 
         time_t const now = time(nullptr);
 
-        for (size_t const index : AbilityOrder(botAI, bot, target, usable, EngineRole(bot), next))
+        // Rotate through the abilities, starting after the last one that went off, so a
+        // bot uses its whole kit instead of spamming the first ability that works.
+        for (size_t i = 0; i < usable.size(); ++i)
         {
+            size_t const index = (next + i) % usable.size();
             SpellInfo const* info = usable[index].info;
 
             Strikes& strikes = failures[info->Id];
@@ -1561,7 +1516,7 @@ public:
             { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
         if (SavingManaForHeals(bot))
             DropManaSpells(bot, spells);
-        DropScatterSpells(bot, spells);
+        ApplyGroupDiscipline(bot, spells);
 
         return RecordUsage(USAGE_AOE, CastFirst(botAI, bot, spells, target));
     }

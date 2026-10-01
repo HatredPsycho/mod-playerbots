@@ -3040,25 +3040,29 @@ AiPlayerbot.TargetPosRecalcDistance = 0.1
 AiPlayerbot.SummonAtInnkeepersEnabled = 1
 
 #
-#    AiPlayerbot.CoaCombatEngine
-#        Which order a CoA bot tries its abilities in.
+
 #
-#        The plain rotation walks through everything the bot knows, starting after the last ability
-#        that went off. That never breaks when a class is reworked, because nothing is written down
-#        per class, but the order is fixed: the bot spends a two minute cooldown on one trash mob,
-#        keeps hitting a single target while four stand next to it, and a healer treats whoever its
-#        trigger named rather than whoever is about to die.
+#    AiPlayerbot.CoaGroupDiscipline
+#        What a CoA bot may not do while it is somebody's group member.
 #
-#        The combat engine scores the same abilities against a snapshot of the fight - pack size,
-#        who the mob is actually hitting, the worst-off group member, cast time against movement,
-#        power left - and tries the best first. Nothing else changes: the same abilities, the same
-#        cast checks, the same benching of what keeps failing.
+#        Two things bots did in instances, both because the rotation takes anything hostile it finds:
 #
-#        0 - off, the plain rotation everywhere
-#        1 - group content only: the bot is in a group that has somebody else in it (default)
-#        2 - everywhere, including solo. For measuring, not for a realm.
+#          - A fear, a confusion or a knockback does not hold the enemy, it takes it somewhere else -
+#            out of the tank's reach and off every area ability the group has placed. A fear carries
+#            no damage, is no taunt and is no interrupt, so the attack filter let it through for
+#            every bot.
+#          - A healer attacked. The threat brake only holds back damage dealers, so a healer's damage
+#            was unmetered, and that is what pulled mobs off the tank. Healing puts threat on
+#            everything in the fight and cannot be helped; damage can.
+#
+#        Both are refusals, not penalties: a badly rated ability still goes off the moment nothing
+#        rates better, and one fear is enough to put a mob in the next room.
+#
+#        0 - off, bots keep their whole kit everywhere
+#        1 - in a group that has somebody else in it (default)
+#        2 - always, solo included
 #
 #    Default: 1
 #
 
-AiPlayerbot.CoaCombatEngine = 1
+AiPlayerbot.CoaGroupDiscipline = 1
