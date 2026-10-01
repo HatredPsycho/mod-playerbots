@@ -6,6 +6,7 @@
 
 #include "BattleGroundJoinAction.h"
 #include "ArenaTeam.h"
+#include "CoaSpecialization.h"
 #include "ArenaTeamMgr.h"
 #include "BattlegroundMgr.h"
 #include "Event.h"
@@ -334,6 +335,10 @@ bool BGJoinAction::isUseful()
 {
     // do not try if BG bots disabled
     if (!sPlayerbotAIConfig.randomBotJoinBG)
+        return false;
+
+    // Offered to a player by "lfg bot": it waits for the invitation.
+    if (CoaLfgOfferedToOther(bot, nullptr))
         return false;
 
     // can't queue while in BG/Arena

@@ -573,11 +573,12 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
     {
         if (!bot || bot == master || !bot->IsInWorld() || bot->IsBeingTeleported() ||
             !IsAscensionCustomClassId(bot->getClass()) || !bot->IsAlive() || bot->IsInCombat() || bot->GetGroup() ||
-            bot->InBattleground() || bot->IsInFlight())
+            bot->GetGroupInvite() || bot->InBattleground() || bot->InBattlegroundQueue() || bot->IsInFlight() ||
+            sLFGMgr->GetState(bot->GetGUID()) != lfg::LFG_STATE_NONE)
             continue;
 
         // Already offered to another player (lfg bots) or otherwise set aside by the caller.
-        if (skip.count(bot->GetGUID()))
+        if (skip.count(bot->GetGUID()) || CoaLfgOfferedToOther(bot, master))
             continue;
 
         // The bot is added to the group directly, past the invitation checks, so the faction rule
@@ -1231,6 +1232,16 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
         if (!offered)
             chat.PSendSysMessage("No bot of your faction is free to play {} right now.", RoleName(role));
     }
+}
+
+bool CoaLfgOfferedToOther(Player* bot, Player* player)
+{
+    if (!bot)
+        return false;
+    std::lock_guard<std::mutex> guard(LfgLock);
+    auto const offer = LfgOffers.find(bot->GetGUID());
+    return offer != LfgOffers.end() && offer->second.until >= time(nullptr) &&
+           (!player || offer->second.player != player->GetGUID());
 }
 
 bool CoaLfgTakeOffer(Player* bot, Player* inviter)
