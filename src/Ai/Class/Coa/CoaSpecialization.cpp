@@ -964,7 +964,7 @@ struct CoaLfgSettings
     bool requireBotWord = true;
     std::array<uint32, 3> offers = { 3, 2, 2 };  // by CoaRole: dps, tank, heal
     uint32 levelRange = 2;
-    uint32 offerSeconds = 5 * MINUTE;
+    uint32 offerSeconds = 2 * MINUTE;
     uint32 cooldownSeconds = 30;
     uint32 announceSeconds = 10 * MINUTE;
     std::string announce;
@@ -1011,7 +1011,7 @@ void LoadLfgSettings()
     for (uint32& count : settings.offers)
         count = std::min<uint32>(count, 5);
     settings.levelRange = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgLevelRange", 2);
-    settings.offerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgOfferMinutes", 5) * MINUTE;
+    settings.offerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgOfferMinutes", 2) * MINUTE;
     settings.cooldownSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgCooldown", 15);
     settings.announceSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgAnnounceMinutes", 10) * MINUTE;
     settings.announce = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaLfgAnnounceText", "");
