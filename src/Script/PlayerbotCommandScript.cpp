@@ -11,7 +11,9 @@
 #include "GroupMgr.h"
 #include "GuildTaskMgr.h"
 #include "PerfMonitor.h"
+#include "PlayerbotFactory.h"
 #include "PlayerbotMgr.h"
+#include "Playerbots.h"
 #include "RandomPlayerbotMgr.h"
 #include "ScriptMgr.h"
 
@@ -64,6 +66,8 @@ public:
     // .playerbots coa raid [size] [tanks] [healers] : fills a raid with bots (25: 3 tanks, 6 healers).
     // Players may build a raid too, within AiPlayerbot.CoaRaidPlayerMax raids at a time on the realm and one
     // every AiPlayerbot.CoaRaidPlayerCooldown minutes each; game masters have no limit and alone recruit one role.
+    // .playerbots coa regear [level] : game masters only, gears again the random bots online of that level or
+    // above (60 by default) to the quality the config gives them now.
     static bool HandleCoaRecruitCommand(ChatHandler* handler, char const* args)
     {
         Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
@@ -130,6 +134,27 @@ public:
             if (built && !gameMaster && master->GetGroup())
                 playerRaids[master->GetGUID()] = { master->GetGroup()->GetGUID(), now };
             handler->SendSysMessage(message);
+            return true;
+        }
+
+        if (wanted == "regear" && gameMaster)
+        {
+            uint32 const minLevel = className.empty() ? 60 : std::max(1, std::atoi(className.c_str()));
+            uint32 done = 0, skipped = 0;
+            for (auto const& [guid, bot] : sRandomPlayerbotMgr.GetAllBots())
+            {
+                if (!bot || !bot->IsInWorld() || bot->GetLevel() < minLevel)
+                    continue;
+                if (bot->IsInCombat() || bot->InBattleground() || bot->InArena() || bot->IsBeingTeleported())
+                {
+                    ++skipped;
+                    continue;
+                }
+                PlayerbotFactory(bot, bot->GetLevel()).InitEquipment(false);
+                ++done;
+            }
+            handler->SendSysMessage(std::to_string(done) + " bots of level " + std::to_string(minLevel) +
+                                    "+ geared again, " + std::to_string(skipped) + " left for later (in combat or in a battleground).");
             return true;
         }
 
