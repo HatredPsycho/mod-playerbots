@@ -1475,8 +1475,8 @@ AiPlayerbot.CoaSmartTank = 1
 # cast (Flamestrike), and ranged members keep out of the reach of instant point blank spells
 # that the smart_scripts rows of the creature hold. Radius limit: AiPlayerbot.MaxAoeAvoidRadius.
 # Takes effect when a bot's strategies are reset (login, ".playerbots bot init", spec change).
-# Default: 0 (disabled)
-AiPlayerbot.CoaBossKnowledge = 0
+# Default: 1 (enabled)
+AiPlayerbot.CoaBossKnowledge = 1
 
 #    AiPlayerbot.CoaTankOpenerSeconds
 #        Description: With CoaSmartTank, a CoA damage dealer lets the tank open: on a target no tank
