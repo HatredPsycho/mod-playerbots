@@ -3060,7 +3060,6 @@ public:
         creators["coa ranged"] = &CoaStrategyFactoryInternal::coa_ranged;
         creators["coa tank"] = &CoaStrategyFactoryInternal::coa_tank;
         creators["coa heal"] = &CoaStrategyFactoryInternal::coa_heal;
-        creators["coa boss dodge"] = &NewCoaBossDodgeStrategy;
     }
 
 private:
@@ -3081,6 +3080,9 @@ public:
         creators["coa buff"] = &CoaNonCombatStrategyFactoryInternal::coa_buff;
         creators["coa auto pull"] = &CoaNonCombatStrategyFactoryInternal::coa_auto_pull;
         creators["nc"] = &CoaNonCombatStrategyFactoryInternal::nc;
+        // Here, not with the role strategies above: those are siblings, and adding one removes the
+        // others - registered there, "coa boss dodge" took "coa" itself away from every bot (01/10).
+        creators["coa boss dodge"] = &NewCoaBossDodgeStrategy;
     }
 
 private:
