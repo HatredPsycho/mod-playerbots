@@ -409,6 +409,7 @@ public:
     bool coaAttackLoop;
     bool coaSpellReplacement;
     bool coaAttackCheckBench;
+    bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
