@@ -1432,6 +1432,13 @@ AiPlayerbot.CoaCasterManaReserve = 15
 # Default: 0 (disabled)
 AiPlayerbot.CoaGroupTelemetry = 0
 
+# ".playerbots coa raid [size] [tanks] [healers]" fills the raid of the one who types it with bots.
+# Game masters have no limit. A player may build one raid every CoaRaidPlayerCooldown minutes, and
+# only while the realm has fewer than CoaRaidPlayerMax raids of bots built by players.
+# Default: 5 raids at a time, 30 minutes
+AiPlayerbot.CoaRaidPlayerMax = 5
+AiPlayerbot.CoaRaidPlayerCooldown = 30
+
 # A snapshot of every random bot online, written as JSON for the SquidBots dashboard (bot-status.json,
 # its "botStatusFile" setting): position, health, power, what the bot is doing, its group and its
 # quests, shown on the map and on each bot's card. The file is written whole under a .tmp name and
