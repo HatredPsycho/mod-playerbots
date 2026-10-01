@@ -61,7 +61,8 @@ enum AbilityKind : uint16
     KIND_INTERRUPT  = 0x0800,
     KIND_CONTROL    = 0x1000,  // stuns, fears, polymorphs... never aimed at a group member
     KIND_STANCE     = 0x2000,  // a form or stance on the caster that never expires
-    KIND_RESURRECT  = 0x4000   // brings a dead ally back
+    KIND_RESURRECT  = 0x4000,  // brings a dead ally back
+    KIND_SCATTER    = 0x8000   // drives the enemy out of the pack: fear, confusion, a knockback
 };
 
 /*
@@ -330,6 +331,17 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
         // group member by stunning or transforming it.
         if (aura && !self && IsControlAura(effect))
             ability.kind |= KIND_CONTROL;
+
+        // Fear, confusion and a knockback do not just hold the enemy, they take it somewhere else.
+        // Inside an instance that is what scatters a pack across two rooms, pulls a mob out of the
+        // tank's reach and off every area ability the group has placed. Marked apart from the rest
+        // of the control so the combat engine can keep it out of a group's rotation while a stun or
+        // a root, which leave the enemy where it stands, stay in.
+        if (!self && ((aura && (effect.ApplyAuraName == SPELL_AURA_MOD_FEAR ||
+                                effect.ApplyAuraName == SPELL_AURA_MOD_CONFUSE)) ||
+                      effect.Effect == SPELL_EFFECT_KNOCK_BACK ||
+                      effect.Effect == SPELL_EFFECT_KNOCK_BACK_DEST))
+            ability.kind |= KIND_SCATTER;
 
         bool const periodicHeal = aura && effect.ApplyAuraName == SPELL_AURA_PERIODIC_HEAL;
         bool const heal = effect.Effect == SPELL_EFFECT_HEAL || effect.Effect == SPELL_EFFECT_HEAL_PCT ||
@@ -668,6 +680,23 @@ void DropManaSpells(Player* bot, std::vector<Usable>& spells)
     spells.erase(std::remove_if(spells.begin(), spells.end(), [bot](Usable const& spell)
         { return spell.info->PowerType == POWER_MANA && spell.info->CalcPowerCost(bot, spell.info->GetSchoolMask()) > 0; }),
         spells.end());
+}
+
+/*
+ * Takes fear, confusion and knockbacks out of a group's rotation (KIND_SCATTER).
+ *
+ * The attack path refuses them through the combat engine, which works through an order. The area
+ * path casts the first ability that works instead, so it needs them gone from the list: an area
+ * knockback is the worst of the lot, it scatters the whole pack at once.
+ */
+void DropScatterSpells(Player* bot, std::vector<Usable>& spells)
+{
+    if (!CoaCombatEngine::Active(bot))
+        return;
+
+    spells.erase(std::remove_if(spells.begin(), spells.end(),
+                                [](Usable const& spell) { return (spell.kind & KIND_SCATTER) != 0; }),
+                 spells.end());
 }
 
 // Puts the cheapest heals first. Low on mana a bot would otherwise keep offering its biggest heal,
@@ -1388,6 +1417,7 @@ std::vector<size_t> AbilityOrder(PlayerbotAI* botAI, Player* bot, Unit* target,
         candidate.taunt = (spell.kind & KIND_TAUNT) != 0;
         candidate.defensive = (spell.kind & KIND_DEFENSIVE) != 0;
         candidate.control = (spell.kind & KIND_CONTROL) != 0;
+        candidate.scatter = (spell.kind & KIND_SCATTER) != 0;
         candidates.push_back(candidate);
     }
 
@@ -1399,11 +1429,29 @@ std::vector<size_t> AbilityOrder(PlayerbotAI* botAI, Player* bot, Unit* target,
     for (size_t i = 0; i < usable.size(); ++i)
         position.emplace(usable[i].info, i);
 
+    // A refused ability is left out of the order entirely, so it is never tried. An action whose
+    // whole offer was refused reports no cast and the bot falls through to its other actions, which
+    // is the intended outcome for a healer in a group: it heals instead of attacking.
     for (CoaCombatEngine::Candidate const& candidate : candidates)
-        if (auto const found = position.find(candidate.info); found != position.end())
-            order.push_back(found->second);
+        if (!candidate.disqualified)
+            if (auto const found = position.find(candidate.info); found != position.end())
+                order.push_back(found->second);
 
     return order;
+}
+
+/// The engine's role for this bot, from the role its specialization carries.
+CoaCombatEngine::Role EngineRole(Player* bot)
+{
+    switch (GetCoaRole(bot))
+    {
+        case CoaRole::Tank:
+            return CoaCombatEngine::ROLE_TANK;
+        case CoaRole::Heal:
+            return CoaCombatEngine::ROLE_HEAL;
+        default:
+            return CoaCombatEngine::ROLE_DPS;
+    }
 }
 
 class CoaAttackAction : public Action
@@ -1440,8 +1488,7 @@ public:
 
         time_t const now = time(nullptr);
 
-        for (size_t const index : AbilityOrder(botAI, bot, target, usable,
-                 tank ? CoaCombatEngine::ROLE_TANK : CoaCombatEngine::ROLE_DPS, next))
+        for (size_t const index : AbilityOrder(botAI, bot, target, usable, EngineRole(bot), next))
         {
             SpellInfo const* info = usable[index].info;
 
@@ -1514,6 +1561,7 @@ public:
             { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
         if (SavingManaForHeals(bot))
             DropManaSpells(bot, spells);
+        DropScatterSpells(bot, spells);
 
         return RecordUsage(USAGE_AOE, CastFirst(botAI, bot, spells, target));
     }

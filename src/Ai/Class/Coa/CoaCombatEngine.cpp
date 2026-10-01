@@ -179,7 +179,7 @@ namespace
      * Damage dealing. Three questions decide the order: is this a pack, is the target worth a
      * cooldown, and can the cast finish.
      */
-    float ScoreDps(Snapshot const& snapshot, Candidate const& candidate)
+    float ScoreDps(Snapshot const& snapshot, Candidate& candidate)
     {
         float score = 0.0f;
         SpellInfo const* info = candidate.info;
@@ -202,8 +202,18 @@ namespace
                 score -= 12.0f;
         }
 
+        if (candidate.scatter)
+        {
+            // The reason the engine was asked for: a fear or a knockback inside an instance takes
+            // the enemy out of the tank's reach and off every area ability the group has placed.
+            // Once is enough, so it is refused rather than ranked last - a badly scored ability
+            // still goes off the moment nothing scores better.
+            candidate.disqualified = true;
+            return 0.0f;
+        }
+
         if (candidate.control)
-            score -= 40.0f;  // never part of a rotation; the control triggers own it
+            score -= 40.0f;  // a stun or a root leaves the enemy standing; still not rotation work
 
         uint32 const cooldown = CooldownOf(snapshot.bot, info);
         if (cooldown >= LongCooldownMs)
@@ -241,7 +251,7 @@ namespace
      * Healing. Urgency of the worst-off member decides the shape of the heal: direct when somebody
      * is about to die, group when several are hurt, a heal over time only when nothing is urgent.
      */
-    float ScoreHeal(Snapshot const& snapshot, Candidate const& candidate)
+    float ScoreHeal(Snapshot const& snapshot, Candidate& candidate)
     {
         float score = 0.0f;
         bool const emergency = snapshot.lowestAllyPct < CriticalPct;
@@ -255,8 +265,17 @@ namespace
             // A heal over time placed while somebody is dying is health that arrives too late.
             score += emergency ? -25.0f : 18.0f;
         else if (candidate.damage)
-            // A healer attacks only when the group is whole.
-            score += snapshot.injuredAllies ? -30.0f : 4.0f;
+        {
+            /*
+             * A healer in a group does not attack. Not "attacks less": the threat brake
+             * (CoaThreatMultiplier) holds back damage dealers only - it returns 1.0 for every role
+             * that is not Dps - so a healer's damage is unmetered, and that is what pulls mobs off
+             * the tank. Healing puts threat on everything in the fight and cannot be helped; damage
+             * can.
+             */
+            candidate.disqualified = true;
+            return 0.0f;
+        }
 
         if (candidate.info)
         {
@@ -274,7 +293,7 @@ namespace
      * Tanking. Holding what is already on the group comes before damage, and the pack threshold is
      * lower than a damage dealer's because threat on two is already a job.
      */
-    float ScoreTank(Snapshot const& snapshot, Candidate const& candidate)
+    float ScoreTank(Snapshot const& snapshot, Candidate& candidate)
     {
         float score = 0.0f;
 
@@ -292,6 +311,13 @@ namespace
             // Mitigation is worth its slot from the moment the tank is actually being hit down.
             score += snapshot.healthPct < 65.0f ? 32.0f : -30.0f;
 
+        if (candidate.scatter)
+        {
+            // A tank least of all: the pack it is holding is the point.
+            candidate.disqualified = true;
+            return 0.0f;
+        }
+
         if (candidate.control)
             score -= 40.0f;
 
@@ -304,9 +330,8 @@ namespace
 
 void Order(Snapshot const& snapshot, Role role, std::vector<Candidate>& candidates)
 {
-    if (candidates.size() < 2)
-        return;
-
+    // No early return on a single candidate: a refusal applies to one ability just as much, and a
+    // healer whose only offer is a damage spell must still be told not to cast it.
     for (Candidate& candidate : candidates)
     {
         switch (role)

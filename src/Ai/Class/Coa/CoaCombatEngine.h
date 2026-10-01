@@ -66,8 +66,16 @@ namespace CoaCombatEngine
         bool taunt = false;
         bool defensive = false;
         bool control = false;
+        bool scatter = false;
 
         float score = 0.0f;
+
+        /*
+         * Set by the engine: this ability must not be cast at all in group content, rather than
+         * merely come last. A fear that scores badly still goes off the moment nothing scores
+         * better, and once is enough to put a mob in the next room.
+         */
+        bool disqualified = false;
     };
 
     /*
