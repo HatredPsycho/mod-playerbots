@@ -7,6 +7,7 @@
 #include "Playerbots.h"
 #include "CoaSpecialization.h"
 #include "BattleGroundTactics.h"
+#include "CoaBossKnowledge.h"
 #include "BattlefieldScript.h"
 #include "Channel.h"
 #include "Config.h"
@@ -399,6 +400,9 @@ public:
         LOG_INFO("server.loading", " ");
 
         PlayerbotSpellRepository::Instance().Initialize();
+
+        if (sPlayerbotAIConfig.coaBossKnowledge)
+            CoaBossKnowledge::Load();
 
         LOG_INFO("server.loading", "Playerbots World Thread Processor initialized");
     }
