@@ -700,22 +700,42 @@ void DropManaSpells(Player* bot, std::vector<Usable>& spells)
  *
  * AiPlayerbot.CoaGroupDiscipline: 0 off, 1 in a group (the default), 2 always.
  */
-void ApplyGroupDiscipline(Player* bot, std::vector<Usable>& spells)
+bool GroupDisciplineActive(Player* bot)
 {
     static uint8 const mode = [] {
         int32 const value = sConfigMgr->GetOption<int32>("AiPlayerbot.CoaGroupDiscipline", 1);
         return uint8(value < 0 ? 0 : (value > 2 ? 2 : value));
     }();
 
-    if (!mode || spells.empty())
-        return;
+    if (!mode)
+        return false;
+    if (mode == 2)
+        return true;
 
-    if (mode == 1)
-    {
-        Group* group = bot->GetGroup();
-        if (!group || group->GetMembersCount() <= 1)
-            return;
-    }
+    Group* group = bot->GetGroup();
+    return group && group->GetMembersCount() > 1;
+}
+
+/*
+ * Whether the bot has nothing hostile to offer at all, so an attacking action must not be selected
+ * in the first place.
+ *
+ * Filtering the list alone was not enough, and the way it failed is worth keeping written down. The
+ * attack action starts the melee swing before it looks at its spells, so a healer whose list came
+ * back empty still swung its weapon every tick: that is damage, and it kept the bot permanently in
+ * combat, so it never reached the non-combat engine - which is where "coa resurrect" hangs, off
+ * CoaBuffStrategy. One missing guard, two symptoms: healers dealing damage instead of healing, and
+ * nobody picking the dead up.
+ */
+bool GroupDisciplineForbidsHostile(Player* bot)
+{
+    return GetCoaRole(bot) == CoaRole::Heal && GroupDisciplineActive(bot);
+}
+
+void ApplyGroupDiscipline(Player* bot, std::vector<Usable>& spells)
+{
+    if (spells.empty() || !GroupDisciplineActive(bot))
+        return;
 
     bool const healer = GetCoaRole(bot) == CoaRole::Heal;
     spells.erase(std::remove_if(spells.begin(), spells.end(), [healer](Usable const& spell)
@@ -1419,6 +1439,11 @@ public:
         if (!target || !target->IsAlive())
             return false;
 
+        // Before the swing: a healer under group discipline has nothing to do here, and starting the
+        // melee anyway is what kept it in combat for good.
+        if (GroupDisciplineForbidsHostile(bot))
+            return false;
+
         // Playerbots only starts the melee swing for melee bots. A ranged CoA bot caught in melee
         // (a level 1 Ranger: its shot has a minimum range) would then stand there doing nothing and
         // die, so swing the weapon while the target is in reach; spells still go first when they can.
@@ -1481,7 +1506,7 @@ public:
     bool isUseful() override
     {
         Unit* target = AI_VALUE(Unit*, "current target");
-        return target && target->IsAlive();
+        return target && target->IsAlive() && !GroupDisciplineForbidsHostile(bot);
     }
 
 private:
@@ -1524,7 +1549,7 @@ public:
     bool isUseful() override
     {
         Unit* target = AI_VALUE(Unit*, "current target");
-        return target && target->IsAlive() && ClassHas(bot, KIND_AOE) &&
+        return target && target->IsAlive() && !GroupDisciplineForbidsHostile(bot) && ClassHas(bot, KIND_AOE) &&
                HasReadyAbility(botAI, bot,[](uint16 kind) { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
     }
 };
