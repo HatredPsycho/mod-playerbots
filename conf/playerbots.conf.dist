@@ -1200,6 +1200,12 @@ AiPlayerbot.RandomGearQualityLimit = 3
 # Default: 0 (no limit)
 AiPlayerbot.RandomGearScoreLimit = 0
 
+# With RandomGearQualityLimit = 4 (epic), the level from which bots may wear epic gear; below it they
+# keep to rare. Conquest of Azeroth Worldforged items count as gear of their level, whatever
+# LimitGearExpansion says. ".playerbots coa regear [level]" gears the bots online again (game masters).
+# Default: 60
+AiPlayerbot.CoaEpicGearMinLevel = 60
+
 # Prefer armor of the class's ideal type: apply 3x score multiplier to class-appropriate armor.
 # When enabled, Warriors strongly prefer plate, Shamans prefer mail, etc.
 # A truly superior item can still win (no hard filtering), but same-quality
