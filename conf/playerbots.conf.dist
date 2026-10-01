@@ -1652,9 +1652,9 @@ AiPlayerbot.CoaLfgLevelRange = 2
 #    AiPlayerbot.CoaLfgOfferMinutes
 #        Description: How long an offer holds: meanwhile the bot is offered to nobody else and
 #                     accepts that player's invitation. Afterwards it goes back to its own life.
-#        Default:     5
+#        Default:     2
 
-AiPlayerbot.CoaLfgOfferMinutes = 5
+AiPlayerbot.CoaLfgOfferMinutes = 2
 
 #    AiPlayerbot.CoaLfgCooldown
 #        Description: Seconds before the same player is answered again for the same role.
