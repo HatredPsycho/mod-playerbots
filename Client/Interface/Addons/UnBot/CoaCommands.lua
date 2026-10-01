@@ -73,6 +73,36 @@ local UnBotInstanceStrategies = {
 	["the ruby sanctum"] = "rs", ["le sanctum rubis"] = "rs",
 };
 
+-- A strategy is created under the key below but stored under its own getName(), and for the
+-- dungeons the two differ (Engine::addStrategy does strategies[strategy->getName()] = strategy).
+-- "co -wotlk-dtk" therefore removes nothing: the engine looks for a key that is not there. Only
+-- the dungeons need this; every raid strategy reports its key as its name, which is why leaving a
+-- raid always worked and leaving a dungeon never did.
+UnBotStrategyRemovalName = {
+	["vanilla-rfc"] = "ragefire chasm",
+	["vanilla-sfk"] = "shadowfang keep",
+	["wotlk-uk"] = "utgarde keep",
+	["wotlk-nex"] = "nexus",
+	["wotlk-an"] = "azjol'nerub",
+	["wotlk-ok"] = "old kingdom",
+	["wotlk-dtk"] = "drak'tharon keep",
+	["wotlk-vh"] = "violet hold",
+	["wotlk-gd"] = "gundrak",
+	["wotlk-hos"] = "halls of stone",
+	["wotlk-hol"] = "halls of lightning",
+	["wotlk-occ"] = "oculus",
+	["wotlk-up"] = "utgarde pinnacle",
+	["wotlk-cos"] = "culling of stratholme",
+	["wotlk-toc"] = "trial of the champion",
+	["wotlk-pos"] = "pit of saron",
+	["wotlk-fos"] = "forge of souls",
+};
+
+-- The name "co -<x>" has to use, which is the removal name where one is listed.
+local function StrategyRemovalName(strategy)
+	return UnBotStrategyRemovalName[strategy] or strategy;
+end
+
 local function CurrentInstanceStrategy()
 	local inInstance = IsInInstance();
 	if (not inInstance) then
@@ -123,7 +153,7 @@ local function CommandLeaveDungeonProfile(index)
 	local strategy = CurrentInstanceStrategy();
 	local removal = "co -wait for attack,-avoid aoe,-mark rti";
 	if (strategy ~= nil) then
-		removal = removal..",-"..strategy;
+		removal = removal..",-"..StrategyRemovalName(strategy);
 	end
 	if (SendToGroup(removal)) then
 		DisplayInfomation("Dungeon settings removed.");
