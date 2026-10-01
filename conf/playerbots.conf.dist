@@ -1501,16 +1501,16 @@ AiPlayerbot.CoaThreatHold = 0
 #                     minute after three refusals, cleaves wait for melee reach, summons are not recast
 #                     while up, and area attacks, defensives and interrupts log why they fail.
 #                     0 - the attack loop of 1.6.
-#        Default:     0
+#        Default:     1
 
-AiPlayerbot.CoaAttackLoop = 0
+AiPlayerbot.CoaAttackLoop = 1
 
 #    AiPlayerbot.CoaSpellReplacement
 #        Description: 1 - checks, cooldowns and the set-aside list follow the spell a proc swaps in
 #                     (Malefic Wrath -> Malefic Arrow), the cast keeps the listed id. 0 - as in 1.6.
-#        Default:     0
+#        Default:     1
 
-AiPlayerbot.CoaSpellReplacement = 0
+AiPlayerbot.CoaSpellReplacement = 1
 
 #    AiPlayerbot.CoaAttackCheckBench
 #        Description: with AiPlayerbot.CoaAttackLoop = 1, what becomes of an attack the strict check turns
