@@ -18,7 +18,7 @@ struct Pick
     std::uint8_t Rank;
 };
 
-inline constexpr std::array<Pick, 3564> Picks =
+inline constexpr std::array<Pick, 3568> Picks =
 {{
     {12, 1, 10, 0, 30162, 1},
     {12, 1, 11, 1, 34319, 1},
@@ -59,7 +59,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 1, 46, 0, 6802, 1},
     {12, 1, 47, 1, 6799, 2},
     {12, 1, 48, 0, 11168, 1},
-    {12, 1, 49, 1, 7338, 1},
+    {12, 1, 49, 1, 30167, 1},  // by hand web4: Berserker (top players) instead of Brutal Form (7338), same 23-point gate
     {12, 1, 50, 0, 34320, 1},
     {12, 1, 51, 1, 6803, 1},
     {12, 1, 52, 0, 6844, 1},
@@ -128,6 +128,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 13, 1, 29284, 1},
     {12, 3, 14, 0, 14277, 2},
     {12, 3, 15, 1, 31220, 1},
+    {12, 3, 15, 1, 9172, 1},  // by hand web4: free choice Frozen Blades (top players), group 8456221, level 15
     {12, 3, 16, 0, 30162, 1},
     {12, 3, 17, 1, 29799, 1},
     {12, 3, 18, 0, 7720, 1},
@@ -143,6 +144,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 28, 0, 34291, 1},
     {12, 3, 29, 1, 29800, 2},
     {12, 3, 30, 0, 34279, 1},
+    {12, 3, 30, 1, 34257, 1},  // by hand web4: free choice Uniting Voice (top players), group 723711, level 30
     {12, 3, 31, 1, 29800, 3},
     {12, 3, 32, 0, 30870, 1},
     {12, 3, 33, 1, 34262, 1},
@@ -153,6 +155,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 38, 0, 12563, 1},
     {12, 3, 39, 1, 30387, 1},
     {12, 3, 40, 0, 6462, 1},
+    {12, 3, 40, 1, 9861, 1},  // by hand web4: free choice To The Bone (top players), group 326121, level 40
     {12, 3, 41, 1, 30386, 1},
     {12, 3, 42, 0, 6374, 1},
     {12, 3, 43, 1, 30386, 2},
@@ -163,6 +166,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 48, 0, 6753, 1},
     {12, 3, 49, 1, 34305, 1},
     {12, 3, 50, 0, 5373, 1},
+    {12, 3, 50, 1, 12112, 1},  // by hand web4: free choice Clanlord's Totem (top players), group 934111, level 50
     {12, 3, 51, 1, 29348, 1},
     {12, 3, 52, 0, 6844, 1},
     {12, 3, 53, 1, 34311, 1},
