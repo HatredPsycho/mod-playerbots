@@ -663,7 +663,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {15, 97, 38, 0, 34556, 2},
     {15, 97, 39, 1, 7577, 1},
     {15, 97, 39, 1, 7586, 1},
-    {15, 97, 39, 1, 7590, 1},
+    {15, 97, 39, 1, 7585, 1},  // by hand 03/10: Destroyer of Evil (top players) instead of Calm Under Pressure (7590), same tree and gate
     {15, 97, 40, 0, 7482, 1},
     {15, 97, 42, 0, 6622, 1},
     {15, 97, 43, 1, 7584, 1},
