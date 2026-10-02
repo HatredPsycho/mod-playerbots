@@ -1542,7 +1542,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {21, 28, 50, 0, 7906, 1},
     {21, 28, 51, 1, 7793, 1},
     {21, 28, 52, 0, 30351, 1},
-    {21, 28, 53, 1, 7792, 1},
+    {21, 28, 53, 1, 7904, 1},  // by hand 02/10: Incendiary Shot (top players) instead of Brutal Shot (7792), same 23-point gate
     {21, 28, 54, 0, 34169, 1},
     {21, 28, 55, 1, 29914, 1},
     {21, 28, 56, 0, 30053, 1},
