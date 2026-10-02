@@ -165,11 +165,15 @@ static constexpr CoaStatWeight CoaStats_27_48[] = { { STATS_TYPE_STAMINA, 3.0f }
 // Sun Cleric / Valkyrie (physisch_nah)
 static constexpr CoaStatWeight CoaStats_27_47[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_STRENGTH, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Tinker / Demolition (physisch_fern)
-static constexpr CoaStatWeight CoaStats_28_49[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_CRIT, 2.08f }, { STATS_TYPE_HASTE, 1.87f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_ATTACK_POWER, 1.43f }, { STATS_TYPE_SPELL_POWER, 1.22f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f } };
+// Corrected by hand on 02/10 (the generator is not in this repository): Bomb Toss, Sticky Bomb and Rocket
+// Launcher scale on spell power and every spell costs mana, so spell power moves up and intellect comes in.
+// On the boss bench the Demolition bots with 200 spell power or more did 2 to 2.8 times the damage of the others.
+static constexpr CoaStatWeight CoaStats_28_49[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_SPELL_POWER, 2.2f }, { STATS_TYPE_CRIT, 2.08f }, { STATS_TYPE_INTELLECT, 1.9f }, { STATS_TYPE_HASTE, 1.87f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_ATTACK_POWER, 1.43f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f } };
 // Tinker / Invention (heilung)
 static constexpr CoaStatWeight CoaStats_28_51[] = { { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_HEAL_POWER, 1.0f }, { STATS_TYPE_INTELLECT, 0.9f }, { STATS_TYPE_MANA_REGENERATION, 0.9f }, { STATS_TYPE_SPIRIT, 0.8f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_CRIT, 0.6f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Tinker / Mechanics (physisch_fern)
-static constexpr CoaStatWeight CoaStats_28_50[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_ATTACK_POWER, 1.65f }, { STATS_TYPE_CRIT, 1.43f }, { STATS_TYPE_HASTE, 1.22f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f } };
+// Corrected by hand on 02/10: intellect comes in, the Mechsuit and its abilities run on mana.
+static constexpr CoaStatWeight CoaStats_28_50[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_ATTACK_POWER, 1.65f }, { STATS_TYPE_INTELLECT, 1.5f }, { STATS_TYPE_CRIT, 1.43f }, { STATS_TYPE_HASTE, 1.22f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f } };
 // Venomancer / Rot (zauber)
 static constexpr CoaStatWeight CoaStats_29_54[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_HASTE, 1.58f }, { STATS_TYPE_SPELL_POWER, 1.36f }, { STATS_TYPE_INTELLECT, 1.14f }, { STATS_TYPE_CRIT, 0.92f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Venomancer / Fortitude (tank)
@@ -254,9 +258,9 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 27,  98, "Blessings", "heilung", "any", false, CoaStats_27_98, 8 },
     { 27,  48, "Seraphim", "tank", "shield", false, CoaStats_27_48, 13 },
     { 27,  47, "Valkyrie", "physisch_nah", "dualWield", false, CoaStats_27_47, 8 },
-    { 28,  49, "Demolition", "physisch_fern", "ranged", false, CoaStats_28_49, 8 },
+    { 28,  49, "Demolition", "physisch_fern", "ranged", false, CoaStats_28_49, 9 },
     { 28,  51, "Invention", "heilung", "ranged", false, CoaStats_28_51, 8 },
-    { 28,  50, "Mechanics", "physisch_fern", "caster", false, CoaStats_28_50, 8 },
+    { 28,  50, "Mechanics", "physisch_fern", "caster", false, CoaStats_28_50, 9 },
     { 29,  54, "Rot", "zauber", "caster", true, CoaStats_29_54, 7 },
     { 29,  52, "Fortitude", "tank", "caster", true, CoaStats_29_52, 12 },
     { 29,  53, "Stalking", "zauber", "caster", true, CoaStats_29_53, 8 },
