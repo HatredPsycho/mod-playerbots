@@ -2539,7 +2539,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {27, 46, 20, 0, 31150, 1},
     {27, 46, 21, 1, 6558, 1},
     {27, 46, 22, 0, 33988, 1},
-    {27, 46, 23, 1, 5312, 1},
+    {27, 46, 23, 1, 34052, 1},  // by hand 03/10: Burning Heat (top players) instead of Burn The Heretics (5312), same tree and gate
     {27, 46, 24, 0, 30153, 1},
     {27, 46, 25, 1, 30957, 1},
     {27, 46, 26, 0, 30956, 1},
@@ -2626,7 +2626,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {27, 47, 56, 0, 30309, 2},
     {27, 47, 57, 1, 6837, 1},
     {27, 47, 58, 0, 29181, 1},
-    {27, 47, 59, 1, 7641, 1},
+    {27, 47, 59, 1, 30681, 1},  // by hand web4: Solar Empowerment (top players) instead of Sunstorm (7641), same 23-point gate
     {27, 47, 60, 0, 29178, 1},
     {27, 48, 10, 0, 29446, 1},
     {27, 48, 11, 1, 30958, 1},
@@ -2718,7 +2718,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {27, 98, 46, 0, 7910, 1},
     {27, 98, 47, 1, 29506, 2},
     {27, 98, 48, 0, 7397, 1},
-    {27, 98, 49, 1, 7051, 1},
+    {27, 98, 49, 1, 34001, 1},  // by hand 03/10: Everglow (top players) instead of missing entry (7051), same tree and gate
     {27, 98, 50, 0, 33979, 1},
     {27, 98, 51, 1, 33998, 1},
     {27, 98, 52, 0, 6878, 1},
