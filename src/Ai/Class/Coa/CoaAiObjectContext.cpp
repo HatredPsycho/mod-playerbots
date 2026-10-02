@@ -654,6 +654,16 @@ bool IsAttack(uint16 kind, bool tank)
     return !(kind & KIND_INTERRUPT);
 }
 
+// Whether another tank holds this enemy. As for "has aggro", only the main tank set on the group takes
+// it from them: otherwise two tanks taunt back and forth what the other holds, and a bot tank pulls the
+// boss off a player tank (the same fault fixed in three forks: sksmith261, ShatteredDawn, pengjinfei).
+bool HeldByOtherTank(Player* bot, Unit* enemy)
+{
+    Unit* victim = enemy->GetVictim();
+    Player* holder = victim ? victim->ToPlayer() : nullptr;
+    return holder && holder != bot && PlayerbotAI::IsTank(holder) && !PlayerbotAI::IsExplicitMainTank(bot);
+}
+
 /*
  * The check CastSpell will actually face.
  *
@@ -1789,7 +1799,10 @@ public:
         // (and its weapon), keeping the rest for heals.
         bool const saveMana = SavingManaForHeals(bot);
 
-        std::vector<Usable> const usable = KnownAbilities(bot, [tank](uint16 kind) { return IsAttack(kind, tank); });
+        // Taunts, even those that deal damage, stay out of the rotation on an enemy another tank holds.
+        bool const noTaunt = tank && HeldByOtherTank(bot, target);
+        std::vector<Usable> const usable = KnownAbilities(bot, [tank, noTaunt](uint16 kind)
+            { return IsAttack(kind, tank) && !(noTaunt && (kind & KIND_TAUNT)); });
         if (usable.empty())
             return false;
 
@@ -2220,6 +2233,7 @@ public:
 // then the one whose victim is the lowest. Tanks only taunted their own target when it turned away, and
 // left alone the mobs that never were their target: 0.25 to 0.86 taunts a fight, none in 39 to 79% of
 // fights, while 80% of the deaths were damage dealers and healers (NUC dungeon arenas, 28/09).
+// An enemy on another tank is held, not loose, even for the main tank: its adds stay with the off-tank.
 Unit* LooseEnemy(PlayerbotAI* botAI, Player* bot)
 {
     Group* group = bot->GetGroup();
@@ -2234,7 +2248,8 @@ Unit* LooseEnemy(PlayerbotAI* botAI, Player* bot)
             continue;
         Unit* victim = enemy->GetVictim();
         Player* victimPlayer = victim ? victim->ToPlayer() : nullptr;
-        if (!victimPlayer || victimPlayer == bot || victimPlayer->GetGroup() != group)
+        if (!victimPlayer || victimPlayer == bot || victimPlayer->GetGroup() != group ||
+            PlayerbotAI::IsTank(victimPlayer))
             continue;
         if (bot->GetDistance(enemy) > 30.0f || !bot->IsWithinLOSInMap(enemy))
             continue;
@@ -2250,6 +2265,13 @@ Unit* LooseEnemy(PlayerbotAI* botAI, Player* bot)
     return best;
 }
 
+// Whether the current target attacks someone else than the bot, and not another tank holding it.
+bool OwnTargetTurned(Player* bot, Unit* target)
+{
+    return target && target->IsAlive() && target->GetVictim() && target->GetVictim() != bot &&
+           !HeldByOtherTank(bot, target);
+}
+
 // Takes the current target back when it attacks someone else, or else an enemy on another member.
 class CoaTauntAction : public Action
 {
@@ -2259,7 +2281,7 @@ public:
     bool Execute(Event /*event*/) override
     {
         Unit* target = AI_VALUE(Unit*, "current target");
-        bool const ownTurned = target && target->IsAlive() && target->GetVictim() && target->GetVictim() != bot;
+        bool const ownTurned = OwnTargetTurned(bot, target);
         if (!ownTurned)
             target = LooseEnemy(botAI, bot);
         if (!target || !target->IsAlive())
@@ -2281,8 +2303,7 @@ public:
     {
         if (!ClassHas(bot, KIND_TAUNT) || !HasReadyAbility(botAI, bot, [](uint16 kind) { return (kind & KIND_TAUNT) != 0; }))
             return false;
-        Unit* target = AI_VALUE(Unit*, "current target");
-        if (target && target->IsAlive() && target->GetVictim() && target->GetVictim() != bot)
+        if (OwnTargetTurned(bot, AI_VALUE(Unit*, "current target")))
             return true;
         return LooseEnemy(botAI, bot) != nullptr;
     }
