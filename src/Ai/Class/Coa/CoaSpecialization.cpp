@@ -23,6 +23,7 @@
 #include "Playerbots.h"
 #include "PlayerbotFactory.h"
 #include "Random.h"
+#include "RandomBotLevelMgr.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedDefines.h"
 #include "SpellAuras.h"
@@ -579,6 +580,10 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
 
         // Already offered to another player (lfg bots) or otherwise set aside by the caller.
         if (skip.count(bot->GetGUID()) || CoaLfgOfferedToOther(bot, master))
+            continue;
+
+        // Held by a test bench for a match: recruited from there, it would leave its fight in the middle.
+        if (RandomBotLevelMgr::IsHeld(bot->GetGUID()))
             continue;
 
         // The bot is added to the group directly, past the invitation checks, so the faction rule
