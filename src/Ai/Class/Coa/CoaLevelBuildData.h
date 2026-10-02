@@ -379,7 +379,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {14, 7, 56, 0, 30552, 1},
     {14, 7, 57, 1, 34234, 1},
     {14, 7, 58, 0, 29400, 1},
-    {14, 7, 59, 1, 29922, 1},
+    {14, 7, 59, 1, 34232, 1},  // by hand web4: Malice of Gul'dan (top players) instead of Chaotic Intuition (29922), same 23-point gate
     {14, 7, 60, 0, 34227, 1},
     {14, 8, 10, 0, 29686, 1},
     {14, 8, 11, 1, 29387, 1},
@@ -455,7 +455,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {14, 9, 30, 0, 33670, 1},
     {14, 9, 31, 1, 34226, 1},
     {14, 9, 32, 0, 30559, 1},
-    {14, 9, 33, 1, 30566, 1},
+    {14, 9, 33, 1, 9218, 1},  // by hand web4: Straight to the Nether (top players) instead of Battle Finesse (30566), same 8-point gate
     {14, 9, 34, 0, 31294, 1},
     {14, 9, 35, 1, 30556, 1},
     {14, 9, 36, 0, 11227, 1},
