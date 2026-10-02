@@ -411,6 +411,7 @@ public:
     bool coaSpellReplacement;
     bool coaAncestralCombatFix;
     bool coaAttackCheckBench;
+    bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;

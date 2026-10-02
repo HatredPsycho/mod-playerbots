@@ -1533,6 +1533,19 @@ AiPlayerbot.Coa.AncestralCombatFix = 0
 
 AiPlayerbot.CoaAttackCheckBench = 0
 
+#    AiPlayerbot.CoaStealthIsNotStance
+#        Description: 1 - a stealth or an invisibility the bot casts on itself (Ranger Elude, Venomancer
+#                     Skulk, Reaper Underwalk, Runemaster Runeshroud) no longer counts as a stance: out of
+#                     combat the bot stops wearing it, so it no longer walks slowed and hidden in towns or
+#                     between trial waves, and takes its real stance (quiver, form, tattoo) instead. A
+#                     rotation can still cast it by name. Spells that need it (Flank, Toxic Dart, Spectre
+#                     Stride, Palm Sigils) then only come with a proc or a stealth cast in the fight.
+#                     0 - stealth is a stance like any other, as in 1.6.
+#                     Read once, when the first bot loads: a restart is needed to change it.
+#        Default:     0
+
+AiPlayerbot.CoaStealthIsNotStance = 0
+
 #    AiPlayerbot.CoaInterruptCoordination
 #        Description: 1 - in a group, one bot kicks each enemy cast: the first to see it picks a bot
 #                     with a kick ready and in reach, a damage dealer before a healer before the tank,
