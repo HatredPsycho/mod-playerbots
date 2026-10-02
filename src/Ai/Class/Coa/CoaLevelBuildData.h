@@ -2371,7 +2371,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {26, 43, 56, 0, 29648, 1},
     {26, 43, 57, 1, 29892, 2},
     {26, 43, 58, 0, 30369, 1},
-    {26, 43, 59, 1, 33808, 1},
+    {26, 43, 59, 1, 6693, 1},  // by hand 03/10: Rippling Moonwater (top players) instead of Rampaging Waters (33808), same tree and gate
     {26, 43, 60, 0, 33810, 1},
     {26, 44, 10, 0, 7721, 1},
     {26, 44, 11, 1, 13801, 1},
