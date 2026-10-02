@@ -22,6 +22,7 @@
 #include "GameObjectData.h"
 #include "GameTime.h"
 #include "GuildMgr.h"
+#include "Helpers.h"
 #include "LFGMgr.h"
 #include "LastMovementValue.h"
 #include "LastSpellCastValue.h"
@@ -3408,11 +3409,9 @@ bool PlayerbotAI::HasAura(std::string const name, Unit* unit, bool maxStack, boo
     if (!IsValidUnit(unit))
         return false;
 
-    std::wstring wnamepart;
-    if (!Utf8toWStr(name, wnamepart))
+    std::wstring const wnamepart = CoaNameKey(name);
+    if (wnamepart.empty())
         return false;
-
-    wstrToLower(wnamepart);
 
     int auraAmount = 0;
 
@@ -3435,7 +3434,7 @@ bool PlayerbotAI::HasAura(std::string const name, Unit* unit, bool maxStack, boo
 
             // Check if the aura name matches
             std::string_view const auraName = spellInfo->SpellName[0];
-            if (auraName.empty() || auraName.length() != wnamepart.length() || !Utf8FitTo(auraName, wnamepart))
+            if (!CoaNameIs(auraName, wnamepart))
                 continue;
 
             // Check if this is a valid aura for the bot
@@ -3494,11 +3493,9 @@ Aura* PlayerbotAI::GetAura(std::string const name, Unit* unit, bool checkIsOwner
     if (!IsValidUnit(unit))
         return nullptr;
 
-    std::wstring wnamepart;
-    if (!Utf8toWStr(name, wnamepart))
+    std::wstring const wnamepart = CoaNameKey(name);
+    if (wnamepart.empty())
         return nullptr;
-
-    wstrToLower(wnamepart);
 
     for (uint32 auraType = SPELL_AURA_BIND_SIGHT; auraType < TOTAL_AURAS; ++auraType)
     {
@@ -3515,7 +3512,7 @@ Aura* PlayerbotAI::GetAura(std::string const name, Unit* unit, bool checkIsOwner
             std::string const& auraName = spellInfo->SpellName[0];
 
             // Directly skip if name mismatch (both length and content)
-            if (auraName.empty() || auraName.length() != wnamepart.length() || !Utf8FitTo(auraName, wnamepart))
+            if (!CoaNameIs(auraName, wnamepart))
                 continue;
 
             if (!IsRealAura(bot, aurEff, unit))

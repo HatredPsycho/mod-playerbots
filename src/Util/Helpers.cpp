@@ -5,6 +5,7 @@
  */
 
 #include "Helpers.h"
+#include "Util.h"
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
@@ -111,4 +112,39 @@ std::vector<std::string> split(std::string const s, char delim)
 {
     std::vector<std::string> elems;
     return split(s, delim, elems);
+}
+
+std::wstring CoaNameKey(std::string_view name)
+{
+    std::wstring key;
+    if (!Utf8toWStr(name, key))
+        return std::wstring();
+
+    wstrToLower(key);
+    for (wchar_t& c : key)
+        if (c == 0x2018 || c == 0x2019 || c == 0x02BC)
+            c = L'\'';
+
+    return key;
+}
+
+bool CoaNameIs(std::string_view name, std::wstring const& key)
+{
+    if (key.empty() || name.size() < key.size())
+        return false;
+
+    bool const ascii = std::none_of(name.begin(), name.end(), [](char c) { return static_cast<unsigned char>(c) >= 0x80; });
+    if (ascii)
+    {
+        if (name.size() != key.size())
+            return false;
+
+        for (std::size_t i = 0; i < name.size(); ++i)
+            if (wchar_t(std::tolower(static_cast<unsigned char>(name[i]))) != key[i])
+                return false;
+
+        return true;
+    }
+
+    return CoaNameKey(name) == key;
 }
