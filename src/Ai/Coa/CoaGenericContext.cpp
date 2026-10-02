@@ -11,6 +11,7 @@
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Helpers.h"
 #include "Playerbots.h"
 #include "CoaSpecialization.h"
 #include "SpellInfo.h"
@@ -18,6 +19,7 @@
 #include "Timer.h"
 #include <map>
 #include <cctype>
+#include <cstdlib>
 #include <algorithm>
 
 // The dispel type of a cure spell, taken from the spell itself.
@@ -331,10 +333,40 @@ bool CoaCanCastTrigger::IsActive()
            !CoaHoldsExclusiveSibling(bot, info);
 }
 
+void CoaSummonMissingTrigger::Qualify(std::string const qual)
+{
+    Qualified::Qualify(qual);
+    entry = 0;
+    nameKey.clear();
+    if (qual.empty())
+        return;
+
+    if (std::all_of(qual.begin(), qual.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+        entry = uint32(std::strtoul(qual.c_str(), nullptr, 10));
+    else
+        nameKey = CoaNameKey(qual);
+}
+
+// With a qualifier, only the creature it names; without one, any creature of the bot.
+bool CoaSummonMissingTrigger::Counts(Unit* unit) const
+{
+    if (qualifier.empty())
+        return true;
+
+    if (entry)
+        return unit->GetEntry() == entry;
+
+    return CoaNameIs(unit->GetName(), nameKey);
+}
+
 bool CoaSummonMissingTrigger::IsActive()
 {
+    // A qualifier that is neither a number nor a valid name: stay quiet rather than summon forever.
+    if (!qualifier.empty() && !entry && nameKey.empty())
+        return false;
+
     for (Unit* unit : bot->m_Controlled)
-        if (unit && unit->IsAlive() && unit->GetOwnerGUID() == bot->GetGUID())
+        if (unit && unit->IsAlive() && unit->GetOwnerGUID() == bot->GetGUID() && Counts(unit))
             return false;
 
     // NOT through AI_VALUE("nearest npcs"): that value is cached. Freshly
@@ -349,7 +381,9 @@ bool CoaSummonMissingTrigger::IsActive()
 
     for (Unit* unit : nearby)
         if (unit && unit->IsAlive() && !unit->IsPlayer() &&
-            unit->GetOwnerGUID() == bot->GetGUID())
+            (unit->GetOwnerGUID() == bot->GetGUID() ||
+             (!qualifier.empty() && unit->GetCreatorGUID() == bot->GetGUID())) &&
+            Counts(unit))
             return false;
 
     return true;

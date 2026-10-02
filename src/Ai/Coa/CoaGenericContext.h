@@ -19,6 +19,7 @@
  *   aura stacks::Fury,6        > cast::Consuming Strike    (spend at full stacks)
  *   coa resource::Static,75    > cast::Arm of Thorim       (from three quarters of the resource)
  *   coa summon missing         > cast::Tentacle of C'Thun  (only while no summon of our own stands)
+ *   coa summon missing::Sentry Turret > cast::Build: Sentry Turret  (only while that one is down)
  *
  * And for a healer, with the base triggers that rank the group by damage
  * taken:
@@ -285,13 +286,28 @@ private:
  * end up there - they are created through SummonProperties with the player as
  * their summoner. So the surroundings are searched as well, for creatures the
  * bot owns.
+ *
+ * "coa summon missing::<creature>" looks only at the bot's own creatures of that name, or of that
+ * entry when the qualifier is a number. Without it, ANY creature of the bot counts: a Tinker's
+ * Mechsuit or drone kept "coa summon missing > cast::Build: Sentry Turret" off, and Mechanics bots
+ * put their turret down in 2 fights out of 6 (02/10).
  */
-class CoaSummonMissingTrigger : public Trigger
+class CoaSummonMissingTrigger : public Trigger, public Qualified
 {
 public:
     CoaSummonMissingTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa summon missing") {}
-    std::string const getName() override { return "coa summon missing"; }
+    void Qualify(std::string const qual) override;
+    std::string const getName() override
+    {
+        return qualifier.empty() ? "coa summon missing" : "coa summon missing::" + qualifier;
+    }
     bool IsActive() override;
+
+private:
+    bool Counts(Unit* unit) const;
+
+    uint32 entry = 0;
+    std::wstring nameKey;
 };
 
 /* "cure party::<spell>" - a group member carries something this spell removes.
