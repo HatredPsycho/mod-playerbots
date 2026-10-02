@@ -1526,7 +1526,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {21, 28, 22, 0, 6670, 1},
     {21, 28, 23, 1, 7789, 1},
     {21, 28, 24, 0, 4186, 1},
-    {21, 28, 25, 1, 34148, 1},
+    {21, 28, 25, 1, 34133, 1},  // by hand 03/10: Strike Where It Hurts (top players) instead of Neurotoxin Arrow (34148), same tree and gate
     {21, 28, 26, 0, 7791, 1},
     {21, 28, 27, 1, 34151, 1},
     {21, 28, 28, 0, 29416, 1},
@@ -1658,7 +1658,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {21, 30, 52, 0, 34169, 1},
     {21, 30, 53, 1, 1388, 1},
     {21, 30, 54, 0, 30051, 1},
-    {21, 30, 55, 1, 7429, 1},
+    {21, 30, 55, 1, 30462, 1},  // by hand 03/10: Barbed Quills (top players) instead of Viper's Bite (7429), same tree and gate
     {21, 30, 56, 0, 30053, 1},
     {21, 30, 57, 1, 29449, 1},
     {21, 30, 58, 0, 30050, 1},
