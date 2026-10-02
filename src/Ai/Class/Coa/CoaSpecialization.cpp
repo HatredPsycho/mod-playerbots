@@ -660,7 +660,7 @@ void DropThreatStances(Player* bot)
 void CoaRestoreAncestralCombat(Player* bot)
 {
     static constexpr uint32 AncestralCombat = 801782;
-    if (!sPlayerbotAIConfig.coaAncestralCombatFix || !bot || bot->getClass() != CLASS_BARBARIAN)
+    if (!sPlayerbotAIConfig.coaAncestralCombatFix || !bot || bot->getClass() != CLASS_BARBARIAN || !bot->IsAlive())
         return;
     if (bot->HasSpell(AncestralCombat) && !bot->HasAura(AncestralCombat))
         bot->AddAura(AncestralCombat, bot);
@@ -712,8 +712,9 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
     {
         // A bot geared before the rule still holds a wand or an idol and cannot fire its shots.
         Item const* ranged = chosen->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+        // Only that slot is looked at again: with no bow to be had, the rest of its gear stays as it is.
         if (CoaRangedSlotCannotShoot(chosen, ranged ? ranged->GetTemplate() : nullptr))
-            PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(false);
+            PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(true, false, EQUIPMENT_SLOT_RANGED);
     }
 
     // Points for every level it just skipped.

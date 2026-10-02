@@ -2608,7 +2608,7 @@ void PlayerbotFactory::DressNakedCoaStarter(Player* bot)
     StoreCoaStarterItems(bot);
 }
 
-void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
+void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32 onlySlot)
 {
     if (level < 5)
     {
@@ -2694,6 +2694,9 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
 
     for (int32 slot : initSlotsOrder)
     {
+        if (onlySlot >= 0 && slot != onlySlot)
+            continue;
+
         if (slot == EQUIPMENT_SLOT_TABARD || slot == EQUIPMENT_SLOT_BODY)
             continue;
 

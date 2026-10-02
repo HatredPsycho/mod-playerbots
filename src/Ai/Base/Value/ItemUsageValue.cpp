@@ -362,6 +362,11 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
         bool oldItemIsBroken =
             oldItem->GetUInt32Value(ITEM_FIELD_DURABILITY) == 0 && oldItem->GetUInt32Value(ITEM_FIELD_MAXDURABILITY) > 0;
 
+        // CoA: a bow takes the place of the idol or wand a spec that shoots still holds, whatever they score.
+        if (dstSlot == EQUIPMENT_SLOT_RANGED && shouldEquip && !itemIsBroken &&
+            CoaRangedSlotCannotShoot(bot, oldItemProto) && !CoaRangedSlotCannotShoot(bot, itemProto))
+            return ITEM_USAGE_EQUIP;
+
         if (itemProto->ItemId != oldItemProto->ItemId && (shouldEquipInSlot || !existingShouldEquip) && isBetter)
         {
             switch (itemProto->Class)

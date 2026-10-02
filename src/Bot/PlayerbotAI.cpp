@@ -1642,6 +1642,7 @@ void PlayerbotAI::ChangeEngine(BotState type)
 void PlayerbotAI::ChangeEngineOnCombat()
 {
     CoaRestoreAncestralCombat(bot);
+    coaAncestralCombatCheckedAt = getMSTime();
 
     if (HasStrategy("wait for attack", BOT_STATE_COMBAT))
         aiObjectContext->GetValue<time_t>("combat start time")->Set(time(nullptr));
@@ -1711,6 +1712,15 @@ void PlayerbotAI::DoNextAction(bool min)
         {
             aiObjectContext->GetValue<Unit*>("current target")->Set(nullptr);
         }
+    }
+
+    // AiPlayerbot.Coa.AncestralCombatFix: a Barbarian that stays in combat from one pack to the next, or
+    // changes form, loses the aura without a new start of fight; looked at again every 5 seconds.
+    if (sPlayerbotAIConfig.coaAncestralCombatFix && currentEngine == engines[BOT_STATE_COMBAT] &&
+        GetMSTimeDiffToNow(coaAncestralCombatCheckedAt) >= 5000)
+    {
+        coaAncestralCombatCheckedAt = getMSTime();
+        CoaRestoreAncestralCombat(bot);
     }
 
     bool minimal = !this->AllowActivity();

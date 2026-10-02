@@ -77,7 +77,8 @@ public:
                                              Trainer::Spell const* trainerSpell);
     void InitClassSpells();
     void InitSpecialSpells();
-    void InitEquipment(bool incremental, bool second_chance = false);
+    // onlySlot: with an EquipmentSlots value, that slot alone is looked at.
+    void InitEquipment(bool incremental, bool second_chance = false, int32 onlySlot = -1);
     // Gear without its random parts (the quality lowered by RandomGearLoweringChance, the items skipped
     // at random): every bot of a class and specialization gets the same items, for the test benches.
     void SetDeterministic(bool on) { deterministic = on; }

@@ -55,11 +55,14 @@ inline bool IsCoaRole(Player const* player, CoaSpecRole role)
 // deals half its damage with Starfire Shot, Huntress Shot and Trueshot; its intellect weights rank an
 // epic idol above any bow, and with the idol none of the three can be cast (boss bench of 02/10: 65
 // Sentinels of 73 held one). Ranger, Witch Hunter, Tinker and Shadowhunting are never offered a relic
-// there, and Moon Guard and Warden only keep the shots as fillers.
+// there, and Moon Guard and Warden only keep the shots as fillers. The spec must be the one the
+// character has chosen: a Starcaller without one is not taken for the default Sentinel here.
 inline bool CoaSpecNeedsShootingWeapon(Player const* player)
 {
-    CoaSpecStrategy const* spec = GetCoaSpecStrategyFor(player);
-    return spec && spec->classId == 26 && (spec->specId == 43 || spec->specId == 44);
+    if (!player || player->getClass() != 26)
+        return false;
+    uint32 const specId = GetAscensionActiveSpecialization(player);
+    return specId == 43 || specId == 44;
 }
 
 // What the ranged slot holds cannot fire the shots this spec needs: nothing, a wand or a relic.
