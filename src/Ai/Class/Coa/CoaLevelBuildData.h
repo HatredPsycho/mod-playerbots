@@ -2137,7 +2137,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {25, 40, 22, 0, 6382, 1},
     {25, 40, 23, 1, 6310, 1},
     {25, 40, 24, 0, 31123, 1},
-    {25, 40, 25, 1, 4868, 1},
+    {25, 40, 25, 1, 12982, 1},  // by hand web4: Devour Curse (top players) instead of Corrupt Fate (4868), same 8-point gate
     {25, 40, 26, 0, 29268, 1},
     {25, 40, 27, 1, 33935, 1},
     {25, 40, 28, 0, 29455, 1},
@@ -2220,7 +2220,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {25, 41, 55, 1, 7938, 1},
     {25, 41, 56, 0, 33951, 1},
     {25, 41, 57, 1, 33936, 1},
-    {25, 41, 58, 0, 33965, 1},
+    {25, 41, 58, 0, 29275, 1},  // by hand web4: Vision of Doom (top players) instead of Lost in the Void (33965), same 24-point gate
     {25, 41, 59, 1, 33959, 1},
     {25, 42, 10, 0, 29470, 1},
     {25, 42, 11, 1, 31189, 1},
@@ -2270,7 +2270,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {25, 42, 55, 1, 7558, 1},
     {25, 42, 56, 0, 33968, 1},
     {25, 42, 57, 1, 30516, 1},
-    {25, 42, 58, 0, 33965, 1},
+    {25, 42, 58, 0, 29275, 1},  // by hand web4: Vision of Doom (top players) instead of Lost in the Void (33965), same 24-point gate
     {25, 42, 59, 1, 33947, 1},
     {25, 96, 10, 0, 29265, 1},
     {25, 96, 11, 1, 29882, 1},
