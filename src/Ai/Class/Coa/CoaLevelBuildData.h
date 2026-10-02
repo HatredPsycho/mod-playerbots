@@ -18,7 +18,7 @@ struct Pick
     std::uint8_t Rank;
 };
 
-inline constexpr std::array<Pick, 3572> Picks =
+inline constexpr std::array<Pick, 3576> Picks =
 {{
     {12, 1, 10, 0, 30162, 1},
     {12, 1, 11, 1, 34319, 1},
@@ -1314,11 +1314,13 @@ inline constexpr std::array<Pick, 3572> Picks =
     {20, 25, 18, 0, 29543, 1},
     {20, 25, 19, 1, 30400, 1},
     {20, 25, 20, 0, 34628, 1},
+    {20, 25, 20, 1, 11206, 1},  // by hand web4: free choice Fleshbending (top players), group 143567, level 20
     {20, 25, 22, 0, 8352, 1},
     {20, 25, 24, 0, 8352, 2},
     {20, 25, 26, 0, 29629, 1},
     {20, 25, 28, 0, 6630, 1},
     {20, 25, 30, 0, 33688, 1},
+    {20, 25, 30, 1, 9906, 1},  // by hand web4: free choice Blood-Cursed Weapons (top players), group 632512, level 30
     {20, 25, 32, 0, 34969, 1},
     {20, 25, 34, 0, 9970, 1},
     {20, 25, 36, 0, 8357, 1},
@@ -1328,6 +1330,7 @@ inline constexpr std::array<Pick, 3572> Picks =
     {20, 25, 39, 1, 7440, 1},
     {20, 25, 39, 1, 7450, 1},
     {20, 25, 40, 0, 7287, 1},
+    {20, 25, 40, 1, 4906, 1},  // by hand web4: free choice Cursed Blood (top players), group 325161, level 40
     {20, 25, 42, 0, 7288, 1},
     {20, 25, 43, 1, 7433, 1},
     {20, 25, 43, 1, 7437, 1},
@@ -1344,6 +1347,7 @@ inline constexpr std::array<Pick, 3572> Picks =
     {20, 25, 49, 1, 7445, 1},
     {20, 25, 49, 1, 7681, 1},
     {20, 25, 50, 0, 8191, 1},
+    {20, 25, 50, 1, 11916, 1},  // by hand web4: free choice Purify Blood (top players), group 165327, level 50
     {20, 25, 51, 1, 7435, 1},
     {20, 25, 52, 0, 6629, 1},
     {20, 25, 53, 1, 7669, 1},
