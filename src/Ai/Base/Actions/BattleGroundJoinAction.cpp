@@ -739,8 +739,8 @@ bool BGStatusAction::LeaveBG(PlayerbotAI* botAI)
     botAI->ChangeStrategy("-eye", BOT_STATE_NON_COMBAT);
     botAI->ChangeStrategy("-isle", BOT_STATE_COMBAT);
     botAI->ChangeStrategy("-isle", BOT_STATE_NON_COMBAT);
-    botAI->ChangeStrategy("-Battleground", BOT_STATE_COMBAT);
-    botAI->ChangeStrategy("-Battleground", BOT_STATE_NON_COMBAT);
+    botAI->ChangeStrategy("-battleground", BOT_STATE_COMBAT);
+    botAI->ChangeStrategy("-battleground", BOT_STATE_NON_COMBAT);
     botAI->ChangeStrategy("-arena", BOT_STATE_COMBAT);
     botAI->ChangeStrategy("-arena", BOT_STATE_NON_COMBAT);
 
