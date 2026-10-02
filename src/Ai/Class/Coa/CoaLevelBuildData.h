@@ -1242,11 +1242,11 @@ inline constexpr std::array<Pick, 3580> Picks =
     {19, 23, 48, 0, 31313, 2},
     {19, 23, 49, 1, 7757, 1},
     {19, 23, 50, 0, 34347, 1},
-    {19, 23, 51, 1, 9757, 1},
+    {19, 23, 51, 1, 7813, 1},  // by hand 03/10: Might of Aggramar (top players) instead of Norgannon's Wrath (9757), same tree and gate
     {19, 23, 52, 0, 6356, 1},
     {19, 23, 53, 1, 29255, 1},
     {19, 23, 54, 0, 7814, 1},
-    {19, 23, 55, 1, 30455, 1},
+    {19, 23, 55, 1, 11455, 1},  // by hand 03/10: Paladin Training (top players) instead of Priest Training (30455), same tree and gate
     {19, 23, 56, 0, 34377, 1},
     {19, 23, 57, 1, 34359, 1},
     {19, 23, 58, 0, 34350, 1},
