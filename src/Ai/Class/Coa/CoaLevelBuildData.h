@@ -728,7 +728,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {16, 13, 48, 0, 29341, 1},
     {16, 13, 49, 1, 6418, 1},
     {16, 13, 50, 0, 34916, 1},
-    {16, 13, 51, 1, 31268, 1},
+    {16, 13, 51, 1, 29831, 1},  // by hand 03/10: Master Elementalist (top players) instead of Lexicon of Servitude (31268), same tree and gate
     {16, 13, 52, 0, 7474, 1},
     {16, 13, 53, 1, 30819, 1},
     {16, 13, 54, 0, 34916, 2},
@@ -777,13 +777,13 @@ inline constexpr std::array<Pick, 3580> Picks =
     {16, 14, 46, 0, 34938, 1},
     {16, 14, 47, 1, 6469, 1},
     {16, 14, 48, 0, 34650, 1},
-    {16, 14, 49, 1, 34684, 1},
+    {16, 14, 49, 1, 29835, 1},  // by hand 03/10: Stormfury (top players) instead of Stormcloud (34684), same tree and gate
     {16, 14, 50, 0, 29341, 1},
     {16, 14, 51, 1, 8613, 1},
     {16, 14, 52, 0, 7474, 1},
     {16, 14, 53, 1, 8613, 2},
     {16, 14, 54, 0, 30295, 1},
-    {16, 14, 55, 1, 7184, 1},
+    {16, 14, 55, 1, 19684, 1},  // by hand 03/10: Shockingly Powerful (top players) instead of Electrified Waters (7184), same tree and gate
     {16, 14, 56, 0, 34916, 1},
     {16, 14, 57, 1, 30944, 1},
     {16, 14, 58, 0, 34916, 2},
@@ -820,7 +820,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {16, 15, 38, 0, 34693, 1},
     {16, 15, 39, 1, 29833, 1},
     {16, 15, 40, 0, 34650, 1},
-    {16, 15, 41, 1, 34641, 1},
+    {16, 15, 41, 1, 34937, 1},  // by hand 03/10: Thundershocker (top players) instead of Improved Forked Lightning (34641), same tree and gate
     {16, 15, 42, 0, 7858, 1},
     {16, 15, 43, 1, 34674, 1},
     {16, 15, 44, 0, 34695, 1},
@@ -828,7 +828,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {16, 15, 46, 0, 29341, 1},
     {16, 15, 47, 1, 6851, 1},
     {16, 15, 48, 0, 34916, 1},
-    {16, 15, 49, 1, 30408, 1},
+    {16, 15, 49, 1, 5738, 1},  // by hand 03/10: Voltaic Bursts (top players) instead of High Voltage (30408), same tree and gate
     {16, 15, 50, 0, 34916, 2},
     {16, 15, 51, 1, 5475, 1},
     {16, 15, 52, 0, 7474, 1},
