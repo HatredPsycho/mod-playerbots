@@ -2018,7 +2018,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {24, 37, 56, 0, 29940, 1},
     {24, 37, 57, 1, 7385, 1},
     {24, 37, 58, 0, 7479, 1},
-    {24, 37, 59, 1, 7386, 1},
+    {24, 37, 59, 1, 30642, 1},  // by hand web4: Inferno (top players) instead of Fueling the Fire (7386), same 23-point gate
     {24, 37, 60, 0, 7010, 1},
     {24, 38, 10, 0, 30651, 1},
     {24, 38, 11, 1, 11986, 1},
@@ -2120,7 +2120,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {24, 39, 56, 0, 7479, 1},
     {24, 39, 57, 1, 33867, 1},
     {24, 39, 58, 0, 7819, 1},
-    {24, 39, 59, 1, 7935, 1},
+    {24, 39, 59, 1, 7933, 1},  // by hand web4: Aspect of Earth (top players) instead of Death From Above (7935), same 23-point gate
     {24, 39, 60, 0, 29940, 1},
     {25, 40, 10, 0, 29265, 1},
     {25, 40, 11, 1, 31191, 1},
