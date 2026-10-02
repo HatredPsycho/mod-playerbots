@@ -657,6 +657,15 @@ void DropThreatStances(Player* bot)
         bot->RemoveAurasDueToSpell(spellId);
 }
 
+void CoaRestoreAncestralCombat(Player* bot)
+{
+    static constexpr uint32 AncestralCombat = 801782;
+    if (!sPlayerbotAIConfig.coaAncestralCombatFix || !bot || bot->getClass() != CLASS_BARBARIAN)
+        return;
+    if (bot->HasSpell(AncestralCombat) && !bot->HasAura(AncestralCombat))
+        bot->AddAura(AncestralCombat, bot);
+}
+
 bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosenFits, uint32 levelTolerance,
                        std::string& message)
 {

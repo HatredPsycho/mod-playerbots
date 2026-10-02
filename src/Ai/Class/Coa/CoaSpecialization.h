@@ -142,6 +142,13 @@ bool CoaInOtherInstance(Player* bot, Player* master);
 
 void AddSC_coa_lfg();
 
+// AiPlayerbot.Coa.AncestralCombatFix: a Barbarian that knows the passive Ancestral Combat (801782) without
+// its aura gets it at the start of a fight. The spell asks for form 28 (Stances 0x8000000), which no
+// Barbarian takes, so the core lays the aura only now and then: it was up in 43 % of the boss bench
+// fights of 02/10, which then did 960 damage a second instead of 570. To remove once the core clears
+// those Stances, as it does for other passives (AscensionGuardianCompletion.cpp).
+void CoaRestoreAncestralCombat(Player* bot);
+
 // The group fight log (AiPlayerbot.CoaGroupTelemetry) follows a group of bots only, as it follows a
 // group with a real player, while `follow` is true. For test tools (mod-coa-diag); inert otherwise.
 void CoaTelemetryFollowGroup(Group* group, bool follow);

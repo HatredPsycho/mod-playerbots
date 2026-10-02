@@ -1512,6 +1512,17 @@ AiPlayerbot.CoaAttackLoop = 1
 
 AiPlayerbot.CoaSpellReplacement = 1
 
+#    AiPlayerbot.Coa.AncestralCombatFix
+#        Description: 1 - a Barbarian bot that knows the passive Ancestral Combat (801782) without its aura
+#                     gets it once, when its fight starts. The core asks for a form no Barbarian takes and
+#                     lays the aura only now and then (43 % of the boss bench fights of 02/10), and Ancestry
+#                     loses about a third of its damage without it. A stopgap until the core is fixed.
+#                     0 - the aura is left to the core.
+#                     Read again by ".reload config".
+#        Default:     0
+
+AiPlayerbot.Coa.AncestralCombatFix = 0
+
 #    AiPlayerbot.CoaAttackCheckBench
 #        Description: with AiPlayerbot.CoaAttackLoop = 1, what becomes of an attack the strict check turns
 #                     down (target or caster aura missing, bad target, short of rage, energy or mana).
