@@ -18,7 +18,7 @@ struct Pick
     std::uint8_t Rank;
 };
 
-inline constexpr std::array<Pick, 3576> Picks =
+inline constexpr std::array<Pick, 3580> Picks =
 {{
     {12, 1, 10, 0, 30162, 1},
     {12, 1, 11, 1, 34319, 1},
@@ -3250,6 +3250,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {31, 58, 18, 0, 29252, 1},
     {31, 58, 19, 1, 6238, 1},
     {31, 58, 20, 0, 7843, 1},
+    {31, 58, 20, 1, 6243, 1},  // by hand web4: free choice Vitality Surge (top players), group 127887, level 20
     {31, 58, 21, 1, 11334, 1},
     {31, 58, 22, 0, 7843, 2},
     {31, 58, 23, 1, 6651, 1},
@@ -3260,6 +3261,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {31, 58, 28, 0, 29299, 1},
     {31, 58, 29, 1, 30785, 1},
     {31, 58, 30, 0, 30689, 1},
+    {31, 58, 30, 1, 9193, 1},  // by hand web4: free choice Infused With Power (top players), group 735421, level 30
     {31, 58, 31, 1, 30949, 1},
     {31, 58, 32, 0, 29362, 1},
     {31, 58, 33, 1, 30966, 1},
@@ -3270,6 +3272,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {31, 58, 38, 0, 6298, 2},
     {31, 58, 39, 1, 6246, 1},
     {31, 58, 40, 0, 7844, 1},
+    {31, 58, 40, 1, 9733, 1},  // by hand web4: free choice Douse (top players), group 856162, level 40
     {31, 58, 41, 1, 6242, 1},
     {31, 58, 42, 0, 6665, 1},
     {31, 58, 43, 1, 6509, 1},
@@ -3280,6 +3283,7 @@ inline constexpr std::array<Pick, 3576> Picks =
     {31, 58, 48, 0, 6260, 1},
     {31, 58, 49, 1, 6662, 1},
     {31, 58, 50, 0, 6590, 1},
+    {31, 58, 50, 1, 11153, 1},  // by hand web4: free choice Primal Awakening (top players), group 856163, level 50
     {31, 58, 51, 1, 7335, 1},
     {31, 58, 52, 0, 6590, 2},
     {31, 58, 53, 1, 14234, 1},
