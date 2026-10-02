@@ -364,6 +364,90 @@ public:
     }
 };
 
+// Bot Fill, end to end. The Dungeon Finder asks whether anything on this realm can complete a
+// group; this answers yes, remembers the proposal, and fills the party once a player is actually
+// standing in the instance - which is where the recruiting path drops a bot anyway, because it
+// teleports to whoever recruited it.
+namespace
+{
+    constexpr time_t CoaLfgFillPendingSeconds = 10 * MINUTE;
+
+    struct CoaLfgPendingFill
+    {
+        uint32 targetSize{MAXGROUPSIZE};
+        time_t until{0};
+    };
+
+    std::mutex CoaLfgFillLock;
+    std::unordered_map<ObjectGuid, CoaLfgPendingFill> CoaLfgFillPending;
+
+    void CoaLfgFillPurge()
+    {
+        time_t const now = time(nullptr);
+        for (auto itr = CoaLfgFillPending.begin(); itr != CoaLfgFillPending.end();)
+            itr = itr->second.until < now ? CoaLfgFillPending.erase(itr) : std::next(itr);
+    }
+}
+
+class PlayerbotsLfgAutoFillScript : public GlobalScript
+{
+public:
+    PlayerbotsLfgAutoFillScript() : GlobalScript("PlayerbotsLfgAutoFillScript", {
+        GLOBALHOOK_HAS_LFG_AUTO_FILL_PROVIDER,
+        GLOBALHOOK_ON_LFG_PROPOSAL_MADE_GROUP
+    }) {}
+
+    [[nodiscard]] bool HasLfgAutoFillProvider() const override
+    {
+        return CoaLfgAutoFillAvailable();
+    }
+
+    void OnLfgProposalMadeGroup(lfg::LfgProposal const& proposal, Group* group) override
+    {
+        if (!group || proposal.policy.compositionMode != lfg::LfgCompositionMode::BOT_FILL)
+            return;
+
+        std::lock_guard<std::mutex> guard(CoaLfgFillLock);
+        CoaLfgFillPurge();
+        CoaLfgFillPending[group->GetGUID()] = { MAXGROUPSIZE, time(nullptr) + CoaLfgFillPendingSeconds };
+    }
+};
+
+class PlayerbotsLfgAutoFillMapScript : public AllMapScript
+{
+public:
+    PlayerbotsLfgAutoFillMapScript() : AllMapScript("PlayerbotsLfgAutoFillMapScript", {
+        ALLMAPHOOK_ON_PLAYER_ENTER_ALL
+    }) {}
+
+    void OnPlayerEnterAll(Map* map, Player* player) override
+    {
+        if (!map || !map->IsDungeon() || !player || GET_PLAYERBOT_AI(player))
+            return;
+
+        Group* group = player->GetGroup();
+        if (!group)
+            return;
+
+        uint32 target = 0;
+        {
+            // Whoever gets here first fills, once: the entry is taken out under the lock, so the
+            // members arriving behind them find nothing to do.
+            std::lock_guard<std::mutex> guard(CoaLfgFillLock);
+            CoaLfgFillPurge();
+            auto const itr = CoaLfgFillPending.find(group->GetGUID());
+            if (itr == CoaLfgFillPending.end())
+                return;
+            target = itr->second.targetSize;
+            CoaLfgFillPending.erase(itr);
+        }
+
+        uint32 const joined = CoaLfgFillGroup(player, target);
+        LOG_INFO("playerbots", "coa lfg fill: {} bots joined {} on map {}", joined, player->GetName(),
+                 map->GetId());
+    }
+};
+
 class PlayerbotsWorldScript : public WorldScript
 {
 public:
@@ -573,6 +657,8 @@ void AddPlayerbotsScripts()
     new PlayerbotsMiscScript();
     new PlayerbotsServerScript();
     new PlayerbotsWorldScript();
+    new PlayerbotsLfgAutoFillScript();
+    new PlayerbotsLfgAutoFillMapScript();
     new PlayerbotsScript();
     new PlayerBotsBGScript();
     AddPlayerbotsSecureLoginScripts();

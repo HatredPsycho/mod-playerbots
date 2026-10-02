@@ -1244,6 +1244,75 @@ bool CoaLfgOfferedToOther(Player* bot, Player* player)
            (!player || offer->second.player != player->GetGUID());
 }
 
+bool CoaLfgAutoFillAvailable()
+{
+    return Settings().enabled;
+}
+
+uint32 CoaLfgFillGroup(Player* master, uint32 targetSize)
+{
+    if (!master || !Settings().enabled)
+        return 0;
+
+    targetSize = std::min<uint32>(targetSize ? targetSize : MAXGROUPSIZE, MAXGROUPSIZE);
+
+    // What the party already brings decides what is missing, not what the dungeon asks for in the
+    // abstract: a pair that is already tank and healer wants three damage dealers, not one of each.
+    uint32 present = 0;
+    bool haveTank = false;
+    bool haveHeal = false;
+    if (Group* group = master->GetGroup())
+    {
+        for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+        {
+            Player* member = itr->GetSource();
+            if (!member)
+                continue;
+            ++present;
+            CoaRole const role = GetCoaRole(member);
+            haveTank = haveTank || role == CoaRole::Tank;
+            haveHeal = haveHeal || role == CoaRole::Heal;
+        }
+    }
+    else
+    {
+        present = 1;
+        CoaRole const role = GetCoaRole(master);
+        haveTank = role == CoaRole::Tank;
+        haveHeal = role == CoaRole::Heal;
+    }
+
+    if (present >= targetSize)
+        return 0;
+
+    std::vector<CoaRole> wanted;
+    if (!haveTank)
+        wanted.push_back(CoaRole::Tank);
+    if (!haveHeal)
+        wanted.push_back(CoaRole::Heal);
+    while (present + wanted.size() < targetSize)
+        wanted.push_back(CoaRole::Dps);
+
+    uint32 joined = 0;
+    for (CoaRole const role : wanted)
+    {
+        std::string message;
+        if (RecruitCoaBot(master, role, message))
+        {
+            ++joined;
+            LOG_INFO("playerbots", "coa lfg fill: {} joined {} as {}", message, master->GetName(),
+                     RoleName(role));
+        }
+        else
+        {
+            LOG_INFO("playerbots", "coa lfg fill: no {} for {}: {}", RoleName(role), master->GetName(),
+                     message);
+        }
+    }
+
+    return joined;
+}
+
 bool CoaLfgTakeOffer(Player* bot, Player* inviter)
 {
     if (!bot || !inviter)

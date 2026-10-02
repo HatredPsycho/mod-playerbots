@@ -122,6 +122,13 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
 // "lfg bot heal" and the like, said by a player in a listened chat channel: free bots whisper offers.
 void CoaLfgHeard(Player* player, std::string const& message, Channel* channel);
 
+// Whether this realm can complete a Dungeon Finder group with bots at all.
+bool CoaLfgAutoFillAvailable();
+
+// Fills `master`'s group with recruited bots up to `targetSize` (five when 0), asking for a tank and
+// a healer only where the party has none. Returns how many joined.
+uint32 CoaLfgFillGroup(Player* master, uint32 targetSize);
+
 // Whether `bot` was offered to `inviter` by "lfg bot" and the offer still holds; the offer is used up.
 bool CoaLfgTakeOffer(Player* bot, Player* inviter);
 // The bot is offered by "lfg bot" to a player other than this one (any player when null): it keeps out of
