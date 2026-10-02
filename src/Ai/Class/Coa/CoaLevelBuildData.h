@@ -18,7 +18,7 @@ struct Pick
     std::uint8_t Rank;
 };
 
-inline constexpr std::array<Pick, 3568> Picks =
+inline constexpr std::array<Pick, 3572> Picks =
 {{
     {12, 1, 10, 0, 30162, 1},
     {12, 1, 11, 1, 34319, 1},
@@ -1055,6 +1055,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {18, 20, 18, 0, 29972, 1},
     {18, 20, 19, 1, 5825, 1},
     {18, 20, 20, 0, 7786, 1},
+    {18, 20, 20, 1, 29216, 1},  // by hand web4: free choice Banner of Conquest (top players), group 743521, level 20
     {18, 20, 21, 1, 9450, 1},
     {18, 20, 22, 0, 6363, 1},
     {18, 20, 23, 1, 11797, 1},
@@ -1065,6 +1066,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {18, 20, 28, 0, 34422, 1},
     {18, 20, 29, 1, 30829, 1},
     {18, 20, 30, 0, 29971, 1},
+    {18, 20, 30, 1, 29214, 1},  // by hand web4: free choice Banner of Swiftness (top players), group 821425, level 30
     {18, 20, 31, 1, 31359, 1},
     {18, 20, 32, 0, 34407, 1},
     {18, 20, 33, 1, 6428, 1},
@@ -1075,6 +1077,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {18, 20, 38, 0, 34405, 1},
     {18, 20, 39, 1, 34434, 1},
     {18, 20, 40, 0, 6455, 1},
+    {18, 20, 40, 1, 7836, 1},  // by hand web4: free choice Song of Steel (top players), group 563213, level 40
     {18, 20, 41, 1, 29797, 1},
     {18, 20, 42, 0, 6455, 2},
     {18, 20, 43, 1, 34430, 1},
@@ -1085,6 +1088,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {18, 20, 48, 0, 6364, 1},
     {18, 20, 49, 1, 30098, 1},
     {18, 20, 50, 0, 29796, 1},
+    {18, 20, 50, 1, 11837, 1},  // by hand web4: free choice Champion's Presence (top players), group 125733, level 50
     {18, 20, 51, 1, 6454, 1},
     {18, 20, 52, 0, 6456, 1},
     {18, 20, 53, 1, 6454, 2},
@@ -1103,7 +1107,7 @@ inline constexpr std::array<Pick, 3568> Picks =
     {18, 21, 15, 1, 31319, 1},
     {18, 21, 16, 0, 29639, 2},
     {18, 21, 17, 1, 34448, 1},
-    {18, 21, 18, 0, 29972, 1},
+    {18, 21, 18, 0, 7310, 1},  // by hand web4: Glorious Arena (top players) instead of Shrug It Off (29972), no gate
     {18, 21, 19, 1, 34448, 2},
     {18, 21, 20, 0, 6363, 1},
     {18, 21, 21, 1, 1719, 1},
