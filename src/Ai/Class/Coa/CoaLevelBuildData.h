@@ -3523,7 +3523,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {32, 62, 32, 0, 34649, 1},
     {32, 62, 33, 1, 30208, 2},
     {32, 62, 34, 0, 34647, 1},
-    {32, 62, 35, 1, 29522, 1},
+    {32, 62, 35, 1, 34581, 1},  // by hand 03/10: Leyline Magician (top players) instead of Silencing Rune (29522), same tree and gate
     {32, 62, 36, 0, 34663, 1},
     {32, 62, 37, 1, 1581, 1},
     {32, 62, 38, 0, 34663, 2},
@@ -3572,7 +3572,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {32, 63, 30, 0, 34648, 2},
     {32, 63, 31, 1, 34619, 1},
     {32, 63, 32, 0, 34649, 1},
-    {32, 63, 33, 1, 30032, 1},
+    {32, 63, 33, 1, 34621, 1},  // by hand 03/10: Swift Etching (top players) instead of Echo Rune (30032), same tree and gate
     {32, 63, 34, 0, 34615, 1},
     {32, 63, 35, 1, 1756, 1},
     {32, 63, 36, 0, 34663, 1},
