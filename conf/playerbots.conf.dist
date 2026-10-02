@@ -1523,6 +1523,20 @@ AiPlayerbot.CoaSpellReplacement = 1
 
 AiPlayerbot.Coa.AncestralCombatFix = 0
 
+#    AiPlayerbot.CoaKeepPassiveAuras
+#        Description: 1 - when a bot is randomized (level change by the PvP bench or a range, the randomize
+#                     timer, init= commands), its passive auras and its positive auras that stay through
+#                     death (PvE Mode) are kept; buffs, debuffs and procs go in one pass, as before.
+#                     The core lays passives only at login or when a spell is learned anew, and a CoA class
+#                     keeps its spells, so without this a randomized bot plays without its passives (Thirst,
+#                     stat conversions, procs) until its next login: 0.42 of the damage of a converted bot
+#                     of the same spec on the boss bench of 02/10.
+#                     0 - all auras are removed, as in 1.6.
+#                     Read again by ".reload config".
+#        Default:     0
+
+AiPlayerbot.CoaKeepPassiveAuras = 0
+
 #    AiPlayerbot.CoaAttackCheckBench
 #        Description: with AiPlayerbot.CoaAttackLoop = 1, what becomes of an attack the strict check turns
 #                     down (target or caster aura missing, bad target, short of rage, energy or mana).

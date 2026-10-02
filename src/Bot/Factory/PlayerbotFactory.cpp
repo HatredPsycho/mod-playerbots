@@ -39,6 +39,7 @@
 #include "ReputationMgr.h"
 #include "SharedDefines.h"
 #include "StatsWeightCalculator.h"
+#include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "Trainer.h"
 #include "World.h"
@@ -54,6 +55,7 @@
 #include <array>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <array>
 #include <utility>
@@ -5152,7 +5154,38 @@ void PlayerbotFactory::InitGlyphs(bool increment)
     bot->SendTalentsInfoData(false);
 }
 
-void PlayerbotFactory::CancelAuras() { bot->RemoveAllAuras(); }
+// AiPlayerbot.CoaKeepPassiveAuras: RemoveAllAuras also takes the passives, which the core lays only at login or
+// when a spell is learned anew. A CoA class keeps its spells through ClearSpells, so a randomized bot played
+// without them (Thirst, stat conversions, procs) until its next login, and lost PvE Mode as well. With the
+// option, passives and positive death-persistent auras stay; the rest goes in one pass over a fixed list,
+// so an aura a class script lays back at once stays instead of looping.
+void PlayerbotFactory::CancelAuras()
+{
+    if (!sPlayerbotAIConfig.coaKeepPassiveAuras)
+    {
+        bot->RemoveAllAuras();
+        return;
+    }
+
+    std::vector<std::pair<uint32, Aura const*>> listed;
+    for (auto const& [spellId, application] : bot->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        if (!application->GetRemoveMode() && !aura->IsPassive() &&
+            !(application->IsPositive() && aura->IsDeathPersistent()))
+            listed.emplace_back(spellId, aura);
+    }
+    for (auto const& [spellId, aura] : listed)
+    {
+        auto const range = bot->GetAppliedAuras().equal_range(spellId);
+        for (auto itr = range.first; itr != range.second; ++itr)
+            if (itr->second->GetBase() == aura && !itr->second->GetRemoveMode())
+            {
+                bot->RemoveAura(itr->second);
+                break;
+            }
+    }
+}
 
 void PlayerbotFactory::InitInventory()
 {
