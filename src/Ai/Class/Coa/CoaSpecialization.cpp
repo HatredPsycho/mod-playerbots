@@ -1244,6 +1244,19 @@ bool CoaLfgOfferedToOther(Player* bot, Player* player)
            (!player || offer->second.player != player->GetGUID());
 }
 
+namespace
+{
+    uint8 LfgRoleFor(CoaRole role)
+    {
+        switch (role)
+        {
+            case CoaRole::Tank: return lfg::PLAYER_ROLE_TANK;
+            case CoaRole::Heal: return lfg::PLAYER_ROLE_HEALER;
+            default:            return lfg::PLAYER_ROLE_DAMAGE;
+        }
+    }
+}
+
 bool CoaLfgAutoFillAvailable()
 {
     return Settings().enabled;
@@ -1296,18 +1309,38 @@ uint32 CoaLfgFillGroup(Player* master, uint32 targetSize)
     uint32 joined = 0;
     for (CoaRole const role : wanted)
     {
+        std::set<ObjectGuid> before;
+        if (Group const* group = master->GetGroup())
+            for (GroupReference const* itr = group->GetFirstMember(); itr; itr = itr->next())
+                if (Player const* member = itr->GetSource())
+                    before.insert(member->GetGUID());
+
         std::string message;
-        if (RecruitCoaBot(master, role, message))
+        if (!RecruitCoaBot(master, role, message))
         {
-            ++joined;
-            LOG_INFO("playerbots", "coa lfg fill: {} joined {} as {}", message, master->GetName(),
-                     RoleName(role));
+            LOG_INFO("playerbots.coa", "coa lfg fill: no {} for {}: {}", RoleName(role),
+                     master->GetName(), message);
+            continue;
         }
-        else
+
+        ++joined;
+
+        // The party was formed before these joined, so the Dungeon Finder never learned what they
+        // play and the client shows them without a role. Telling the group is the whole of it.
+        if (Group* group = master->GetGroup())
         {
-            LOG_INFO("playerbots", "coa lfg fill: no {} for {}: {}", RoleName(role), master->GetName(),
-                     message);
+            for (GroupReference* itr = group->GetFirstMember(); itr; itr = itr->next())
+            {
+                Player const* member = itr->GetSource();
+                if (!member || before.count(member->GetGUID()))
+                    continue;
+
+                group->SetLfgRoles(member->GetGUID(), LfgRoleFor(role));
+            }
         }
+
+        LOG_INFO("playerbots.coa", "coa lfg fill: {} joined {} as {}", message, master->GetName(),
+                 RoleName(role));
     }
 
     return joined;

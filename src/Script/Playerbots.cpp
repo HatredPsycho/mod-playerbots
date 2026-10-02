@@ -443,7 +443,7 @@ public:
         }
 
         uint32 const joined = CoaLfgFillGroup(player, target);
-        LOG_INFO("playerbots", "coa lfg fill: {} bots joined {} on map {}", joined, player->GetName(),
+        LOG_INFO("playerbots.coa", "coa lfg fill: {} bots joined {} on map {}", joined, player->GetName(),
                  map->GetId());
     }
 };
