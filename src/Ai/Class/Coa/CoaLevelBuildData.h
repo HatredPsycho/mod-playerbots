@@ -275,7 +275,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {13, 5, 54, 0, 6054, 1},
     {13, 5, 55, 1, 6644, 1},
     {13, 5, 56, 0, 6047, 1},
-    {13, 5, 57, 1, 29121, 1},
+    {13, 5, 57, 1, 31350, 1},  // by hand 03/10: Voodoo Strings (top players) instead of Malignant Jinx (29121), same tree and gate
     {13, 5, 58, 0, 6047, 2},
     {13, 5, 59, 1, 7100, 1},
     {13, 5, 60, 0, 7033, 1},
@@ -312,7 +312,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {13, 6, 40, 0, 9347, 1},
     {13, 6, 41, 1, 6498, 2},
     {13, 6, 42, 0, 9347, 2},
-    {13, 6, 43, 1, 7948, 1},
+    {13, 6, 43, 1, 6013, 1},  // by hand 03/10: Spirit Out Of The Bottle (top players) instead of Touch of the Spirits (7948), same tree and gate
     {13, 6, 44, 0, 4132, 1},
     {13, 6, 45, 1, 6645, 1},
     {13, 6, 46, 0, 6050, 1},
