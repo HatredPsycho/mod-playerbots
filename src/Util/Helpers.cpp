@@ -133,18 +133,30 @@ bool CoaNameIs(std::string_view name, std::wstring const& key)
     if (key.empty() || name.size() < key.size())
         return false;
 
-    bool const ascii = std::none_of(name.begin(), name.end(), [](char c) { return static_cast<unsigned char>(c) >= 0x80; });
-    if (ascii)
+    std::size_t i = 0;
+    for (; i < name.size(); ++i)
     {
-        if (name.size() != key.size())
+        unsigned char const b = static_cast<unsigned char>(name[i]);
+        if (b >= 0x80)
+            break;
+
+        if (i >= key.size() || wchar_t(std::tolower(b)) != key[i])
             return false;
-
-        for (std::size_t i = 0; i < name.size(); ++i)
-            if (wchar_t(std::tolower(static_cast<unsigned char>(name[i]))) != key[i])
-                return false;
-
-        return true;
     }
+
+    if (i == name.size())
+        return i == key.size();
+
+    std::size_t units = i;
+    for (std::size_t j = i; j < name.size(); ++j)
+    {
+        unsigned char const b = static_cast<unsigned char>(name[j]);
+        if ((b & 0xC0) != 0x80)
+            units += (sizeof(wchar_t) == 2 && b >= 0xF0) ? 2 : 1;
+    }
+
+    if (units != key.size())
+        return false;
 
     return CoaNameKey(name) == key;
 }

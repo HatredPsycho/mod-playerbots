@@ -12,6 +12,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "Helpers.h"
+#include "ObjectMgr.h"
 #include "Playerbots.h"
 #include "CoaSpecialization.h"
 #include "SpellInfo.h"
@@ -335,16 +336,24 @@ bool CoaCanCastTrigger::IsActive()
 
 void CoaSummonMissingTrigger::Qualify(std::string const qual)
 {
-    Qualified::Qualify(qual);
+    auto const blank = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
+    std::string name = qual;
+    name.erase(std::find_if_not(name.rbegin(), name.rend(), blank).base(), name.end());
+    name.erase(name.begin(), std::find_if_not(name.begin(), name.end(), blank));
+    Qualified::Qualify(name);
     entry = 0;
     nameKey.clear();
-    if (qual.empty())
+    if (name.empty())
         return;
 
-    if (std::all_of(qual.begin(), qual.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
-        entry = uint32(std::strtoul(qual.c_str(), nullptr, 10));
+    if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+    {
+        entry = uint32(std::strtoul(name.c_str(), nullptr, 10));
+        if (!sObjectMgr->GetCreatureTemplate(entry))
+            entry = 0;
+    }
     else
-        nameKey = CoaNameKey(qual);
+        nameKey = CoaNameKey(name);
 }
 
 // With a qualifier, only the creature it names; without one, any creature of the bot.
@@ -361,7 +370,8 @@ bool CoaSummonMissingTrigger::Counts(Unit* unit) const
 
 bool CoaSummonMissingTrigger::IsActive()
 {
-    // A qualifier that is neither a number nor a valid name: stay quiet rather than summon forever.
+    // A qualifier that is neither a known creature entry nor valid UTF-8: stay quiet rather than summon forever.
+    // A misspelt name is not caught here and keeps the trigger on.
     if (!qualifier.empty() && !entry && nameKey.empty())
         return false;
 
