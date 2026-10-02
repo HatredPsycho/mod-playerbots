@@ -2806,7 +2806,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {28, 50, 32, 0, 31235, 1},
     {28, 50, 33, 1, 6491, 1},
     {28, 50, 34, 0, 30869, 1},
-    {28, 50, 35, 1, 30980, 1},
+    {28, 50, 35, 1, 9980, 1},  // by hand 03/10: Offensive Utility (top players) instead of Defensive Utility (30980), same tree and gate
     {28, 50, 36, 0, 7034, 1},
     {28, 50, 37, 1, 29818, 1},
     {28, 50, 38, 0, 34987, 1},
@@ -2859,7 +2859,7 @@ inline constexpr std::array<Pick, 3580> Picks =
     {28, 51, 34, 0, 6001, 1},
     {28, 51, 35, 1, 30574, 1},
     {28, 51, 36, 0, 29201, 1},
-    {28, 51, 37, 1, 5980, 1},
+    {28, 51, 37, 1, 5965, 1},  // by hand 03/10: Rejuvenating Gadget (top players) instead of Stim Pack (5980), same tree and gate
     {28, 51, 38, 0, 30869, 1},
     {28, 51, 39, 1, 6973, 1},
     {28, 51, 40, 0, 6992, 1},
