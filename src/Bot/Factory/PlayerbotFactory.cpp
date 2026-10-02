@@ -2867,7 +2867,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
             continue;
         }
 
-        if (incremental && oldItem)
+        // CoA: an idol or a wand held by a spec that shoots gives way to the bow whatever it scores.
+        bool const oldCannotShoot = slot == EQUIPMENT_SLOT_RANGED && oldItem &&
+                                    CoaRangedSlotCannotShoot(bot, oldItem->GetTemplate());
+        if (incremental && oldItem && !oldCannotShoot)
         {
             float old_score = calculator.CalculateItem(oldItem->GetEntry(), oldItem->GetItemRandomPropertyId(), slot);
             if (bestScoreForSlot < 1.2f * old_score)
@@ -5743,7 +5746,9 @@ std::vector<InventoryType> PlayerbotFactory::GetPossibleInventoryTypeListBySlot(
         case EQUIPMENT_SLOT_RANGED:
             ret.push_back(INVTYPE_RANGED);
             ret.push_back(INVTYPE_RANGEDRIGHT);
-            ret.push_back(INVTYPE_RELIC);
+            // CoA: no relic for a spec that shoots with what this slot holds (CoaSpecNeedsShootingWeapon).
+            if (!CoaSpecNeedsShootingWeapon(bot))
+                ret.push_back(INVTYPE_RELIC);
             // CoA: a thrown weapon is never offered here, so a spec whose only
             // ranged ability throws something runs with an empty belt and the
             // spell is simply uncastable. The Barbarian has no bow or gun skill

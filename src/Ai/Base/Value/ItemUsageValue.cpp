@@ -7,6 +7,7 @@
 #include "ItemUsageValue.h"
 #include "AiFactory.h"
 #include "ChatHelper.h"
+#include "CoaSpecLookup.h"
 #include "GuildTaskMgr.h"
 #include "Item.h"
 #include "LootObjectStack.h"
@@ -216,6 +217,12 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
     }
 
     if (itemProto->Class == ITEM_CLASS_WEAPON && itemProto->SubClass == ITEM_SUBCLASS_WEAPON_MISC)
+        return ITEM_USAGE_NONE;
+
+    // CoA: a spec that shoots never takes the idol or wand that would push its bow out of the ranged slot.
+    bool const rangedSlotItem = itemProto->InventoryType == INVTYPE_RELIC ||
+                                (itemProto->Class == ITEM_CLASS_WEAPON && itemProto->SubClass == ITEM_SUBCLASS_WEAPON_WAND);
+    if (rangedSlotItem && CoaRangedSlotCannotShoot(bot, itemProto))
         return ITEM_USAGE_NONE;
 
     bool shouldEquip = false;

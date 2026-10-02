@@ -701,9 +701,9 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
     }
     else if (CoaSpecNeedsShootingWeapon(chosen))
     {
-        // A bot geared before the rule still holds a wand and cannot fire its shot.
+        // A bot geared before the rule still holds a wand or an idol and cannot fire its shots.
         Item const* ranged = chosen->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
-        if (!ranged || ranged->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
+        if (CoaRangedSlotCannotShoot(chosen, ranged ? ranged->GetTemplate() : nullptr))
             PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(false);
     }
 

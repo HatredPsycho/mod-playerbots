@@ -147,7 +147,9 @@ static constexpr CoaStatWeight CoaStats_25_96[] = { { STATS_TYPE_STAMINA, 3.0f }
 // Cultist / Heretic (heilung)
 static constexpr CoaStatWeight CoaStats_25_40[] = { { STATS_TYPE_CRIT, 1.0f }, { STATS_TYPE_HEAL_POWER, 1.0f }, { STATS_TYPE_MANA_REGENERATION, 0.9f }, { STATS_TYPE_SPELL_POWER, 0.8f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_SPIRIT, 0.6f }, { STATS_TYPE_STAMINA, 0.5f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Starcaller / Sentinel (zauber)
-static constexpr CoaStatWeight CoaStats_26_44[] = { { STATS_TYPE_INTELLECT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_HIT, 0.92f }, { STATS_TYPE_AGILITY, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 02/10 (the generator is not in this repository): Starfire Shot, Huntress Shot and
+// Trueshot are weapon damage, so the bow's damage counts; without it every bow scored the same.
+static constexpr CoaStatWeight CoaStats_26_44[] = { { STATS_TYPE_RANGED_DPS, 5.0f }, { STATS_TYPE_INTELLECT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_HIT, 0.92f }, { STATS_TYPE_AGILITY, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Starcaller / Moon Guard (tank)
 static constexpr CoaStatWeight CoaStats_26_100[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_EXPERTISE, 1.38f }, { STATS_TYPE_BLOCK_RATING, 1.04f }, { STATS_TYPE_AGILITY, 0.93f }, { STATS_TYPE_INTELLECT, 0.81f }, { STATS_TYPE_CRIT, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Starcaller / Moon Priest (heilung)
@@ -244,7 +246,7 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 25,  41, "Corruption", "zauber", "caster", true, CoaStats_25_41, 7 },
     { 25,  96, "Dreadnought", "tank", "shield", true, CoaStats_25_96, 8 },
     { 25,  40, "Heretic", "heilung", "twoHand", true, CoaStats_25_40, 8 },
-    { 26,  44, "Sentinel", "zauber", "ranged", false, CoaStats_26_44, 7 },
+    { 26,  44, "Sentinel", "zauber", "ranged", false, CoaStats_26_44, 8 },
     { 26, 100, "Moon Guard", "tank", "shield", false, CoaStats_26_100, 11 },
     { 26,  43, "Moon Priest", "heilung", "twoHand", false, CoaStats_26_43, 8 },
     { 26,  45, "Warden", "physisch_nah", "caster", false, CoaStats_26_45, 8 },
