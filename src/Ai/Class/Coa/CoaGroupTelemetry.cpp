@@ -658,6 +658,8 @@ public:
         sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", false);
         sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", false);
         sPlayerbotAIConfig.coaShortLivedDebuffs = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaShortLivedDebuffs", 0);
+        sPlayerbotAIConfig.coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
+        sPlayerbotAIConfig.coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
         sPlayerbotAIConfig.coaExcludedSpecializations.clear();
         std::string const excluded = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "51,101");
         std::istringstream ids(excluded);
@@ -669,9 +671,11 @@ public:
         for (std::string id; std::getline(offensive, id, ',');)
             if (!id.empty())
                 sPlayerbotAIConfig.coaOffensiveHealerSpecs.insert(uint32(std::stoul(id)));
-        LOG_INFO("playerbots.coa", "coa settings reloaded: smart heal {}, smart tank {}, group telemetry {}, interrupt coordination {}",
+        LOG_INFO("playerbots.coa", "coa settings reloaded: smart heal {}, smart tank {}, group telemetry {}, interrupt coordination {}, "
+                 "keep channels {}, exclusive families {}",
                  sPlayerbotAIConfig.coaSmartHeal, sPlayerbotAIConfig.coaSmartTank, sPlayerbotAIConfig.coaGroupTelemetry,
-                 sPlayerbotAIConfig.coaInterruptCoordination);
+                 sPlayerbotAIConfig.coaInterruptCoordination, sPlayerbotAIConfig.coaKeepChannels,
+                 sPlayerbotAIConfig.coaExclusiveFamilies);
     }
 };
 }  // namespace
