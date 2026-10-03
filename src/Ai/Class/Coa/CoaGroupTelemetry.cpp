@@ -656,6 +656,7 @@ public:
         sPlayerbotAIConfig.coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
         sPlayerbotAIConfig.coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", false);
         sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", false);
+        sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", false);
         sPlayerbotAIConfig.coaExcludedSpecializations.clear();
         std::string const excluded = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "51,101");
         std::istringstream ids(excluded);
