@@ -80,6 +80,8 @@ public:
     std::string const GetLastAction() { return lastAction; }
     // The last action that went through, kept only while AiPlayerbot.CoaStatusFile is set (bot-status.json).
     std::string const& GetLastExecutedAction() const { return lastExecutedAction; }
+    // The trigger lines of the strategies in place, read by CoA bots for the priority of their rotation lines.
+    std::vector<TriggerNode*> const& GetTriggerNodes() const { return triggers; }
 
     virtual bool DoNextAction(Unit*, uint32 depth = 0, bool minimal = false);
     ActionResult ExecuteAction(std::string const name, Event event = Event(), std::string const qualifier = "");

@@ -409,6 +409,7 @@ public:
     uint32 coaThreatHold;
     bool coaAttackLoop;
     bool coaKeepChannels;
+    bool coaExclusiveFamilies;
     bool coaSpellReplacement;
     bool coaAncestralCombatFix;
     bool coaKeepPassiveAuras;

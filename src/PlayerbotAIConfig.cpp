@@ -742,6 +742,7 @@ bool PlayerbotAIConfig::Initialize()
     coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
     coaAttackLoop = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackLoop", true);
     coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
+    coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
     coaSpellReplacement = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSpellReplacement", true);
     coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", false);
     coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", false);

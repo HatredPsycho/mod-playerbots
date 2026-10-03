@@ -75,13 +75,17 @@ bool CoaHealerAvoidsForm(Player* bot, SpellInfo const* info);
 bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info);
 
 // For a rotation line ("buff missing", "can cast"): whether the bot may cast this spell now as far
-// as exclusive families go. Besides CoaHoldsExclusiveSibling, a family the world database makes
-// exclusive (spell_group_stack_rules: Stormbringer Aegis and Pressures, Barbarian shouts, Starcaller
-// Aspects) keeps the member a rotation line asked for first: a later line of the same family no
-// longer replaces it, which made each line recast its buff in turn (Shocking and Tempest Aegis,
-// Barometric and Atmospheric Pressure, report of 02/10). A member put on by "coa buff" is replaced
-// once by the one the rotation names.
+// as exclusive families go. Besides CoaHoldsExclusiveSibling, with AiPlayerbot.CoaExclusiveFamilies a
+// family the world database makes exclusive (spell_group_stack_rules: Stormbringer Aegis and
+// Pressures, Barbarian shouts, Starcaller Aspects) keeps the member named by the highest priority line
+// of the rotation: the other lines of the family wait until the bot wears none of it, where each line
+// recast its buff in turn (Shocking and Tempest Aegis, Barometric and Atmospheric Pressure, report of
+// 02/10). The kept member replaces a sibling put on by "coa buff".
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info);
+
+// The bot's strategies were reset (a new specialization, a new rotation): the lines CoaRotationMayCast
+// goes by are read again.
+void CoaForgetRotationBuffs(PlayerbotAI* botAI);
 
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);
