@@ -198,6 +198,9 @@ bool IsDefensiveAura(SpellEffectInfo const& effect)
  * The bot takes one out of combat and keeps it; it has no place in the damage rotation.
  * Several CoA abilities are gated behind one through CasterAuraSpell (Beetle Form 803183
  * carries 64 of them, Spider Form 800841 another 42), so they cannot simply be ignored.
+ * A transform that speeds its bearer up is a form to ride in, not to fight in (Bloodmage
+ * Running Wild 800175, Reaper Ghost Form 561083): it cannot be cast in combat and ends with
+ * the next cast or swing, so a bot would put it back on between any two spells.
  */
 bool IsStance(SpellInfo const* info)
 {
@@ -205,6 +208,8 @@ bool IsStance(SpellInfo const* info)
         return false;
 
     bool aura = false;
+    bool transform = false;
+    bool speed = false;
     for (SpellEffectInfo const& effect : info->Effects)
     {
         if (!effect.IsEffect())
@@ -216,9 +221,13 @@ bool IsStance(SpellInfo const* info)
             return false;
 
         aura = true;
+        transform |= effect.ApplyAuraName == SPELL_AURA_TRANSFORM;
+        speed |= effect.ApplyAuraName == SPELL_AURA_MOD_INCREASE_SPEED ||
+                 effect.ApplyAuraName == SPELL_AURA_MOD_SPEED_ALWAYS ||
+                 effect.ApplyAuraName == SPELL_AURA_MOD_SPEED_NOT_STACK;
     }
 
-    return aura;
+    return aura && !(transform && speed);
 }
 
 /*
