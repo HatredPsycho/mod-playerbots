@@ -400,7 +400,8 @@ uint32 ApplyCoaTalents(Player* bot)
     // Rank each entry should hold at the bot's level: the build's picks up to that level, never an entry
     // the Character Advancement does not offer yet at that level. The build lists some end-game
     // abilities early, and the core does not check the level when a rank is set: level 10 bots cast
-    // Brutal Shot (spell level 59) for 2000 on a 548 health player (PvP bench, 28/09).
+    // Brutal Shot (spell level 59) for 2000 on a 548 health player (PvP bench, 28/09). Never a rank the
+    // entry does not have either: the core refuses it, and a bot made above that pick had no rank at all.
     std::vector<std::pair<uint32, uint8>> wanted;
     for (CoaLevelBuildData::Pick const& pick : CoaLevelBuildData::Picks)
     {
@@ -410,12 +411,13 @@ uint32 ApplyCoaTalents(Player* bot)
         if (!entry || entry->RequiredLevel > bot->GetLevel())
             continue;
 
+        uint8 const rank = std::min(pick.Rank, entry->SpellCount);
         auto itr = std::find_if(wanted.begin(), wanted.end(),
             [&pick](std::pair<uint32, uint8> const& w) { return w.first == pick.EntryId; });
         if (itr == wanted.end())
-            wanted.emplace_back(pick.EntryId, pick.Rank);
-        else if (itr->second < pick.Rank)
-            itr->second = pick.Rank;
+            wanted.emplace_back(pick.EntryId, rank);
+        else if (itr->second < rank)
+            itr->second = rank;
     }
 
     // Entries of one free-choice group exclude each other: the core removes the others when one is set.
