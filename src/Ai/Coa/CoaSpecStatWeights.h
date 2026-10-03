@@ -261,9 +261,15 @@ static constexpr CoaStatWeight CoaStats_31_60[] = { { STATS_TYPE_STAMINA, 3.0f }
 // Runemaster / Glyphic (zauber)
 static constexpr CoaStatWeight CoaStats_32_62[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_INTELLECT, 1.36f }, { STATS_TYPE_SPIRIT, 1.14f }, { STATS_TYPE_CRIT, 0.92f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Runemaster / Engravement (physisch_nah)
-static constexpr CoaStatWeight CoaStats_32_61[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 1.97f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_CRIT, 1.32f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): a Runemaster gets 1 attack power per
+// Strength and per Agility (StatSystem.cpp, Shaman base), and 24% of Engravement's bench damage carries a spell power term
+// (Primordial Strength, 301149, also adds 30% of attack power as spell power). Strength and spell power had no weight;
+// the bench bots wore 13 Strength and no spell power.
+static constexpr CoaStatWeight CoaStats_32_61[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 1.97f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_CRIT, 1.32f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.6f } };
 // Runemaster / Riftblade (physisch_nah)
-static constexpr CoaStatWeight CoaStats_32_63[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10: Strength is 1 attack power for a Runemaster (StatSystem.cpp, Shaman base), and 16%
+// of Riftblade's bench damage carries a spell power term; neither had a weight.
+static constexpr CoaStatWeight CoaStats_32_63[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.5f } };
 
 static constexpr CoaSpecStats CoaSpecStatsTable[] =
 {
@@ -335,8 +341,8 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 31,  58, "Grovekeeper", "physisch_fern", "any", true, CoaStats_31_58, 8 },
     { 31,  60, "Mountain King", "tank", "dualWield", true, CoaStats_31_60, 13 },
     { 32,  62, "Glyphic", "zauber", "any", true, CoaStats_32_62, 7 },
-    { 32,  61, "Engravement", "physisch_nah", "dualWield", true, CoaStats_32_61, 7 },
-    { 32,  63, "Riftblade", "physisch_nah", "twoHand", true, CoaStats_32_63, 8 },
+    { 32,  61, "Engravement", "physisch_nah", "dualWield", true, CoaStats_32_61, 9 },
+    { 32,  63, "Riftblade", "physisch_nah", "twoHand", true, CoaStats_32_63, 10 },
 };
 
 // The weights for a spec, or nullptr when we have none.
