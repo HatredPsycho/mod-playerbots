@@ -74,9 +74,15 @@ static constexpr CoaStatWeight CoaStats_13_6[] = { { STATS_TYPE_SPIRIT, 1.0f }, 
 // Witch Doctor / Voodoo (zauber)
 static constexpr CoaStatWeight CoaStats_13_5[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPIRIT, 1.58f }, { STATS_TYPE_SPELL_POWER, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_CRIT, 0.92f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Felsworn / Slayer (physisch_nah)
-static constexpr CoaStatWeight CoaStats_14_8[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10: Strength is 1 attack power for a Felsworn (StatSystem.cpp, Rogue base), so it
+// weighs at least as much as an attack power point; it had no weight at all.
+static constexpr CoaStatWeight CoaStats_14_8[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f } };
 // Felsworn / Infernal (zauber)
-static constexpr CoaStatWeight CoaStats_14_7[] = { { STATS_TYPE_SPIRIT, 1.8f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_INTELLECT, 1.25f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): Infernal's damage scales on spell power
+// (Fel Fireball 0.62, Sargeron Smite 0.60 in AscensionFelswornData.h; 76% of its bench damage), while Spirit and
+// Intellect only give 15% of themselves as spell power (Hidden Power, 802108). Spell power moves above Spirit, and hit
+// comes in: without it the bench bots wore 17 hit rating, every other caster 50 to 100.
+static constexpr CoaStatWeight CoaStats_14_7[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_INTELLECT, 1.25f }, { STATS_TYPE_SPIRIT, 1.0f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Felsworn / Tyrant (tank)
 static constexpr CoaStatWeight CoaStats_14_9[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_HIT, 1.6f }, { STATS_TYPE_EXPERTISE, 1.45f }, { STATS_TYPE_AGILITY, 1.3f }, { STATS_TYPE_ARMOR_PENETRATION, 1.15f }, { STATS_TYPE_CRIT, 1.0f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_HASTE, 0.85f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Witch Hunter / Boltslinger (physisch_fern)
@@ -216,8 +222,8 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 13,   4, "Shadowhunting", "physisch_fern", "dualWield", true, CoaStats_13_4, 8 },
     { 13,   6, "Brewing", "heilung", "caster", true, CoaStats_13_6, 8 },
     { 13,   5, "Voodoo", "zauber", "caster", true, CoaStats_13_5, 7 },
-    { 14,   8, "Slayer", "physisch_nah", "dualWield", true, CoaStats_14_8, 8 },
-    { 14,   7, "Infernal", "zauber", "caster", true, CoaStats_14_7, 6 },
+    { 14,   8, "Slayer", "physisch_nah", "dualWield", true, CoaStats_14_8, 9 },
+    { 14,   7, "Infernal", "zauber", "caster", true, CoaStats_14_7, 7 },
     { 14,   9, "Tyrant", "tank", "twoHand", true, CoaStats_14_9, 13 },
     { 15,  10, "Boltslinger", "physisch_fern", "any", false, CoaStats_15_10, 8 },
     { 15,  97, "Black Knight", "tank", "twoHand", false, CoaStats_15_97, 13 },
