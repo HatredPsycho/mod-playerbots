@@ -240,7 +240,10 @@ static constexpr CoaStatWeight CoaStats_30_56[] = { { STATS_TYPE_MELEE_DPS, 7.5f
 // Reaper / Domination (tank)
 static constexpr CoaStatWeight CoaStats_30_57[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_HIT, 1.6f }, { STATS_TYPE_EXPERTISE, 1.42f }, { STATS_TYPE_STRENGTH, 1.06f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_CRIT, 0.88f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Reaper / Soul (physisch_nah)
-static constexpr CoaStatWeight CoaStats_30_55[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 2.04f }, { STATS_TYPE_ATTACK_POWER, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_INTELLECT, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): a Reaper gets 2 attack power per Strength
+// and 1 per Agility (StatSystem.cpp; the CoA changelog confirms Strength), and kami ranks Strength first for Soul. The row
+// had Agility and no Strength: the bench bots wore 18 Strength against 237 Agility.
+static constexpr CoaStatWeight CoaStats_30_55[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_STRENGTH, 2.04f }, { STATS_TYPE_ATTACK_POWER, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_AGILITY, 1.1f }, { STATS_TYPE_INTELLECT, 1.0f } };
 // Primalist / Wildwalker (physisch_nah)
 static constexpr CoaStatWeight CoaStats_31_59[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_STRENGTH, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_ARMOR_PENETRATION, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Primalist / Geomancy (zauber)
@@ -320,7 +323,7 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 29, 101, "Vizier", "heilung", "caster", true, CoaStats_29_101, 9 },
     { 30,  56, "Harvest", "physisch_nah", "twoHand", true, CoaStats_30_56, 8 },
     { 30,  57, "Domination", "tank", "twoHand", true, CoaStats_30_57, 12 },
-    { 30,  55, "Soul", "physisch_nah", "dualWield", true, CoaStats_30_55, 7 },
+    { 30,  55, "Soul", "physisch_nah", "dualWield", true, CoaStats_30_55, 8 },
     { 31,  59, "Wildwalker", "physisch_nah", "twoHand", true, CoaStats_31_59, 8 },
     { 31,  95, "Geomancy", "zauber", "caster", true, CoaStats_31_95, 8 },
     { 31,  58, "Grovekeeper", "physisch_fern", "any", true, CoaStats_31_58, 7 },
