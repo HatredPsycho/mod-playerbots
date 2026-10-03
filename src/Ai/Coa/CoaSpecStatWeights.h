@@ -151,7 +151,9 @@ static constexpr CoaStatWeight CoaStats_20_25[] = { { STATS_TYPE_SPELL_POWER, 1.
 // Ranger / Archery (physisch_fern)
 static constexpr CoaStatWeight CoaStats_21_28[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 1.97f }, { STATS_TYPE_CRIT, 1.65f }, { STATS_TYPE_ARMOR_PENETRATION, 1.32f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Ranger / Brigand (physisch_nah)
-static constexpr CoaStatWeight CoaStats_21_30[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): Strength is 1 attack power for a Ranger
+// (StatSystem.cpp, Hunter base), so it weighs at least as much as an attack power point; it had no weight at all.
+static constexpr CoaStatWeight CoaStats_21_30[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f } };
 // Ranger / Farstrider (physisch_fern)
 static constexpr CoaStatWeight CoaStats_21_29[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 1.97f }, { STATS_TYPE_CRIT, 1.65f }, { STATS_TYPE_HASTE, 1.32f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Chronomancer / Infinite (zauber)
@@ -269,7 +271,7 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 20,  99, "Eternal", "tank", "any", true, CoaStats_20_99, 10 },
     { 20,  25, "Fleshweaver", "heilung", "any", true, CoaStats_20_25, 7 },
     { 21,  28, "Archery", "physisch_fern", "ranged", false, CoaStats_21_28, 7 },
-    { 21,  30, "Brigand", "physisch_nah", "any", true, CoaStats_21_30, 8 },
+    { 21,  30, "Brigand", "physisch_nah", "any", true, CoaStats_21_30, 9 },
     { 21,  29, "Farstrider", "physisch_fern", "ranged", false, CoaStats_21_29, 7 },
     { 22,  32, "Infinite", "zauber", "caster", false, CoaStats_22_32, 7 },
     { 22,  33, "Artificer", "zauber", "caster", false, CoaStats_22_33, 8 },
