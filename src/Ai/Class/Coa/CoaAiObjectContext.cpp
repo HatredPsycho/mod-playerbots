@@ -872,15 +872,46 @@ bool BeingHealedByAnother(Player* bot, Unit* target)
     return false;
 }
 
+// A heal over time and nothing else: all it does is its aura, so cast again on a target carrying it
+// from the same caster it only renews it. One with a direct part as well (Shadra's Prayer, Regrowth,
+// Potion Toss) still heals at once and stays a direct heal.
+bool IsPureHot(Usable const& spell)
+{
+    return (spell.kind & KIND_HOT) && !spell.info->HasEffect(SPELL_EFFECT_HEAL) &&
+           !spell.info->HasEffect(SPELL_EFFECT_HEAL_PCT) && !spell.info->HasEffect(SPELL_EFFECT_HEAL_MAX_HEALTH);
+}
+
+// Whether `target` already carries every one of `hots` from `caster`: no heal over time left to put on it.
+bool CarriesAllHots(Unit* target, std::vector<Usable> const& hots, ObjectGuid caster)
+{
+    if (hots.empty())
+        return false;
+    for (Usable const& spell : hots)
+        if (!target->HasAura(spell.info->Id, caster))
+            return false;
+    return true;
+}
+
+std::vector<Usable> KnownHots(Player* bot)
+{
+    return KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_HOT) && !(kind & (KIND_CONTROL | KIND_HOSTILE)); });
+}
+
 // The member to heal, of those under `below` percent: under the critical threshold before anyone
 // else, then the lowest health with the tank counted 15 points lower, as the one taking the hits.
 // One another healer is already healing is left to it unless dropping; for a heal over time, one
-// already carrying a heal over time too, unless under the medium line.
+// already carrying a heal over time too, unless under the medium line, and never one already carrying
+// every heal over time of this healer: there it had nothing left to cast and failed tick after tick,
+// and a tank without one was not picked while that member stayed the lowest (02/10: 922 of 1715 tries
+// of the heal over time cast nothing).
 Unit* SmartHealTarget(Player* bot, float below, bool overTime = false)
 {
+    std::vector<Usable> const hots = overTime ? KnownHots(bot) : std::vector<Usable>();
+    ObjectGuid const caster = bot->GetGUID();
+
     Group* group = bot->GetGroup();
     if (!group)
-        return bot->GetHealthPct() < below ? bot : nullptr;
+        return bot->GetHealthPct() < below && !(overTime && CarriesAllHots(bot, hots, caster)) ? bot : nullptr;
 
     Unit* best = nullptr;
     float bestScore = 1000.0f;
@@ -906,6 +937,8 @@ Unit* SmartHealTarget(Player* bot, float below, bool overTime = false)
         if (!critical && BeingHealedByAnother(bot, member))
             continue;
         if (overTime && health >= sPlayerbotAIConfig.mediumHealth && member->HasAuraType(SPELL_AURA_PERIODIC_HEAL))
+            continue;
+        if (overTime && CarriesAllHots(member, hots, caster))
             continue;
 
         float score = health;
@@ -1987,14 +2020,24 @@ public:
                 break;
             }
             default:
-                // Single target heals first, direct ones before those over time; area heals last.
+            {
+                // Single target heals first, direct ones before those over time; area heals last. A heal
+                // over time and nothing else that this healer already keeps on the target is left out: it
+                // would only be renewed, the cheapest of the list when the mana is saved and the instant
+                // one while moving (shiro2448 402a235: a Hero renewed Rejuvenation on a dropping tank
+                // until its mana ran out; 02/10: Shadra's Balm and Accelerated Recovery cast as direct heals).
                 spells = KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_HEAL) && !(kind & (KIND_CONTROL | KIND_HOSTILE)); });
+                ObjectGuid const caster = bot->GetGUID();
+                spells.erase(std::remove_if(spells.begin(), spells.end(), [target, caster](Usable const& spell)
+                    { return IsPureHot(spell) && target->HasAura(spell.info->Id, caster); }),
+                    spells.end());
                 std::stable_sort(spells.begin(), spells.end(), [](Usable const& a, Usable const& b)
                 {
                     auto rank = [](uint16 kind) { return ((kind & KIND_GROUP_HEAL) ? 2 : 0) + ((kind & KIND_HOT) ? 1 : 0); };
                     return rank(a.kind) < rank(b.kind);
                 });
                 break;
+            }
         }
 
         bool const smart = SmartHeal() && mode == Mode::Direct;
@@ -2087,7 +2130,7 @@ private:
         if (!target && mode == Mode::OverTime && bot->IsInCombat() &&
             (bot->getPowerType() != POWER_MANA || bot->GetPowerPct(POWER_MANA) >= 50.0f))
             if (Player* tank = GroupTank(bot))
-                if (!tank->getAttackers().empty())
+                if (!tank->getAttackers().empty() && !CarriesAllHots(tank, KnownHots(bot), bot->GetGUID()))
                     target = tank;
         return target;
     }
