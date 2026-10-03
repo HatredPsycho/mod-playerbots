@@ -159,7 +159,12 @@ static constexpr CoaStatWeight CoaStats_21_29[] = { { STATS_TYPE_RANGED_DPS, 10.
 // Chronomancer / Infinite (zauber)
 static constexpr CoaStatWeight CoaStats_22_32[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_INTELLECT, 1.36f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_SPIRIT, 0.92f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Chronomancer / Artificer (zauber)
-static constexpr CoaStatWeight CoaStats_22_33[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_PENETRATION, 1.62f }, { STATS_TYPE_SPIRIT, 1.43f }, { STATS_TYPE_CRIT, 1.25f }, { STATS_TYPE_HASTE, 1.07f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): Artificer fights with its wand. Shatter
+// Echo, Artificer's Wand, Crystal Cannon and Wand of Time are ranged weapon damage (57% of its bench damage), and Wand
+// Expert (574308) gives 100% of Spirit as ranged attack power, so the wand's damage now counts and Spirit leads. Spell
+// penetration was second: it only lowers a target's resistance, and every bench boss has 0; the bots wore 317 of it
+// (Infinite 22). Attack power is no longer penalised (it is ranged attack power too).
+static constexpr CoaStatWeight CoaStats_22_33[] = { { STATS_TYPE_RANGED_DPS, 5.0f }, { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPIRIT, 1.62f }, { STATS_TYPE_CRIT, 1.25f }, { STATS_TYPE_HASTE, 1.07f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_ATTACK_POWER, 0.5f }, { STATS_TYPE_SPELL_PENETRATION, 0.1f } };
 // Chronomancer / Time (heilung)
 static constexpr CoaStatWeight CoaStats_22_31[] = { { STATS_TYPE_SPIRIT, 1.0f }, { STATS_TYPE_HEAL_POWER, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.9f }, { STATS_TYPE_MANA_REGENERATION, 0.9f }, { STATS_TYPE_HASTE, 0.8f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_CRIT, 0.6f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Necromancer / Animation (zauber)
@@ -274,7 +279,7 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 21,  30, "Brigand", "physisch_nah", "any", true, CoaStats_21_30, 9 },
     { 21,  29, "Farstrider", "physisch_fern", "ranged", false, CoaStats_21_29, 7 },
     { 22,  32, "Infinite", "zauber", "caster", false, CoaStats_22_32, 7 },
-    { 22,  33, "Artificer", "zauber", "caster", false, CoaStats_22_33, 8 },
+    { 22,  33, "Artificer", "zauber", "caster", false, CoaStats_22_33, 9 },
     { 22,  31, "Time", "heilung", "caster", false, CoaStats_22_31, 8 },
     { 23,  35, "Animation", "zauber", "any", false, CoaStats_23_35, 6 },
     { 23,  34, "Death", "zauber", "caster", false, CoaStats_23_34, 7 },
