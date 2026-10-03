@@ -110,7 +110,13 @@ static constexpr CoaStatWeight CoaStats_17_18[] = { { STATS_TYPE_MELEE_DPS, 7.5f
 // Knight of Xoroth / Defiance (tank)
 static constexpr CoaStatWeight CoaStats_17_17[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_STRENGTH, 0.85f }, { STATS_TYPE_ARMOR, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f } };
 // Knight of Xoroth / Hellfire (zauber)
-static constexpr CoaStatWeight CoaStats_17_16[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_STRENGTH, 1.36f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_HASTE, 0.92f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): Hellfire fights with its two-hander and
+// attack power. Burning Power (500004, 17 of 17 bench bots) gives 100% of Intellect as attack power and 50% of Strength
+// as spell power; Seeking Flame, Flames of Xoroth and Hellmaw carry an attack power term next to the spell power one, and
+// Infernal Strike and auto attacks (27% of its bench damage) are weapon damage. Attack power was penalised (-1) and the
+// weapon not counted: the bots wore 0 attack power and 557 spell power. Per point on the bench, Strength is worth about
+// twice an attack power or Intellect point and six times a spell power point.
+static constexpr CoaStatWeight CoaStats_17_16[] = { { STATS_TYPE_MELEE_DPS, 3.0f }, { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_STRENGTH, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.2f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_INTELLECT, 1.0f }, { STATS_TYPE_HASTE, 0.92f }, { STATS_TYPE_ATTACK_POWER, 0.6f } };
 // Guardian / Gladiator (physisch_nah)
 static constexpr CoaStatWeight CoaStats_18_19[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_STRENGTH, 1.87f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_ARMOR_PENETRATION, 1.43f }, { STATS_TYPE_CRIT, 1.22f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Guardian / Inspiration (physisch_nah)
@@ -240,7 +246,7 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 16,  13, "Wind", "zauber", "caster", false, CoaStats_16_13, 7 },
     { 17,  18, "War", "physisch_nah", "twoHand", true, CoaStats_17_18, 8 },
     { 17,  17, "Defiance", "tank", "shield", true, CoaStats_17_17, 8 },
-    { 17,  16, "Hellfire", "zauber", "twoHand", true, CoaStats_17_16, 7 },
+    { 17,  16, "Hellfire", "zauber", "twoHand", true, CoaStats_17_16, 8 },
     { 18,  19, "Gladiator", "physisch_nah", "shield", true, CoaStats_18_19, 9 },
     { 18,  20, "Inspiration", "physisch_nah", "shield", true, CoaStats_18_20, 9 },
     { 18,  21, "Vanguard", "tank", "shield", true, CoaStats_18_21, 9 },
