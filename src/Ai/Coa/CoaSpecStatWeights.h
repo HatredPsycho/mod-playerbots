@@ -95,10 +95,11 @@ static constexpr CoaStatWeight CoaStats_15_97[] = { { STATS_TYPE_STAMINA, 3.0f }
 static constexpr CoaStatWeight CoaStats_15_11[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_INTELLECT, 1.65f }, { STATS_TYPE_SPELL_POWER, 1.43f }, { STATS_TYPE_CRIT, 1.22f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Witch Hunter / Inquisition (physisch_nah)
 // Corrected by hand on 03/10 (the generator is not in this repository): Malice (707535, 10 of 10 bench bots) gives
-// 100% of Intellect as attack power and 50% of attack power as spell power, so Intellect is worth an attack power point
-// plus half a spell power point, and spell power on gear comes second: on the bench 69% of Inquisition's damage is weapon
-// or attack power, 9% has a spell power term. The bots wore 339 spell power and 66 Intellect. Strength is 1 attack power.
-static constexpr CoaStatWeight CoaStats_15_12[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_INTELLECT, 1.45f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.8f } };
+// 100% of Intellect as attack power and 50% of Agility as Fire spell power (the core rewrites the DBC aura,
+// AscensionWitchHunterCompletion.cpp), so Intellect is worth one attack power point and no more, and spell power on gear
+// comes last: on the bench 69% of Inquisition's damage is weapon or attack power, 9% has a spell power term. The bots
+// wore 339 spell power and 66 Intellect. Strength is 1 attack power.
+static constexpr CoaStatWeight CoaStats_15_12[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_INTELLECT, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.8f } };
 // Stormbringer / Lightning (zauber)
 static constexpr CoaStatWeight CoaStats_16_15[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_INTELLECT, 0.92f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Stormbringer / Maelstrom (zauber)
@@ -115,8 +116,9 @@ static constexpr CoaStatWeight CoaStats_17_17[] = { { STATS_TYPE_STAMINA, 3.0f }
 // as spell power; Seeking Flame, Flames of Xoroth and Hellmaw carry an attack power term next to the spell power one, and
 // Infernal Strike and auto attacks (27% of its bench damage) are weapon damage. Attack power was penalised (-1) and the
 // weapon not counted: the bots wore 0 attack power and 557 spell power. Per point on the bench, Strength is worth about
-// twice an attack power or Intellect point and six times a spell power point.
-static constexpr CoaStatWeight CoaStats_17_16[] = { { STATS_TYPE_MELEE_DPS, 3.0f }, { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_STRENGTH, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.2f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_INTELLECT, 1.0f }, { STATS_TYPE_HASTE, 0.92f }, { STATS_TYPE_ATTACK_POWER, 0.6f } };
+// twice an attack power or Intellect point and six times a spell power point. Spell power stays low so that healer
+// plate (Intellect and spell power) never outweighs Strength plate.
+static constexpr CoaStatWeight CoaStats_17_16[] = { { STATS_TYPE_MELEE_DPS, 3.0f }, { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_STRENGTH, 1.8f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_HASTE, 0.92f }, { STATS_TYPE_INTELLECT, 0.9f }, { STATS_TYPE_ATTACK_POWER, 0.6f }, { STATS_TYPE_SPELL_POWER, 0.5f } };
 // Guardian / Gladiator (physisch_nah)
 static constexpr CoaStatWeight CoaStats_18_19[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_STRENGTH, 1.87f }, { STATS_TYPE_AGILITY, 1.65f }, { STATS_TYPE_ARMOR_PENETRATION, 1.43f }, { STATS_TYPE_CRIT, 1.22f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Guardian / Inspiration (physisch_nah)
@@ -242,8 +244,9 @@ static constexpr CoaStatWeight CoaStats_30_57[] = { { STATS_TYPE_STAMINA, 3.0f }
 // Reaper / Soul (physisch_nah)
 // Corrected by hand on 03/10 (the generator is not in this repository): a Reaper gets 2 attack power per Strength
 // and 1 per Agility (StatSystem.cpp; the CoA changelog confirms Strength), and kami ranks Strength first for Soul. The row
-// had Agility and no Strength: the bench bots wore 18 Strength against 237 Agility.
-static constexpr CoaStatWeight CoaStats_30_55[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_STRENGTH, 2.04f }, { STATS_TYPE_ATTACK_POWER, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_AGILITY, 1.1f }, { STATS_TYPE_INTELLECT, 1.0f } };
+// had Agility and no Strength: the bench bots wore 18 Strength against 237 Agility. Agility is one attack power plus
+// crit, so it sits above raw attack power, and Strength stays at twice an attack power point.
+static constexpr CoaStatWeight CoaStats_30_55[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_STRENGTH, 2.04f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_HASTE, 1.26f }, { STATS_TYPE_AGILITY, 1.2f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_INTELLECT, 1.0f } };
 // Primalist / Wildwalker (physisch_nah)
 static constexpr CoaStatWeight CoaStats_31_59[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_STRENGTH, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_ARMOR_PENETRATION, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Primalist / Geomancy (zauber)
