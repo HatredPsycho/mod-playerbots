@@ -57,9 +57,14 @@ struct CoaSpecStats
 };
 
 // Barbarian / Brutality (physisch_nah)
-static constexpr CoaStatWeight CoaStats_12_2[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_ARMOR_PENETRATION, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): a Barbarian gets 1 attack power per
+// Strength (StatSystem.cpp) and Body Builder (706481, 21 of 22 bench bots) adds 75% of Strength on top: a point of
+// Strength is 1.75 attack power, Agility 1 plus crit. The bench bots wore 18 Strength against 310 Agility.
+static constexpr CoaStatWeight CoaStats_12_2[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_STRENGTH, 1.6f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_ARMOR_PENETRATION, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Barbarian / Ancestry (physisch_nah)
-static constexpr CoaStatWeight CoaStats_12_3[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 2.04f }, { STATS_TYPE_HASTE, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_SPIRIT, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10: Strength is 1 attack power for a Barbarian (StatSystem.cpp), worth at least an
+// attack power point; it had no weight at all.
+static constexpr CoaStatWeight CoaStats_12_3[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 2.04f }, { STATS_TYPE_HASTE, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_SPIRIT, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f } };
 // Barbarian / Headhunting (physisch_fern)
 static constexpr CoaStatWeight CoaStats_12_1[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_CRIT, 1.52f }, { STATS_TYPE_ARMOR_PENETRATION, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Witch Doctor / Shadowhunting (physisch_fern)
@@ -205,8 +210,8 @@ static constexpr CoaStatWeight CoaStats_32_63[] = { { STATS_TYPE_MELEE_DPS, 7.5f
 
 static constexpr CoaSpecStats CoaSpecStatsTable[] =
 {
-    { 12,   2, "Brutality", "physisch_nah", "any", true, CoaStats_12_2, 8 },
-    { 12,   3, "Ancestry", "physisch_nah", "shield", true, CoaStats_12_3, 8 },
+    { 12,   2, "Brutality", "physisch_nah", "any", true, CoaStats_12_2, 9 },
+    { 12,   3, "Ancestry", "physisch_nah", "shield", true, CoaStats_12_3, 9 },
     { 12,   1, "Headhunting", "physisch_fern", "twoHand", true, CoaStats_12_1, 8 },
     { 13,   4, "Shadowhunting", "physisch_fern", "dualWield", true, CoaStats_13_4, 8 },
     { 13,   6, "Brewing", "heilung", "caster", true, CoaStats_13_6, 8 },
