@@ -63,7 +63,20 @@
 COA_QUALIFIED_CAST(CoaCastAction, CastSpellAction, "cast")
 COA_QUALIFIED_CAST(CoaCastMeleeAction, CastMeleeSpellAction, "cast melee")
 COA_QUALIFIED_CAST(CoaCastBuffAction, CastBuffSpellAction, "cast buff")
-COA_QUALIFIED_CAST(CoaCastDebuffAction, CastDebuffSpellAction, "cast debuff")
+/* "cast debuff::<spell>" - as the original. With AiPlayerbot.CoaShortLivedDebuffs, the target only has
+ * to live as long as the spell needs (CoaDebuffNeedLifeTime), not the fixed 8 s of the original. */
+class CoaCastDebuffAction : public CastDebuffSpellAction, public Qualified
+{
+public:
+    CoaCastDebuffAction(PlayerbotAI* botAI) : CastDebuffSpellAction(botAI, "") {}
+    void Qualify(std::string const qual) override
+    {
+        Qualified::Qualify(qual);
+        spell = qual;
+    }
+    std::string const getName() override { return "cast debuff::" + qualifier; }
+    bool isUseful() override;
+};
 // Resurrection: aims at the dead party member, not at the current target.
 // Together with the base trigger "party member dead" that is enough.
 COA_QUALIFIED_CAST(CoaCastRezAction, ResurrectPartyMemberAction, "cast rez")
@@ -430,7 +443,8 @@ private:
     CoaLineBackoff backoff;
 };
 /* "debuff missing::<spell>" - as the original, except for a healer keeping its mana for heals
- * (a Chronomancer healer put Unmake back 12 times in one fight and ran dry for 20 s). */
+ * (a Chronomancer healer put Unmake back 12 times in one fight and ran dry for 20 s), and, with
+ * AiPlayerbot.CoaShortLivedDebuffs, for the life the target must have left (CoaDebuffNeedLifeTime). */
 class CoaDebuffMissingTrigger : public DebuffTrigger, public Qualified
 {
 public:

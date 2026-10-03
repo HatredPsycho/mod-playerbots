@@ -411,6 +411,7 @@ public:
     bool coaSpellReplacement;
     bool coaAncestralCombatFix;
     bool coaKeepPassiveAuras;
+    uint32 coaShortLivedDebuffs;
     bool coaAttackCheckBench;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
