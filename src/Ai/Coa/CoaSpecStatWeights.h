@@ -86,13 +86,19 @@ static constexpr CoaStatWeight CoaStats_14_7[] = { { STATS_TYPE_HIT, 1.8f }, { S
 // Felsworn / Tyrant (tank)
 static constexpr CoaStatWeight CoaStats_14_9[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_HIT, 1.6f }, { STATS_TYPE_EXPERTISE, 1.45f }, { STATS_TYPE_AGILITY, 1.3f }, { STATS_TYPE_ARMOR_PENETRATION, 1.15f }, { STATS_TYPE_CRIT, 1.0f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_HASTE, 0.85f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Witch Hunter / Boltslinger (physisch_fern)
-static constexpr CoaStatWeight CoaStats_15_10[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10: Arbalist (520851, 9 of 12 bench bots) gives 100% of Intellect as ranged attack
+// power, the same as Agility minus its crit; Intellect had no weight.
+static constexpr CoaStatWeight CoaStats_15_10[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_INTELLECT, 1.0f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Witch Hunter / Black Knight (tank)
 static constexpr CoaStatWeight CoaStats_15_97[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_HIT, 1.6f }, { STATS_TYPE_EXPERTISE, 1.45f }, { STATS_TYPE_AGILITY, 1.3f }, { STATS_TYPE_ARMOR_PENETRATION, 1.0f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_CRIT, 0.85f }, { STATS_TYPE_HASTE, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Witch Hunter / Houndmaster (physisch_fern)
 static constexpr CoaStatWeight CoaStats_15_11[] = { { STATS_TYPE_RANGED_DPS, 10.0f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_INTELLECT, 1.65f }, { STATS_TYPE_SPELL_POWER, 1.43f }, { STATS_TYPE_CRIT, 1.22f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Witch Hunter / Inquisition (physisch_nah)
-static constexpr CoaStatWeight CoaStats_15_12[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_SPELL_POWER, 1.78f }, { STATS_TYPE_AGILITY, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): Malice (707535, 10 of 10 bench bots) gives
+// 100% of Intellect as attack power and 50% of attack power as spell power, so Intellect is worth an attack power point
+// plus half a spell power point, and spell power on gear comes second: on the bench 69% of Inquisition's damage is weapon
+// or attack power, 9% has a spell power term. The bots wore 339 spell power and 66 Intellect. Strength is 1 attack power.
+static constexpr CoaStatWeight CoaStats_15_12[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_AGILITY, 1.78f }, { STATS_TYPE_INTELLECT, 1.45f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.8f } };
 // Stormbringer / Lightning (zauber)
 static constexpr CoaStatWeight CoaStats_16_15[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_INTELLECT, 0.92f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Stormbringer / Maelstrom (zauber)
@@ -225,10 +231,10 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 14,   8, "Slayer", "physisch_nah", "dualWield", true, CoaStats_14_8, 9 },
     { 14,   7, "Infernal", "zauber", "caster", true, CoaStats_14_7, 7 },
     { 14,   9, "Tyrant", "tank", "twoHand", true, CoaStats_14_9, 13 },
-    { 15,  10, "Boltslinger", "physisch_fern", "any", false, CoaStats_15_10, 8 },
+    { 15,  10, "Boltslinger", "physisch_fern", "any", false, CoaStats_15_10, 9 },
     { 15,  97, "Black Knight", "tank", "twoHand", false, CoaStats_15_97, 13 },
     { 15,  11, "Houndmaster", "physisch_fern", "ranged", false, CoaStats_15_11, 9 },
-    { 15,  12, "Inquisition", "physisch_nah", "dualWield", false, CoaStats_15_12, 8 },
+    { 15,  12, "Inquisition", "physisch_nah", "dualWield", false, CoaStats_15_12, 10 },
     { 16,  15, "Lightning", "zauber", "caster", false, CoaStats_16_15, 7 },
     { 16,  14, "Maelstrom", "zauber", "caster", false, CoaStats_16_14, 7 },
     { 16,  13, "Wind", "zauber", "caster", false, CoaStats_16_13, 7 },
