@@ -413,6 +413,7 @@ public:
     bool coaKeepPassiveAuras;
     uint32 coaShortLivedDebuffs;
     bool coaAttackCheckBench;
+    bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;

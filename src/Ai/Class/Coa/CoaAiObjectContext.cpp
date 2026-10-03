@@ -220,6 +220,20 @@ bool IsStance(SpellInfo const* info)
     return aura;
 }
 
+/*
+ * A stealth or an invisibility on the caster (Ranger Elude 801345, Venomancer Skulk 800843, Reaper
+ * Underwalk 800797, Runemaster Runeshroud 500288). IsStance takes them for stances, and "coa buff"
+ * kept the bot hidden and slowed down out of combat, in towns and between trial waves, in place of
+ * its real stance. With AiPlayerbot.CoaStealthIsNotStance they are left to the rotations.
+ */
+bool HidesCaster(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.IsAura(SPELL_AURA_MOD_STEALTH) || effect.IsAura(SPELL_AURA_MOD_INVISIBILITY))
+            return true;
+    return false;
+}
+
 // A stance that raises the threat its bearer causes: a tank's.
 bool RaisesThreat(SpellInfo const* info)
 {
@@ -338,7 +352,7 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
     int32 const duration = info->GetMaxDuration();
 
     // Only the ability itself: a spell it triggers is not the stance the bot stands in.
-    if (!depth && IsStance(info))
+    if (!depth && IsStance(info) && !(sPlayerbotAIConfig.coaStealthIsNotStance && HidesCaster(info)))
         ability.kind |= KIND_STANCE;
 
     for (SpellEffectInfo const& effect : info->Effects)
