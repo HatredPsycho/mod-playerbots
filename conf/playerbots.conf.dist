@@ -1505,6 +1505,17 @@ AiPlayerbot.CoaThreatHold = 0
 
 AiPlayerbot.CoaAttackLoop = 1
 
+#    AiPlayerbot.CoaKeepChannels
+#        Description: 1 - a CoA bot lets its own channel (Stormflow) run to its end: its attacks wait,
+#                     except the spells the class may cast during that channel without breaking it
+#                     (Brine and Electrocute for a Stormbringer during Stormflow), which its rotation
+#                     may now cast. Heals, defensives, interrupts and movement still break the channel.
+#                     Channels longer than 15 seconds are not held.
+#                     0 - as in 1.6: the next attack breaks the channel once the global cooldown ends.
+#        Default:     1
+
+AiPlayerbot.CoaKeepChannels = 1
+
 #    AiPlayerbot.CoaSpellReplacement
 #        Description: 1 - checks, cooldowns and the set-aside list follow the spell a proc swaps in
 #                     (Malefic Wrath -> Malefic Arrow), the cast keeps the listed id. 0 - as in 1.6.

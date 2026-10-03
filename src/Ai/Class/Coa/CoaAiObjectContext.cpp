@@ -331,6 +331,53 @@ bool WearsRivalBuffFrom(Unit* unit, Unit* caster, SpellInfo const* buff)
     return false;
 }
 
+// A buff the unit wears that the world database makes exclusive with this spell
+// (spell_group_stack_rules): any caster's for SPELL_GROUP_STACK_RULE_EXCLUSIVE, the caster's own for
+// SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER (Stormbringer Aegis 111010 and Pressures 1170,
+// Barbarian shouts 1210, Starcaller Aspects 1127). Casting the spell would remove it. nullptr if none.
+SpellInfo const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const* spell)
+{
+    uint32 const first = spell->GetFirstRankSpell()->Id;
+    for (auto const& [id, application] : unit->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        SpellInfo const* worn = aura->GetSpellInfo();
+        if (worn->IsPassive() || worn->GetFirstRankSpell()->Id == first)
+            continue;
+        switch (sSpellMgr->CheckSpellGroupStackRules(spell, worn))
+        {
+            case SPELL_GROUP_STACK_RULE_EXCLUSIVE:
+                return worn;
+            case SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER:
+                if (aura->GetCasterGUID() == caster->GetGUID())
+                    return worn;
+                break;
+            default:
+                break;
+        }
+    }
+    return nullptr;
+}
+
+// Whether a rotation line of the bot asked for another member of this spell's exclusive family
+// (see CoaRotationMayCast): "coa buff" then leaves the family to the rotation.
+bool RotationPrefersSibling(CoaAiObjectContext const* context, SpellInfo const* spell)
+{
+    if (!context || context->rotationBuffs.empty())
+        return false;
+    uint32 const first = spell->GetFirstRankSpell()->Id;
+    if (context->rotationBuffs.count(first))
+        return false;
+    for (uint32 const asked : context->rotationBuffs)
+        if (SpellInfo const* other = sSpellMgr->GetSpellInfo(asked))
+        {
+            SpellGroupStackRule const rule = sSpellMgr->CheckSpellGroupStackRules(spell, other);
+            if (rule == SPELL_GROUP_STACK_RULE_EXCLUSIVE || rule == SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER)
+                return true;
+        }
+    return false;
+}
+
 // Whether the bot wears a stance of its own that raises its threat.
 bool WearsThreatStance(Player* bot)
 {
@@ -1170,6 +1217,30 @@ float CasterCentredReach(Player* bot, SpellInfo const* info)
     return reach;
 }
 
+// The longest channel of its own a bot lets run to its end with AiPlayerbot.CoaKeepChannels: an
+// endless or very long one (a hidden aura channel, a drain held for minutes) is not waited for.
+constexpr int32 KeptChannelMaxMs = 15 * IN_MILLISECONDS;
+
+// Whether casting this spell now would break the bot's own channel, one it should let run: the
+// core breaks a channel for any spell but those Unit::CanCastDuringChannel lets through (Brine
+// and Electrocute during a Stormbringer's Stormflow) or a channel that allows actions. The attack
+// loop took the next spell as soon as the global cooldown ended - 250 ms after Stormflow began, as
+// its own global cooldown is that short - and cut the 8 s beam after a tick or two (players' report
+// of 02/10, Maelstrom).
+bool BreaksOwnChannel(Player* bot, SpellInfo const* info)
+{
+    if (!sPlayerbotAIConfig.coaKeepChannels)
+        return false;
+    Spell const* channel = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+    if (!channel || channel->getState() != SPELL_STATE_CASTING)
+        return false;
+    SpellInfo const* const channelInfo = channel->GetSpellInfo();
+    int32 const duration = channelInfo->GetMaxDuration();
+    if (duration <= 0 || duration > KeptChannelMaxMs)
+        return false;
+    return !channelInfo->IsActionAllowedChannel() && !bot->CanCastDuringChannel(info);
+}
+
 SpellInfo const* CastFirst(PlayerbotAI* botAI, Player* bot, std::vector<Usable> const& spells, Unit* target,
                            uint8 usage = 255)
 {
@@ -1204,6 +1275,12 @@ SpellInfo const* CastFirst(PlayerbotAI* botAI, Player* bot, std::vector<Usable> 
         // The global cooldown blocks every spell alike: try again on a later tick.
         if (bot->GetGlobalCooldownMgr().HasGlobalCooldown(info))
             return nullptr;
+
+        // An attack (USAGE_ATTACK or USAGE_AOE, whose enum comes further down) waits for the bot's
+        // own channel to end; a spell castable during it still goes. Heals, defensives, taunts,
+        // dispels and interrupts break it, as a player would.
+        if ((usage == 0 || usage == 1) && BreaksOwnChannel(bot, info))
+            continue;
 
         // The bench is posted under the id that was checked: a failure of a short-lived replacement
         // never sidelines the listed spell. Both ids are read, spent entries dropped.
@@ -1872,7 +1949,7 @@ public:
             if (saveMana && info->PowerType == POWER_MANA && info->CalcPowerCost(bot, info->GetSchoolMask()) > 0)
                 continue;
 
-            if (StrictCheck(bot, info, target) != SPELL_CAST_OK)
+            if (BreaksOwnChannel(bot, info) || StrictCheck(bot, info, target) != SPELL_CAST_OK)
                 continue;
 
             if (botAI->CastSpell(info->Id, target))
@@ -2568,6 +2645,13 @@ public:
                 // Nor a second seal of the same caster: CoA classes give the buffs a caster keeps one of
                 // on each target the same family flag (Seals of Al'ar and Alysrazor, Adaptations, Edicts).
                 if (!(spell.kind & KIND_STANCE) && WearsRivalBuffFrom(member, bot, spell.info))
+                    continue;
+
+                // Nor a buff of a family the world database makes exclusive while the member wears
+                // another of it from the bot (or from anyone, for a fully exclusive family), nor one
+                // whose family the bot's rotation keeps another member of (see CoaRotationMayCast).
+                if (WornExclusiveSibling(member, bot, spell.info) ||
+                    RotationPrefersSibling(dynamic_cast<CoaAiObjectContext const*>(botAI->GetAiObjectContext()), spell.info))
                     continue;
 
                 // The aura may come from a triggered spell under another id: do not recast
@@ -3332,6 +3416,26 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info)
                 return true;
     }
     return false;
+}
+
+bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
+{
+    if (!info)
+        return true;
+    if (CoaHoldsExclusiveSibling(bot, info))
+        return false;
+
+    CoaAiObjectContext* const context = dynamic_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext());
+    if (SpellInfo const* worn = WornExclusiveSibling(bot, bot, info))
+        if (!context || context->rotationBuffs.count(worn->GetFirstRankSpell()->Id))
+            return false;
+
+    // Only a member of a spell group is worth remembering: the set stays as short as the families.
+    uint32 const first = info->GetFirstRankSpell()->Id;
+    SpellSpellGroupMapBounds const groups = sSpellMgr->GetSpellSpellGroupMapBounds(first);
+    if (context && groups.first != groups.second)
+        context->rotationBuffs.insert(first);
+    return true;
 }
 
 std::string CoaHealKit(Player* bot)

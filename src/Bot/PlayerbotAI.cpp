@@ -3616,7 +3616,11 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
         return false;
     }
 
-    if (bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL) != nullptr)
+    // A spell the class may cast during its channel without breaking it (Brine during a Stormbringer's
+    // Stormflow, Unit::CanCastDuringChannel) stays possible with AiPlayerbot.CoaKeepChannels: the
+    // rotation line that names it is how the bot weaves it in.
+    if (bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL) != nullptr &&
+        !(sPlayerbotAIConfig.coaKeepChannels && bot->CanCastDuringChannel(sSpellMgr->GetSpellInfo(spellid))))
     {
         if (!sPlayerbotAIConfig.logInGroupOnly || (bot->GetGroup() && HasGameClientMaster()))
             LOG_DEBUG("playerbots", "CanCastSpell() target name: {}, spellid: {}, bot name: {}, failed because has current channeled spell",

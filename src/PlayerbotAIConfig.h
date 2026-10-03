@@ -408,6 +408,7 @@ public:
     bool coaBotSurname;
     uint32 coaThreatHold;
     bool coaAttackLoop;
+    bool coaKeepChannels;
     bool coaSpellReplacement;
     bool coaAncestralCombatFix;
     bool coaKeepPassiveAuras;

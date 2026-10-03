@@ -16,6 +16,7 @@
 class Channel;
 class Group;
 class Player;
+class PlayerbotAI;
 class SpellInfo;
 
 enum class CoaRole : uint8
@@ -72,6 +73,15 @@ bool CoaHealerAvoidsForm(Player* bot, SpellInfo const* info);
 // Skin active at a time", "Only 1 Ascension spell can be active"): the rotations list them all, and
 // each one cast removed the other (Pyromancer skins, 23 casts a fight).
 bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info);
+
+// For a rotation line ("buff missing", "can cast"): whether the bot may cast this spell now as far
+// as exclusive families go. Besides CoaHoldsExclusiveSibling, a family the world database makes
+// exclusive (spell_group_stack_rules: Stormbringer Aegis and Pressures, Barbarian shouts, Starcaller
+// Aspects) keeps the member a rotation line asked for first: a later line of the same family no
+// longer replaces it, which made each line recast its buff in turn (Shocking and Tempest Aegis,
+// Barometric and Atmospheric Pressure, report of 02/10). A member put on by "coa buff" is replaced
+// once by the one the rotation names.
+bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info);
 
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);

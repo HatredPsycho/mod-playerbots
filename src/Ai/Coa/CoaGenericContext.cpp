@@ -187,7 +187,7 @@ bool CoaBuffMissingTrigger::IsActive()
     {
         uint32 const id = AI_VALUE2(uint32, "spell id", spell);
         SpellInfo const* info = id ? sSpellMgr->GetSpellInfo(id) : nullptr;
-        active = !CoaHealerAvoidsForm(bot, info) && !CoaHoldsExclusiveSibling(bot, info);
+        active = !CoaHealerAvoidsForm(bot, info) && CoaRotationMayCast(botAI, bot, info);
     }
     return backoff.Allow(active);
 }
@@ -487,7 +487,7 @@ bool CoaCanCastTrigger::IsActive()
     }
 
     return !CoaHealerSavesManaFrom(bot, info) && !CoaHealerAvoidsForm(bot, info) &&
-           !CoaHoldsExclusiveSibling(bot, info);
+           CoaRotationMayCast(botAI, bot, info);
 }
 
 void CoaSummonMissingTrigger::Qualify(std::string const qual)
