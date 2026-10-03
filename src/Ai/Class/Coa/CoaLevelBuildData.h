@@ -18,7 +18,7 @@ struct Pick
     std::uint8_t Rank;
 };
 
-inline constexpr std::array<Pick, 3564> Picks =
+inline constexpr std::array<Pick, 3580> Picks =
 {{
     {12, 1, 10, 0, 30162, 1},
     {12, 1, 11, 1, 34319, 1},
@@ -59,7 +59,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 1, 46, 0, 6802, 1},
     {12, 1, 47, 1, 6799, 2},
     {12, 1, 48, 0, 11168, 1},
-    {12, 1, 49, 1, 7338, 1},
+    {12, 1, 49, 1, 30167, 1},  // by hand web4: Berserker (top players) instead of Brutal Form (7338), same 23-point gate
     {12, 1, 50, 0, 34320, 1},
     {12, 1, 51, 1, 6803, 1},
     {12, 1, 52, 0, 6844, 1},
@@ -128,6 +128,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 13, 1, 29284, 1},
     {12, 3, 14, 0, 14277, 2},
     {12, 3, 15, 1, 31220, 1},
+    {12, 3, 15, 1, 9172, 1},  // by hand web4: free choice Frozen Blades (top players), group 8456221, level 15
     {12, 3, 16, 0, 30162, 1},
     {12, 3, 17, 1, 29799, 1},
     {12, 3, 18, 0, 7720, 1},
@@ -143,6 +144,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 28, 0, 34291, 1},
     {12, 3, 29, 1, 29800, 2},
     {12, 3, 30, 0, 34279, 1},
+    {12, 3, 30, 1, 34257, 1},  // by hand web4: free choice Uniting Voice (top players), group 723711, level 30
     {12, 3, 31, 1, 29800, 3},
     {12, 3, 32, 0, 30870, 1},
     {12, 3, 33, 1, 34262, 1},
@@ -153,6 +155,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 38, 0, 12563, 1},
     {12, 3, 39, 1, 30387, 1},
     {12, 3, 40, 0, 6462, 1},
+    {12, 3, 40, 1, 9861, 1},  // by hand web4: free choice To The Bone (top players), group 326121, level 40
     {12, 3, 41, 1, 30386, 1},
     {12, 3, 42, 0, 6374, 1},
     {12, 3, 43, 1, 30386, 2},
@@ -163,6 +166,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {12, 3, 48, 0, 6753, 1},
     {12, 3, 49, 1, 34305, 1},
     {12, 3, 50, 0, 5373, 1},
+    {12, 3, 50, 1, 12112, 1},  // by hand web4: free choice Clanlord's Totem (top players), group 934111, level 50
     {12, 3, 51, 1, 29348, 1},
     {12, 3, 52, 0, 6844, 1},
     {12, 3, 53, 1, 34311, 1},
@@ -271,7 +275,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {13, 5, 54, 0, 6054, 1},
     {13, 5, 55, 1, 6644, 1},
     {13, 5, 56, 0, 6047, 1},
-    {13, 5, 57, 1, 29121, 1},
+    {13, 5, 57, 1, 31350, 1},  // by hand 03/10: Voodoo Strings (top players) instead of Malignant Jinx (29121), same tree and gate
     {13, 5, 58, 0, 6047, 2},
     {13, 5, 59, 1, 7100, 1},
     {13, 5, 60, 0, 7033, 1},
@@ -308,7 +312,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {13, 6, 40, 0, 9347, 1},
     {13, 6, 41, 1, 6498, 2},
     {13, 6, 42, 0, 9347, 2},
-    {13, 6, 43, 1, 7948, 1},
+    {13, 6, 43, 1, 6013, 1},  // by hand 03/10: Spirit Out Of The Bottle (top players) instead of Touch of the Spirits (7948), same tree and gate
     {13, 6, 44, 0, 4132, 1},
     {13, 6, 45, 1, 6645, 1},
     {13, 6, 46, 0, 6050, 1},
@@ -375,7 +379,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {14, 7, 56, 0, 30552, 1},
     {14, 7, 57, 1, 34234, 1},
     {14, 7, 58, 0, 29400, 1},
-    {14, 7, 59, 1, 29922, 1},
+    {14, 7, 59, 1, 34232, 1},  // by hand web4: Malice of Gul'dan (top players) instead of Chaotic Intuition (29922), same 23-point gate
     {14, 7, 60, 0, 34227, 1},
     {14, 8, 10, 0, 29686, 1},
     {14, 8, 11, 1, 29387, 1},
@@ -451,7 +455,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {14, 9, 30, 0, 33670, 1},
     {14, 9, 31, 1, 34226, 1},
     {14, 9, 32, 0, 30559, 1},
-    {14, 9, 33, 1, 30566, 1},
+    {14, 9, 33, 1, 9218, 1},  // by hand web4: Straight to the Nether (top players) instead of Battle Finesse (30566), same 8-point gate
     {14, 9, 34, 0, 31294, 1},
     {14, 9, 35, 1, 30556, 1},
     {14, 9, 36, 0, 11227, 1},
@@ -659,7 +663,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {15, 97, 38, 0, 34556, 2},
     {15, 97, 39, 1, 7577, 1},
     {15, 97, 39, 1, 7586, 1},
-    {15, 97, 39, 1, 7590, 1},
+    {15, 97, 39, 1, 7585, 1},  // by hand 03/10: Destroyer of Evil (top players) instead of Calm Under Pressure (7590), same tree and gate
     {15, 97, 40, 0, 7482, 1},
     {15, 97, 42, 0, 6622, 1},
     {15, 97, 43, 1, 7584, 1},
@@ -724,7 +728,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {16, 13, 48, 0, 29341, 1},
     {16, 13, 49, 1, 6418, 1},
     {16, 13, 50, 0, 34916, 1},
-    {16, 13, 51, 1, 31268, 1},
+    {16, 13, 51, 1, 29831, 1},  // by hand 03/10: Master Elementalist (top players) instead of Lexicon of Servitude (31268), same tree and gate
     {16, 13, 52, 0, 7474, 1},
     {16, 13, 53, 1, 30819, 1},
     {16, 13, 54, 0, 34916, 2},
@@ -773,13 +777,13 @@ inline constexpr std::array<Pick, 3564> Picks =
     {16, 14, 46, 0, 34938, 1},
     {16, 14, 47, 1, 6469, 1},
     {16, 14, 48, 0, 34650, 1},
-    {16, 14, 49, 1, 34684, 1},
+    {16, 14, 49, 1, 29835, 1},  // by hand 03/10: Stormfury (top players) instead of Stormcloud (34684), same tree and gate
     {16, 14, 50, 0, 29341, 1},
     {16, 14, 51, 1, 8613, 1},
     {16, 14, 52, 0, 7474, 1},
     {16, 14, 53, 1, 8613, 2},
     {16, 14, 54, 0, 30295, 1},
-    {16, 14, 55, 1, 7184, 1},
+    {16, 14, 55, 1, 19684, 1},  // by hand 03/10: Shockingly Powerful (top players) instead of Electrified Waters (7184), same tree and gate
     {16, 14, 56, 0, 34916, 1},
     {16, 14, 57, 1, 30944, 1},
     {16, 14, 58, 0, 34916, 2},
@@ -816,7 +820,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {16, 15, 38, 0, 34693, 1},
     {16, 15, 39, 1, 29833, 1},
     {16, 15, 40, 0, 34650, 1},
-    {16, 15, 41, 1, 34641, 1},
+    {16, 15, 41, 1, 34937, 1},  // by hand 03/10: Thundershocker (top players) instead of Improved Forked Lightning (34641), same tree and gate
     {16, 15, 42, 0, 7858, 1},
     {16, 15, 43, 1, 34674, 1},
     {16, 15, 44, 0, 34695, 1},
@@ -824,7 +828,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {16, 15, 46, 0, 29341, 1},
     {16, 15, 47, 1, 6851, 1},
     {16, 15, 48, 0, 34916, 1},
-    {16, 15, 49, 1, 30408, 1},
+    {16, 15, 49, 1, 5738, 1},  // by hand 03/10: Voltaic Bursts (top players) instead of High Voltage (30408), same tree and gate
     {16, 15, 50, 0, 34916, 2},
     {16, 15, 51, 1, 5475, 1},
     {16, 15, 52, 0, 7474, 1},
@@ -1051,6 +1055,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {18, 20, 18, 0, 29972, 1},
     {18, 20, 19, 1, 5825, 1},
     {18, 20, 20, 0, 7786, 1},
+    {18, 20, 20, 1, 29216, 1},  // by hand web4: free choice Banner of Conquest (top players), group 743521, level 20
     {18, 20, 21, 1, 9450, 1},
     {18, 20, 22, 0, 6363, 1},
     {18, 20, 23, 1, 11797, 1},
@@ -1061,6 +1066,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {18, 20, 28, 0, 34422, 1},
     {18, 20, 29, 1, 30829, 1},
     {18, 20, 30, 0, 29971, 1},
+    {18, 20, 30, 1, 29214, 1},  // by hand web4: free choice Banner of Swiftness (top players), group 821425, level 30
     {18, 20, 31, 1, 31359, 1},
     {18, 20, 32, 0, 34407, 1},
     {18, 20, 33, 1, 6428, 1},
@@ -1071,6 +1077,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {18, 20, 38, 0, 34405, 1},
     {18, 20, 39, 1, 34434, 1},
     {18, 20, 40, 0, 6455, 1},
+    {18, 20, 40, 1, 7836, 1},  // by hand web4: free choice Song of Steel (top players), group 563213, level 40
     {18, 20, 41, 1, 29797, 1},
     {18, 20, 42, 0, 6455, 2},
     {18, 20, 43, 1, 34430, 1},
@@ -1081,6 +1088,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {18, 20, 48, 0, 6364, 1},
     {18, 20, 49, 1, 30098, 1},
     {18, 20, 50, 0, 29796, 1},
+    {18, 20, 50, 1, 11837, 1},  // by hand web4: free choice Champion's Presence (top players), group 125733, level 50
     {18, 20, 51, 1, 6454, 1},
     {18, 20, 52, 0, 6456, 1},
     {18, 20, 53, 1, 6454, 2},
@@ -1099,7 +1107,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {18, 21, 15, 1, 31319, 1},
     {18, 21, 16, 0, 29639, 2},
     {18, 21, 17, 1, 34448, 1},
-    {18, 21, 18, 0, 29972, 1},
+    {18, 21, 18, 0, 7310, 1},  // by hand web4: Glorious Arena (top players) instead of Shrug It Off (29972), no gate
     {18, 21, 19, 1, 34448, 2},
     {18, 21, 20, 0, 6363, 1},
     {18, 21, 21, 1, 1719, 1},
@@ -1234,11 +1242,11 @@ inline constexpr std::array<Pick, 3564> Picks =
     {19, 23, 48, 0, 31313, 2},
     {19, 23, 49, 1, 7757, 1},
     {19, 23, 50, 0, 34347, 1},
-    {19, 23, 51, 1, 9757, 1},
+    {19, 23, 51, 1, 7813, 1},  // by hand 03/10: Might of Aggramar (top players) instead of Norgannon's Wrath (9757), same tree and gate
     {19, 23, 52, 0, 6356, 1},
     {19, 23, 53, 1, 29255, 1},
     {19, 23, 54, 0, 7814, 1},
-    {19, 23, 55, 1, 30455, 1},
+    {19, 23, 55, 1, 11455, 1},  // by hand 03/10: Paladin Training (top players) instead of Priest Training (30455), same tree and gate
     {19, 23, 56, 0, 34377, 1},
     {19, 23, 57, 1, 34359, 1},
     {19, 23, 58, 0, 34350, 1},
@@ -1306,11 +1314,13 @@ inline constexpr std::array<Pick, 3564> Picks =
     {20, 25, 18, 0, 29543, 1},
     {20, 25, 19, 1, 30400, 1},
     {20, 25, 20, 0, 34628, 1},
+    {20, 25, 20, 1, 11206, 1},  // by hand web4: free choice Fleshbending (top players), group 143567, level 20
     {20, 25, 22, 0, 8352, 1},
     {20, 25, 24, 0, 8352, 2},
     {20, 25, 26, 0, 29629, 1},
     {20, 25, 28, 0, 6630, 1},
     {20, 25, 30, 0, 33688, 1},
+    {20, 25, 30, 1, 9906, 1},  // by hand web4: free choice Blood-Cursed Weapons (top players), group 632512, level 30
     {20, 25, 32, 0, 34969, 1},
     {20, 25, 34, 0, 9970, 1},
     {20, 25, 36, 0, 8357, 1},
@@ -1320,6 +1330,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {20, 25, 39, 1, 7440, 1},
     {20, 25, 39, 1, 7450, 1},
     {20, 25, 40, 0, 7287, 1},
+    {20, 25, 40, 1, 4906, 1},  // by hand web4: free choice Cursed Blood (top players), group 325161, level 40
     {20, 25, 42, 0, 7288, 1},
     {20, 25, 43, 1, 7433, 1},
     {20, 25, 43, 1, 7437, 1},
@@ -1336,6 +1347,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {20, 25, 49, 1, 7445, 1},
     {20, 25, 49, 1, 7681, 1},
     {20, 25, 50, 0, 8191, 1},
+    {20, 25, 50, 1, 11916, 1},  // by hand web4: free choice Purify Blood (top players), group 165327, level 50
     {20, 25, 51, 1, 7435, 1},
     {20, 25, 52, 0, 6629, 1},
     {20, 25, 53, 1, 7669, 1},
@@ -1514,7 +1526,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {21, 28, 22, 0, 6670, 1},
     {21, 28, 23, 1, 7789, 1},
     {21, 28, 24, 0, 4186, 1},
-    {21, 28, 25, 1, 34148, 1},
+    {21, 28, 25, 1, 34133, 1},  // by hand 03/10: Strike Where It Hurts (top players) instead of Neurotoxin Arrow (34148), same tree and gate
     {21, 28, 26, 0, 7791, 1},
     {21, 28, 27, 1, 34151, 1},
     {21, 28, 28, 0, 29416, 1},
@@ -1646,7 +1658,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {21, 30, 52, 0, 34169, 1},
     {21, 30, 53, 1, 1388, 1},
     {21, 30, 54, 0, 30051, 1},
-    {21, 30, 55, 1, 7429, 1},
+    {21, 30, 55, 1, 30462, 1},  // by hand 03/10: Barbed Quills (top players) instead of Viper's Bite (7429), same tree and gate
     {21, 30, 56, 0, 30053, 1},
     {21, 30, 57, 1, 29449, 1},
     {21, 30, 58, 0, 30050, 1},
@@ -1750,7 +1762,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {22, 32, 54, 0, 6214, 1},
     {22, 32, 55, 1, 6158, 1},
     {22, 32, 56, 0, 6696, 1},
-    {22, 32, 57, 1, 2125, 1},
+    {22, 32, 57, 1, 4316, 1},  // by hand web4: Aeon Rend (top players) instead of Erasion (2125), same 23-point gate
     {22, 32, 58, 0, 30257, 1},
     {22, 32, 59, 1, 5486, 1},
     {22, 32, 60, 0, 6223, 1},
@@ -2006,7 +2018,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {24, 37, 56, 0, 29940, 1},
     {24, 37, 57, 1, 7385, 1},
     {24, 37, 58, 0, 7479, 1},
-    {24, 37, 59, 1, 7386, 1},
+    {24, 37, 59, 1, 30642, 1},  // by hand web4: Inferno (top players) instead of Fueling the Fire (7386), same 23-point gate
     {24, 37, 60, 0, 7010, 1},
     {24, 38, 10, 0, 30651, 1},
     {24, 38, 11, 1, 11986, 1},
@@ -2108,7 +2120,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {24, 39, 56, 0, 7479, 1},
     {24, 39, 57, 1, 33867, 1},
     {24, 39, 58, 0, 7819, 1},
-    {24, 39, 59, 1, 7935, 1},
+    {24, 39, 59, 1, 7933, 1},  // by hand web4: Aspect of Earth (top players) instead of Death From Above (7935), same 23-point gate
     {24, 39, 60, 0, 29940, 1},
     {25, 40, 10, 0, 29265, 1},
     {25, 40, 11, 1, 31191, 1},
@@ -2125,7 +2137,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {25, 40, 22, 0, 6382, 1},
     {25, 40, 23, 1, 6310, 1},
     {25, 40, 24, 0, 31123, 1},
-    {25, 40, 25, 1, 4868, 1},
+    {25, 40, 25, 1, 12982, 1},  // by hand web4: Devour Curse (top players) instead of Corrupt Fate (4868), same 8-point gate
     {25, 40, 26, 0, 29268, 1},
     {25, 40, 27, 1, 33935, 1},
     {25, 40, 28, 0, 29455, 1},
@@ -2208,7 +2220,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {25, 41, 55, 1, 7938, 1},
     {25, 41, 56, 0, 33951, 1},
     {25, 41, 57, 1, 33936, 1},
-    {25, 41, 58, 0, 33965, 1},
+    {25, 41, 58, 0, 29275, 1},  // by hand web4: Vision of Doom (top players) instead of Lost in the Void (33965), same 24-point gate
     {25, 41, 59, 1, 33959, 1},
     {25, 42, 10, 0, 29470, 1},
     {25, 42, 11, 1, 31189, 1},
@@ -2258,7 +2270,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {25, 42, 55, 1, 7558, 1},
     {25, 42, 56, 0, 33968, 1},
     {25, 42, 57, 1, 30516, 1},
-    {25, 42, 58, 0, 33965, 1},
+    {25, 42, 58, 0, 29275, 1},  // by hand web4: Vision of Doom (top players) instead of Lost in the Void (33965), same 24-point gate
     {25, 42, 59, 1, 33947, 1},
     {25, 96, 10, 0, 29265, 1},
     {25, 96, 11, 1, 29882, 1},
@@ -2359,7 +2371,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {26, 43, 56, 0, 29648, 1},
     {26, 43, 57, 1, 29892, 2},
     {26, 43, 58, 0, 30369, 1},
-    {26, 43, 59, 1, 33808, 1},
+    {26, 43, 59, 1, 6693, 1},  // by hand 03/10: Rippling Moonwater (top players) instead of Rampaging Waters (33808), same tree and gate
     {26, 43, 60, 0, 33810, 1},
     {26, 44, 10, 0, 7721, 1},
     {26, 44, 11, 1, 13801, 1},
@@ -2527,7 +2539,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {27, 46, 20, 0, 31150, 1},
     {27, 46, 21, 1, 6558, 1},
     {27, 46, 22, 0, 33988, 1},
-    {27, 46, 23, 1, 5312, 1},
+    {27, 46, 23, 1, 34052, 1},  // by hand 03/10: Burning Heat (top players) instead of Burn The Heretics (5312), same tree and gate
     {27, 46, 24, 0, 30153, 1},
     {27, 46, 25, 1, 30957, 1},
     {27, 46, 26, 0, 30956, 1},
@@ -2614,7 +2626,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {27, 47, 56, 0, 30309, 2},
     {27, 47, 57, 1, 6837, 1},
     {27, 47, 58, 0, 29181, 1},
-    {27, 47, 59, 1, 7641, 1},
+    {27, 47, 59, 1, 30681, 1},  // by hand web4: Solar Empowerment (top players) instead of Sunstorm (7641), same 23-point gate
     {27, 47, 60, 0, 29178, 1},
     {27, 48, 10, 0, 29446, 1},
     {27, 48, 11, 1, 30958, 1},
@@ -2706,7 +2718,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {27, 98, 46, 0, 7910, 1},
     {27, 98, 47, 1, 29506, 2},
     {27, 98, 48, 0, 7397, 1},
-    {27, 98, 49, 1, 7051, 1},
+    {27, 98, 49, 1, 34001, 1},  // by hand 03/10: Everglow (top players) instead of missing entry (7051), same tree and gate
     {27, 98, 50, 0, 33979, 1},
     {27, 98, 51, 1, 33998, 1},
     {27, 98, 52, 0, 6878, 1},
@@ -2794,7 +2806,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {28, 50, 32, 0, 31235, 1},
     {28, 50, 33, 1, 6491, 1},
     {28, 50, 34, 0, 30869, 1},
-    {28, 50, 35, 1, 30980, 1},
+    {28, 50, 35, 1, 9980, 1},  // by hand 03/10: Offensive Utility (top players) instead of Defensive Utility (30980), same tree and gate
     {28, 50, 36, 0, 7034, 1},
     {28, 50, 37, 1, 29818, 1},
     {28, 50, 38, 0, 34987, 1},
@@ -2847,7 +2859,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {28, 51, 34, 0, 6001, 1},
     {28, 51, 35, 1, 30574, 1},
     {28, 51, 36, 0, 29201, 1},
-    {28, 51, 37, 1, 5980, 1},
+    {28, 51, 37, 1, 5965, 1},  // by hand 03/10: Rejuvenating Gadget (top players) instead of Stim Pack (5980), same tree and gate
     {28, 51, 38, 0, 30869, 1},
     {28, 51, 39, 1, 6973, 1},
     {28, 51, 40, 0, 6992, 1},
@@ -2988,7 +3000,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {29, 54, 22, 0, 7235, 1},
     {29, 54, 23, 1, 7726, 1},
     {29, 54, 24, 0, 7147, 1},
-    {29, 54, 25, 1, 6685, 1},
+    {29, 54, 25, 1, 7222, 1},  // by hand 03/10: Lethargy (top players) instead of Sepsis Bloom (6685), same tree and gate
     {29, 54, 26, 0, 9590, 1},
     {29, 54, 27, 1, 30606, 1},
     {29, 54, 28, 0, 30482, 1},
@@ -3010,7 +3022,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {29, 54, 44, 0, 7252, 1},
     {29, 54, 45, 1, 6842, 1},
     {29, 54, 46, 0, 7244, 1},
-    {29, 54, 47, 1, 6142, 1},
+    {29, 54, 47, 1, 7728, 1},  // by hand 03/10: Fungic (top players) instead of Prophetic Speaker (6142), same tree and gate
     {29, 54, 48, 0, 7453, 1},
     {29, 54, 49, 1, 7219, 1},
     {29, 54, 50, 0, 6079, 1},
@@ -3031,13 +3043,13 @@ inline constexpr std::array<Pick, 3564> Picks =
     {29, 101, 14, 0, 6082, 2},
     {29, 101, 15, 1, 7736, 1},
     {29, 101, 16, 0, 6098, 1},
-    {29, 101, 17, 1, 7738, 1},
+    {29, 101, 17, 1, 7732, 1},  // by hand 03/10: The Antidote (top players) instead of Good Venom (7738), same tree and gate
     {29, 101, 18, 0, 29576, 1},
     {29, 101, 19, 1, 6128, 1},
     {29, 101, 20, 0, 7147, 1},
     {29, 101, 21, 1, 6128, 2},
     {29, 101, 22, 0, 7235, 1},
-    {29, 101, 23, 1, 7217, 1},
+    {29, 101, 23, 1, 7734, 1},  // by hand 03/10: Lifemender (top players) instead of Melioration (7217), same tree and gate
     {29, 101, 24, 0, 6116, 1},
     {29, 101, 25, 1, 7733, 1},
     {29, 101, 26, 0, 9590, 1},
@@ -3238,6 +3250,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {31, 58, 18, 0, 29252, 1},
     {31, 58, 19, 1, 6238, 1},
     {31, 58, 20, 0, 7843, 1},
+    {31, 58, 20, 1, 6243, 1},  // by hand web4: free choice Vitality Surge (top players), group 127887, level 20
     {31, 58, 21, 1, 11334, 1},
     {31, 58, 22, 0, 7843, 2},
     {31, 58, 23, 1, 6651, 1},
@@ -3248,6 +3261,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {31, 58, 28, 0, 29299, 1},
     {31, 58, 29, 1, 30785, 1},
     {31, 58, 30, 0, 30689, 1},
+    {31, 58, 30, 1, 9193, 1},  // by hand web4: free choice Infused With Power (top players), group 735421, level 30
     {31, 58, 31, 1, 30949, 1},
     {31, 58, 32, 0, 29362, 1},
     {31, 58, 33, 1, 30966, 1},
@@ -3258,6 +3272,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {31, 58, 38, 0, 6298, 2},
     {31, 58, 39, 1, 6246, 1},
     {31, 58, 40, 0, 7844, 1},
+    {31, 58, 40, 1, 9733, 1},  // by hand web4: free choice Douse (top players), group 856162, level 40
     {31, 58, 41, 1, 6242, 1},
     {31, 58, 42, 0, 6665, 1},
     {31, 58, 43, 1, 6509, 1},
@@ -3268,6 +3283,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {31, 58, 48, 0, 6260, 1},
     {31, 58, 49, 1, 6662, 1},
     {31, 58, 50, 0, 6590, 1},
+    {31, 58, 50, 1, 11153, 1},  // by hand web4: free choice Primal Awakening (top players), group 856163, level 50
     {31, 58, 51, 1, 7335, 1},
     {31, 58, 52, 0, 6590, 2},
     {31, 58, 53, 1, 14234, 1},
@@ -3507,7 +3523,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {32, 62, 32, 0, 34649, 1},
     {32, 62, 33, 1, 30208, 2},
     {32, 62, 34, 0, 34647, 1},
-    {32, 62, 35, 1, 29522, 1},
+    {32, 62, 35, 1, 34581, 1},  // by hand 03/10: Leyline Magician (top players) instead of Silencing Rune (29522), same tree and gate
     {32, 62, 36, 0, 34663, 1},
     {32, 62, 37, 1, 1581, 1},
     {32, 62, 38, 0, 34663, 2},
@@ -3556,7 +3572,7 @@ inline constexpr std::array<Pick, 3564> Picks =
     {32, 63, 30, 0, 34648, 2},
     {32, 63, 31, 1, 34619, 1},
     {32, 63, 32, 0, 34649, 1},
-    {32, 63, 33, 1, 30032, 1},
+    {32, 63, 33, 1, 34621, 1},  // by hand 03/10: Swift Etching (top players) instead of Echo Rune (30032), same tree and gate
     {32, 63, 34, 0, 34615, 1},
     {32, 63, 35, 1, 1756, 1},
     {32, 63, 36, 0, 34663, 1},
