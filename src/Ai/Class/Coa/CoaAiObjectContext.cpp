@@ -376,8 +376,10 @@ Aura const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const* spel
 
 // First rank of the member of this spell's exclusive family the bot's rotation keeps: the one named by
 // the highest priority line that names a member, in its "buff missing" or "can cast" trigger or in its
-// cast action, the combat and non-combat rotations alike (a Templar Oathkeeper's "medium aoe>cast
-// buff::Libram of Consecration!92" over its "buff missing::Libram of Tenacity!90"). Taken from the
+// "cast buff" action, the combat and non-combat rotations alike (a Templar Oathkeeper's "medium aoe>cast
+// buff::Libram of Consecration!92" over its "buff missing::Libram of Tenacity!90"). A plain "cast" action
+// aims at the current target, an enemy in combat, so it never puts the buff on the bot and does not
+// count (a Tinker Invention's "low mana>cast::Mana Module!87"). Taken from the
 // priorities, not from the order the lines are looked at in, so a lower line never takes the family over,
 // even when the kept buff is already worn. A form the bot's heals forbid is passed over: the Spider Form
 // line of a Venomancer Vizier never fires, and its Vizier Form is left to "coa buff". 0 when no line
@@ -413,7 +415,7 @@ uint32 RotationKeptMember(PlayerbotAI* botAI, SpellInfo const* spell)
                         priority = std::max(priority, action.getRelevance());
                         std::string const& name = action.GetNameRef();
                         size_t const qualifier = name.find("::");
-                        if (name.compare(0, 4, "cast") == 0 && qualifier != std::string::npos)
+                        if (name.compare(0, 9, "cast buff") == 0 && qualifier != std::string::npos)
                             note(name.substr(qualifier + 2), action.getRelevance());
                     }
                     std::string const name = node->getName();
