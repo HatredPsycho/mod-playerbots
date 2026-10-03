@@ -410,6 +410,7 @@ public:
     bool coaAttackLoop;
     bool coaSpellReplacement;
     bool coaAncestralCombatFix;
+    uint32 coaShortLivedDebuffs;
     bool coaAttackCheckBench;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;

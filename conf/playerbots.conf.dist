@@ -1523,6 +1523,24 @@ AiPlayerbot.CoaSpellReplacement = 1
 
 AiPlayerbot.Coa.AncestralCombatFix = 0
 
+#    AiPlayerbot.CoaShortLivedDebuffs
+#        Description: life a target must have left (its health over the estimated damage of the group)
+#                     for the rotation lines "debuff missing::<spell>" and "cast debuff::<spell>".
+#                     0 - 8 seconds for every spell, as in 1.6. A trial or trash creature never lives that
+#                     long, so these lines never fire there (7 of the 64 lines of the web DPS rotations on
+#                     the dungeon trials of 02-03/10: no Conjure Storm, Melt Reality, Unmake, Earthquake...).
+#                     1 - half the duration of the debuff, 8 seconds at most (a DoT of 16 s or more keeps
+#                     8 s, Unmake of 1.5 s needs 0.75 s); 2 seconds at most when the spell also hits at once;
+#                     and for a spell that strikes an area, the health of the enemies inside the area is
+#                     counted, not that of the target alone. Boss fights hardly change (a boss lives long).
+#                     2 - as 1, for the bots whose GUID is a multiple of 4 only: half of the even-GUID
+#                     bots of the A/B bench, the other half (GUID % 4 = 2) keeps 8 s and serves as control.
+#                     Only the CoA lines above; the class strategies of the nine base classes keep 8 s.
+#                     Read again by ".reload config".
+#        Default:     0
+
+AiPlayerbot.CoaShortLivedDebuffs = 0
+
 #    AiPlayerbot.CoaAttackCheckBench
 #        Description: with AiPlayerbot.CoaAttackLoop = 1, what becomes of an attack the strict check turns
 #                     down (target or caster aura missing, bad target, short of rage, energy or mana).
