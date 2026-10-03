@@ -124,11 +124,18 @@ static constexpr CoaStatWeight CoaStats_18_20[] = { { STATS_TYPE_MELEE_DPS, 7.5f
 // Guardian / Vanguard (tank)
 static constexpr CoaStatWeight CoaStats_18_21[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_EXPERTISE, 1.45f }, { STATS_TYPE_BLOCK_RATING, 1.15f }, { STATS_TYPE_STRENGTH, 1.0f }, { STATS_TYPE_ARMOR, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f } };
 // Templar / Crusader (physisch_nah)
-static constexpr CoaStatWeight CoaStats_19_24[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_CRIT, 1.65f }, { STATS_TYPE_HASTE, 1.43f }, { STATS_TYPE_ARMOR_PENETRATION, 1.22f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
+// Corrected by hand on 03/10: Strength is 1 attack power for a Templar (StatSystem.cpp, Rogue base), so it
+// weighs at least as much as an attack power point; it had no weight at all.
+static constexpr CoaStatWeight CoaStats_19_24[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.08f }, { STATS_TYPE_AGILITY, 1.87f }, { STATS_TYPE_CRIT, 1.65f }, { STATS_TYPE_HASTE, 1.43f }, { STATS_TYPE_ARMOR_PENETRATION, 1.22f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f }, { STATS_TYPE_STRENGTH, 1.0f } };
 // Templar / Oathkeeper (tank)
 static constexpr CoaStatWeight CoaStats_19_22[] = { { STATS_TYPE_STAMINA, 3.0f }, { STATS_TYPE_DEFENSE, 2.5f }, { STATS_TYPE_DODGE, 2.0f }, { STATS_TYPE_PARRY, 2.0f }, { STATS_TYPE_HIT, 1.6f }, { STATS_TYPE_EXPERTISE, 1.45f }, { STATS_TYPE_AGILITY, 1.3f }, { STATS_TYPE_CRIT, 1.0f }, { STATS_TYPE_BLOCK_RATING, 1.0f }, { STATS_TYPE_HASTE, 0.85f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_BLOCK_VALUE, 0.5f }, { STATS_TYPE_ARMOR, 0.15f } };
 // Templar / Zealot (physisch_nah)
-static constexpr CoaStatWeight CoaStats_19_23[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_ATTACK_POWER, 2.3f }, { STATS_TYPE_CRIT, 1.87f }, { STATS_TYPE_SPELL_POWER, 1.43f }, { STATS_TYPE_EXPERTISE, 1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): the row had no Agility, Strength, hit or
+// haste. A Templar gets 1 attack power per Agility and per Strength (StatSystem.cpp, Rogue base); Libram of Fervor
+// (805423) adds 30% of Agility as spell power and Calm Combatant (705281) 50% of attack power, so Agility is worth at
+// least an attack power point and spell power on gear much less. The bench bots wore 764 attack power, 66 Agility and
+// 51 hit rating. Kami: attack power about equal to Agility, after hit and expertise.
+static constexpr CoaStatWeight CoaStats_19_23[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_AGILITY, 2.5f }, { STATS_TYPE_ATTACK_POWER, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_STRENGTH, 2.0f }, { STATS_TYPE_CRIT, 1.87f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_SPELL_POWER, 0.9f } };
 // Bloodmage / Sanguine (zauber)
 static constexpr CoaStatWeight CoaStats_20_26[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_HASTE, 1.36f }, { STATS_TYPE_CRIT, 1.14f }, { STATS_TYPE_STAMINA, 0.92f }, { STATS_TYPE_INTELLECT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Bloodmage / Accursed (physisch_nah)
@@ -250,9 +257,9 @@ static constexpr CoaSpecStats CoaSpecStatsTable[] =
     { 18,  19, "Gladiator", "physisch_nah", "shield", true, CoaStats_18_19, 9 },
     { 18,  20, "Inspiration", "physisch_nah", "shield", true, CoaStats_18_20, 9 },
     { 18,  21, "Vanguard", "tank", "shield", true, CoaStats_18_21, 9 },
-    { 19,  24, "Crusader", "physisch_nah", "twoHand", true, CoaStats_19_24, 9 },
+    { 19,  24, "Crusader", "physisch_nah", "twoHand", true, CoaStats_19_24, 10 },
     { 19,  22, "Oathkeeper", "tank", "twoHand", true, CoaStats_19_22, 13 },
-    { 19,  23, "Zealot", "physisch_nah", "dualWield", true, CoaStats_19_23, 5 },
+    { 19,  23, "Zealot", "physisch_nah", "dualWield", true, CoaStats_19_23, 9 },
     { 20,  26, "Sanguine", "zauber", "caster", true, CoaStats_20_26, 7 },
     { 20,  27, "Accursed", "physisch_nah", "twoHand", true, CoaStats_20_27, 8 },
     { 20,  99, "Eternal", "tank", "any", true, CoaStats_20_99, 10 },
