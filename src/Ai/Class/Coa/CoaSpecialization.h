@@ -80,12 +80,9 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info);
 // Pressures, Barbarian shouts, Starcaller Aspects) keeps the member named by the highest priority line
 // of the rotation: the other lines of the family wait until the bot wears none of it, where each line
 // recast its buff in turn (Shocking and Tempest Aegis, Barometric and Atmospheric Pressure, report of
-// 02/10). The kept member replaces a sibling put on by "coa buff".
+// 02/10). The kept member replaces a sibling of the bot's own, one "coa buff" put on, never one of
+// another caster.
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info);
-
-// The bot's strategies were reset (a new specialization, a new rotation): the lines CoaRotationMayCast
-// goes by are read again.
-void CoaForgetRotationBuffs(PlayerbotAI* botAI);
 
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);

@@ -9,6 +9,7 @@
 
 #include "AiObjectContext.h"
 
+#include <array>
 #include <ctime>
 #include <string>
 #include <unordered_map>
@@ -52,13 +53,13 @@ public:
     // touched by the bot's own AI update, so no locking.
     std::unordered_map<uint32, time_t> benchedSpells;
 
-    // The "buff missing" and "can cast" lines of this bot's rotation (spell name, priority), highest
-    // priority first: of a family the world database makes exclusive (spell_group_stack_rules), the
-    // member the highest of them names is the one kept (see CoaRotationMayCast). Read from the engines
-    // when first needed, again after their strategies are reset (CoaForgetRotationBuffs: a new
-    // specialization brings a new rotation). Same owner as benchedSpells.
+    // The spells this bot's rotation lines name (spell name, priority), highest priority first: in a
+    // "buff missing" or "can cast" trigger, or in a cast action. Of a family the world database makes
+    // exclusive (spell_group_stack_rules), the member the highest of them names is the one kept (see
+    // CoaRotationMayCast). Read from the combat and non-combat engines, again whenever one of them is
+    // built anew (a new specialization, "co", a strategy change). Same owner as benchedSpells.
     std::vector<std::pair<std::string, float>> rotationBuffs;
-    bool rotationBuffsRead = false;
+    std::array<uint32, 2> rotationBuffsStamps{};
 
     // Ce qu'un soin rend vraiment, pour ce bot : les données du jeu mentent parfois (un sort
     // annoncé « heals for 0 », un autre « heals for 1 104 384 »), seule l'observation tranche.

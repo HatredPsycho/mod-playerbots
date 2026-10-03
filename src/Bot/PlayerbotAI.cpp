@@ -2105,8 +2105,6 @@ void PlayerbotAI::ResetStrategies(bool /*load*/)
     for (uint8 i = 0; i < BOT_STATE_MAX; i++)
         engines[i]->Init();
 
-    CoaForgetRotationBuffs(this);
-
     // if (load)
     //     PlayerbotRepository::instance().Load(this);
 }
@@ -3621,7 +3619,7 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
     // What the core lets through without breaking the bot's channel (Unit::SetCurrentCastedSpell) stays
     // possible with AiPlayerbot.CoaKeepChannels: a spell the class may cast during it (Brine during a
     // Stormbringer's Stormflow, Unit::CanCastDuringChannel), or any spell but another channel during a
-    // channel that allows actions (Twilight Frenzy). The rotation line that names it is how the bot
+    // channel that allows actions (a Barbarian's Berserker). The rotation line that names it is how the bot
     // weaves it in.
     Spell const* const channel = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
     SpellInfo const* const info = sSpellMgr->GetSpellInfo(spellid);

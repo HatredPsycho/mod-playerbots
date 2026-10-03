@@ -332,11 +332,25 @@ bool WearsRivalBuffFrom(Unit* unit, Unit* caster, SpellInfo const* buff)
     return false;
 }
 
+// Whether the unit wears this buff from the caster, under its own id or that of a spell it triggers.
+bool WearsBuffFrom(Unit* unit, Unit* caster, SpellInfo const* buff, uint8 depth = 0)
+{
+    if (unit->GetAura(buff->Id, caster->GetGUID()))
+        return true;
+    if (depth < 2)
+        for (SpellEffectInfo const& effect : buff->Effects)
+            if (effect.TriggerSpell)
+                if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                    if (WearsBuffFrom(unit, caster, triggered, depth + 1))
+                        return true;
+    return false;
+}
+
 // A buff the unit wears that the world database makes exclusive with this spell
 // (spell_group_stack_rules): any caster's for SPELL_GROUP_STACK_RULE_EXCLUSIVE, the caster's own for
 // SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER (Stormbringer Aegis 111010 and Pressures 1170,
 // Barbarian shouts 1210, Starcaller Aspects 1127). Casting the spell would remove it. nullptr if none.
-SpellInfo const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const* spell)
+Aura const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const* spell)
 {
     uint32 const first = spell->GetFirstRankSpell()->Id;
     for (auto const& [id, application] : unit->GetAppliedAuras())
@@ -348,10 +362,10 @@ SpellInfo const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const*
         switch (sSpellMgr->CheckSpellGroupStackRules(spell, worn))
         {
             case SPELL_GROUP_STACK_RULE_EXCLUSIVE:
-                return worn;
+                return aura;
             case SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER:
                 if (aura->GetCasterGUID() == caster->GetGUID())
-                    return worn;
+                    return aura;
                 break;
             default:
                 break;
@@ -361,10 +375,13 @@ SpellInfo const* WornExclusiveSibling(Unit* unit, Unit* caster, SpellInfo const*
 }
 
 // First rank of the member of this spell's exclusive family the bot's rotation keeps: the one named by
-// the highest priority "buff missing" or "can cast" line that names a member, the combat and non-combat
-// rotations alike. Taken from the priorities, not from the order the lines are looked at in, so a lower
-// line never takes the family over, even when the kept buff is already worn. 0 when no line names one,
-// or the spell is in no spell group.
+// the highest priority line that names a member, in its "buff missing" or "can cast" trigger or in its
+// cast action, the combat and non-combat rotations alike (a Templar Oathkeeper's "medium aoe>cast
+// buff::Libram of Consecration!92" over its "buff missing::Libram of Tenacity!90"). Taken from the
+// priorities, not from the order the lines are looked at in, so a lower line never takes the family over,
+// even when the kept buff is already worn. A form the bot's heals forbid is passed over: the Spider Form
+// line of a Venomancer Vizier never fires, and its Vizier Form is left to "coa buff". 0 when no line
+// names one, or the spell is in no spell group.
 uint32 RotationKeptMember(PlayerbotAI* botAI, SpellInfo const* spell)
 {
     uint32 const first = spell->GetFirstRankSpell()->Id;
@@ -373,24 +390,49 @@ uint32 RotationKeptMember(PlayerbotAI* botAI, SpellInfo const* spell)
     if (groups.first == groups.second || !context)
         return 0;
 
-    if (!context->rotationBuffsRead)
+    Engine* const engines[] = { botAI->GetEngine(BOT_STATE_COMBAT), botAI->GetEngine(BOT_STATE_NON_COMBAT) };
+    std::array<uint32, 2> const stamps = { engines[0] ? engines[0]->GetInitStamp() : 0u,
+                                           engines[1] ? engines[1]->GetInitStamp() : 0u };
+    if (stamps != context->rotationBuffsStamps)
     {
-        context->rotationBuffsRead = true;
-        context->rotationBuffs.clear();
-        for (BotState const state : { BOT_STATE_COMBAT, BOT_STATE_NON_COMBAT })
-            if (Engine* engine = botAI->GetEngine(state))
+        context->rotationBuffsStamps = stamps;
+        std::map<std::string, float> lines;
+        auto const note = [&lines](std::string const& name, float priority)
+        {
+            auto const [itr, added] = lines.emplace(name, priority);
+            if (!added)
+                itr->second = std::max(itr->second, priority);
+        };
+        for (Engine* const engine : engines)
+            if (engine)
                 for (TriggerNode* node : engine->GetTriggerNodes())
                 {
+                    float priority = 0.0f;
+                    for (NextAction const& action : node->getHandlers())
+                    {
+                        priority = std::max(priority, action.getRelevance());
+                        std::string const& name = action.GetNameRef();
+                        size_t const qualifier = name.find("::");
+                        if (name.compare(0, 4, "cast") == 0 && qualifier != std::string::npos)
+                            note(name.substr(qualifier + 2), action.getRelevance());
+                    }
                     std::string const name = node->getName();
                     for (std::string const prefix : { "buff missing::", "can cast::" })
                         if (name.size() > prefix.size() && name.compare(0, prefix.size(), prefix) == 0)
-                        {
-                            float priority = 0.0f;
-                            for (NextAction const& action : node->getHandlers())
-                                priority = std::max(priority, action.getRelevance());
-                            context->rotationBuffs.emplace_back(name.substr(prefix.size()), priority);
-                        }
+                            note(name.substr(prefix.size()), priority);
                 }
+
+        context->rotationBuffs.clear();
+        for (auto const& [name, priority] : lines)
+        {
+            uint32 const id = context->GetValue<uint32>("spell id", name)->Get();
+            SpellInfo const* named = id ? sSpellMgr->GetSpellInfo(id) : nullptr;
+            if (!named)
+                continue;
+            SpellSpellGroupMapBounds const namedGroups = sSpellMgr->GetSpellSpellGroupMapBounds(named->GetFirstRankSpell()->Id);
+            if (namedGroups.first != namedGroups.second)
+                context->rotationBuffs.emplace_back(name, priority);
+        }
         std::stable_sort(context->rotationBuffs.begin(), context->rotationBuffs.end(),
                          [](auto const& a, auto const& b) { return a.second > b.second; });
     }
@@ -402,10 +444,13 @@ uint32 RotationKeptMember(PlayerbotAI* botAI, SpellInfo const* spell)
         if (!named)
             continue;
         uint32 const namedFirst = named->GetFirstRankSpell()->Id;
-        if (namedFirst == first)
-            return first;
-        SpellGroupStackRule const rule = sSpellMgr->CheckSpellGroupStackRules(spell, named);
-        if (rule == SPELL_GROUP_STACK_RULE_EXCLUSIVE || rule == SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER)
+        if (namedFirst != first)
+        {
+            SpellGroupStackRule const rule = sSpellMgr->CheckSpellGroupStackRules(spell, named);
+            if (rule != SPELL_GROUP_STACK_RULE_EXCLUSIVE && rule != SPELL_GROUP_STACK_RULE_EXCLUSIVE_FROM_SAME_CASTER)
+                continue;
+        }
+        if (!CoaHealerAvoidsForm(botAI->GetBot(), named))
             return namedFirst;
     }
     return 0;
@@ -1262,35 +1307,52 @@ float CasterCentredReach(Player* bot, SpellInfo const* info)
 // endless or very long one (a hidden aura channel, a drain held for minutes) is not waited for.
 constexpr int32 KeptChannelMaxMs = 15 * IN_MILLISECONDS;
 
-// Whether casting this spell now would break the bot's own channel, one it should let run: the
-// core breaks a channel for any spell but those Unit::CanCastDuringChannel lets through (Brine
-// and Electrocute during a Stormbringer's Stormflow) or a channel that allows actions, and a new
-// channel always breaks the current one. The attack loop took the next spell as soon as the global
-// cooldown ended - 250 ms after Stormflow began, as its own global cooldown is that short - and cut
-// the 8 s beam after a tick or two (players' report of 02/10, Maelstrom).
-// Only an attack channel is let run, and neither by a healer nor by a bot at critical health: while a
-// channel runs, "reach party member to heal", "flee", "follow" and the other moves wait, and a heal on
-// a member out of reach fails its range check, so a Witch Doctor holding Mojo Beam stood still while
-// that member died. Those channels end with the next spell, as in 1.6.
-bool BreaksOwnChannel(Player* bot, SpellInfo const* info)
+// The bot's own channel when it is one to let run to its end, nullptr otherwise. Only an attack channel,
+// one that strikes enemies and heals no one (Classify): Stormflow, Aortic Assault, Twilight Frenzy, a
+// tank's Carve. SpellInfo::IsPositive is no guide: it takes a channel whose damage goes through a spell
+// it triggers on enemies for a helpful one, and Testament of Fortitude, a tank's defensive, for a harmful
+// one. Neither by a healer nor by a bot at critical health: while a channel runs, "reach party member to
+// heal", "flee" and the other moves wait, and a heal on a member out of reach fails its range check, so a
+// Witch Doctor holding Mojo Beam stood still while that member died. Those channels end with the next
+// spell, as in 1.6.
+SpellInfo const* HeldChannel(Player* bot)
 {
     if (!sPlayerbotAIConfig.coaKeepChannels)
-        return false;
+        return nullptr;
     Spell const* channel = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
     if (!channel || channel->getState() != SPELL_STATE_CASTING)
-        return false;
-    SpellInfo const* const channelInfo = channel->GetSpellInfo();
-    int32 const duration = channelInfo->GetMaxDuration();
-    if (duration <= 0 || duration > KeptChannelMaxMs || channelInfo->IsPositive() || GetCoaRole(bot) == CoaRole::Heal ||
+        return nullptr;
+    SpellInfo const* const info = channel->GetSpellInfo();
+    int32 const duration = info->GetMaxDuration();
+    if (duration <= 0 || duration > KeptChannelMaxMs || GetCoaRole(bot) == CoaRole::Heal ||
         bot->GetHealthPct() < float(sPlayerbotAIConfig.criticalHealth))
-        return false;
-    return info->IsChanneled() || (!channelInfo->IsActionAllowedChannel() && !bot->CanCastDuringChannel(info));
+        return nullptr;
+    CoaAbility channelKind{};
+    Classify(info, channelKind);
+    if (!(channelKind.kind & (KIND_DAMAGE | KIND_HOSTILE)) || (channelKind.kind & KIND_HEAL))
+        return nullptr;
+    return info;
+}
+
+// Whether casting this spell now would break the bot's own channel, one it should let run (HeldChannel):
+// the core breaks a channel for any spell but those Unit::CanCastDuringChannel lets through (Brine and
+// Electrocute during a Stormbringer's Stormflow) or a channel that allows actions, and a new channel
+// always breaks the current one. The attack loop took the next spell as soon as the global cooldown
+// ended - 250 ms after Stormflow began, as its own global cooldown is that short - and cut the 8 s beam
+// after a tick or two (players' report of 02/10, Maelstrom).
+bool BreaksOwnChannel(Player* bot, SpellInfo const* info)
+{
+    SpellInfo const* const channel = HeldChannel(bot);
+    return channel &&
+           (info->IsChanneled() || (!channel->IsActionAllowedChannel() && !bot->CanCastDuringChannel(info)));
 }
 
 // Drops the attacks that would break the bot's own channel (see BreaksOwnChannel): an attack or an
 // area attack waits for it, in the attack loop of AiPlayerbot.CoaAttackLoop as in that of 1.6.
 void DropChannelBreakers(Player* bot, std::vector<Usable>& spells)
 {
+    if (!HeldChannel(bot))
+        return;
     spells.erase(std::remove_if(spells.begin(), spells.end(), [bot](Usable const& spell)
         { return BreaksOwnChannel(bot, EffectiveSpell(bot, spell.info)); }),
         spells.end());
@@ -2657,10 +2719,26 @@ public:
         time_t const now = time(nullptr);
         if (recent.size() > 64)
             for (auto itr = recent.begin(); itr != recent.end();)
-                itr = itr->second <= now ? recent.erase(itr) : std::next(itr);
+                itr = itr->second.until <= now ? recent.erase(itr) : std::next(itr);
+
+        // A member seen wearing what the bot put on, who no longer wears it (raised from the dead,
+        // dispelled), gets it again now: the wait is for an aura not seen yet, under another id
+        // (AiPlayerbot.CoaExclusiveFamilies).
+        std::vector<Player*> const group = NearbyGroup(bot);
+        if (sPlayerbotAIConfig.coaExclusiveFamilies)
+            for (auto& [key, cast] : recent)
+                for (Player* member : group)
+                    if (member->GetGUID() == key.first)
+                        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(key.second))
+                        {
+                            if (WearsBuffFrom(member, bot, info))
+                                cast.seen = true;
+                            else if (cast.seen)
+                                cast.until = 0;
+                        }
 
         for (Usable const& spell : spells)
-            for (Player* member : NearbyGroup(bot))
+            for (Player* member : group)
             {
                 if (member != bot && !(spell.kind & KIND_ALLY_CAST))
                     continue;
@@ -2711,12 +2789,12 @@ public:
                 // it on the same member before it would have run out.
                 auto const key = std::make_pair(member->GetGUID(), spell.info->Id);
                 auto const found = recent.find(key);
-                if (found != recent.end() && found->second > now)
+                if (found != recent.end() && found->second.until > now)
                     continue;
 
                 if (StrictCheck(bot, spell.info, member) == SPELL_CAST_OK && botAI->CastSpell(spell.info->Id, member))
                 {
-                    recent[key] = now + time_t(spell.info->GetMaxDuration() / IN_MILLISECONDS * 9 / 10);
+                    recent[key] = { now + time_t(spell.info->GetMaxDuration() / IN_MILLISECONDS * 9 / 10), false };
                     return RecordUsage(USAGE_BUFF, spell.info);
                 }
             }
@@ -2727,7 +2805,12 @@ public:
     bool isUseful() override { return ClassHas(bot, KIND_BUFF | KIND_STANCE); }
 
 private:
-    std::map<std::pair<ObjectGuid, uint32>, time_t> recent;
+    struct RecentBuff
+    {
+        time_t until;
+        bool seen;
+    };
+    std::map<std::pair<ObjectGuid, uint32>, RecentBuff> recent;
 };
 
 // A group member, the bot included, carries something the bot knows how to dispel.
@@ -3480,15 +3563,13 @@ bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
     if (!sPlayerbotAIConfig.coaExclusiveFamilies)
         return true;
 
-    // The member the rotation keeps replaces a sibling the bot wears (one "coa buff" put on, or one cast
-    // while the kept one was on cooldown); any other member waits until the bot wears none of the family.
-    return RotationKeptMember(botAI, info) == info->GetFirstRankSpell()->Id || !WornExclusiveSibling(bot, bot, info);
-}
-
-void CoaForgetRotationBuffs(PlayerbotAI* botAI)
-{
-    if (CoaAiObjectContext* context = dynamic_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext()))
-        context->rotationBuffsRead = false;
+    // The member the rotation keeps replaces a sibling the bot wears from itself (one "coa buff" put on, or
+    // one cast while the kept one was on cooldown), never one of another caster: two Reapers keeping two
+    // Rites would take each other's off for ever. Any other member waits until the bot wears none of the
+    // family.
+    Aura const* const worn = WornExclusiveSibling(bot, bot, info);
+    return !worn || (worn->GetCasterGUID() == bot->GetGUID() &&
+                     RotationKeptMember(botAI, info) == info->GetFirstRankSpell()->Id);
 }
 
 std::string CoaHealKit(Player* bot)
