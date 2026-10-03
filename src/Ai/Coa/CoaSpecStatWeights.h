@@ -174,11 +174,21 @@ static constexpr CoaStatWeight CoaStats_23_34[] = { { STATS_TYPE_HIT, 1.8f }, { 
 // Necromancer / Rime (zauber)
 static constexpr CoaStatWeight CoaStats_23_36[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_INTELLECT, 0.92f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Pyromancer / Draconic (zauber)
-static constexpr CoaStatWeight CoaStats_24_39[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_INTELLECT, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_STAMINA, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10 (the generator is not in this repository): 98% of Draconic's bench damage scales on
+// spell power and nothing gives the bots spell power from Intellect: Draconic Aspect (802117, 30% of Intellect) was never
+// up on the bench, and no passive converts it. Intellect ranked above spell power: the bots wore 470 spell power where most
+// other casters at the same item level wear 530 to 670. Spell power moves above Intellect.
+static constexpr CoaStatWeight CoaStats_24_39[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_INTELLECT, 1.2f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_STAMINA, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Pyromancer / Flameweaving (heilung)
-static constexpr CoaStatWeight CoaStats_24_37[] = { { STATS_TYPE_SPIRIT, 1.0f }, { STATS_TYPE_HEAL_POWER, 1.0f }, { STATS_TYPE_MANA_REGENERATION, 0.9f }, { STATS_TYPE_INTELLECT, 0.88f }, { STATS_TYPE_CRIT, 0.75f }, { STATS_TYPE_SPELL_POWER, 0.62f }, { STATS_TYPE_HASTE, 0.5f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10: Pyromancer heals scale on Spirit as much as on spell power (AscensionPyromancerData.h:
+// Cinderheart 0.65 spell power + 1.0 Spirit, Kindle 0.35 + 0.4, Ember Touch 0.18 + 1.0, Phoenix Shield 0.5 Spirit), and a
+// spell power point counts twice here (spell power and healing power, 1.62 together). Spirit rises to match it.
+static constexpr CoaStatWeight CoaStats_24_37[] = { { STATS_TYPE_SPIRIT, 1.6f }, { STATS_TYPE_HEAL_POWER, 1.0f }, { STATS_TYPE_MANA_REGENERATION, 0.9f }, { STATS_TYPE_INTELLECT, 0.88f }, { STATS_TYPE_CRIT, 0.75f }, { STATS_TYPE_SPELL_POWER, 0.62f }, { STATS_TYPE_HASTE, 0.5f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Pyromancer / Incineration (zauber)
-static constexpr CoaStatWeight CoaStats_24_38[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_INTELLECT, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_SPELL_POWER, 1.0f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
+// Corrected by hand on 03/10: 83% of Incineration's bench damage scales on spell power (Explode 1.13, Flare Bolt
+// 0.571, Blaze 0.294 a tick) and Intellect gives none; kami ranks spell power above crit and Intellect. Intellect ranked
+// first: the bots wore 454 spell power and 461 Intellect.
+static constexpr CoaStatWeight CoaStats_24_38[] = { { STATS_TYPE_HIT, 1.8f }, { STATS_TYPE_SPELL_POWER, 1.58f }, { STATS_TYPE_CRIT, 1.36f }, { STATS_TYPE_INTELLECT, 1.2f }, { STATS_TYPE_HASTE, 1.14f }, { STATS_TYPE_SPIRIT, 0.7f }, { STATS_TYPE_ATTACK_POWER, -1.0f } };
 // Cultist / Godblade (physisch_nah)
 static constexpr CoaStatWeight CoaStats_25_42[] = { { STATS_TYPE_MELEE_DPS, 7.5f }, { STATS_TYPE_HIT, 2.3f }, { STATS_TYPE_EXPERTISE, 2.04f }, { STATS_TYPE_STRENGTH, 1.78f }, { STATS_TYPE_ARMOR_PENETRATION, 1.52f }, { STATS_TYPE_CRIT, 1.26f }, { STATS_TYPE_HASTE, 1.0f }, { STATS_TYPE_ATTACK_POWER, 1.0f } };
 // Cultist / Corruption (zauber)
