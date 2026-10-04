@@ -425,6 +425,17 @@ bool CoaCanCastTrigger::IsActive()
                 if (target->GetMaxPower(Powers(effect.MiscValue)) == 0)
                     return false;
 
+    // A boss is never charmed: Enslave Elemental, a Felsworn rotation line, charmed Noxxion in Maraudon and
+    // broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835). Hellbound Leash (Knight of Xoroth) too.
+    if (Unit* target = AI_VALUE(Unit*, "current target"))
+        if (Creature* creature = target->ToCreature())
+            if (creature->IsDungeonBoss() || creature->isWorldBoss())
+                for (SpellEffectInfo const& effect : info->Effects)
+                    if (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_MOD_CHARM ||
+                                            effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS ||
+                                            effect.ApplyAuraName == SPELL_AURA_AOE_CHARM))
+                        return false;
+
     int32 const duration = info->GetMaxDuration();
     if (bot->HasAura(id) && (duration < 0 || duration > 60 * IN_MILLISECONDS))
         return false;

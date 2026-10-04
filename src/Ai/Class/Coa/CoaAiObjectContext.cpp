@@ -206,6 +206,21 @@ bool DamageEndsControl(SpellInfo const* info, uint8 depth = 0)
     return false;
 }
 
+// Whether the spell would charm or possess a dungeon, raid or world boss: Enslave Elemental (Felsworn)
+// charmed Noxxion in Maraudon and broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835).
+bool TakesOverBoss(SpellInfo const* info, Unit* target)
+{
+    Creature* creature = target ? target->ToCreature() : nullptr;
+    if (!creature || !(creature->IsDungeonBoss() || creature->isWorldBoss()))
+        return false;
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (IsAuraEffect(effect) && (effect.ApplyAuraName == SPELL_AURA_MOD_CHARM ||
+                                     effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS ||
+                                     effect.ApplyAuraName == SPELL_AURA_AOE_CHARM))
+            return true;
+    return false;
+}
+
 // A spell that sends its caster to its home inn, the way a hearthstone does.
 bool TeleportsCasterHome(SpellInfo const* info)
 {
@@ -884,6 +899,10 @@ SpellCastResult StrictCheck(Player* bot, SpellInfo const* info, Unit* target)
 {
     // The spell prepare() will see, replacement included: its cost and range, not the base spell's.
     info = EffectiveSpell(bot, info);
+
+    // The core lets a boss be charmed; a bot never tries (#4835).
+    if (TakesOverBoss(info, target))
+        return SPELL_FAILED_BAD_TARGETS;
 
     ObjectGuid const oldSel = bot->GetTarget();
 
