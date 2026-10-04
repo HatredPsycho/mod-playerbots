@@ -1748,7 +1748,7 @@ inline constexpr std::array<Pick, 3594> Picks =
     {22, 32, 32, 0, 7917, 1},
     {22, 32, 33, 1, 5168, 1},
     {22, 32, 34, 0, 30269, 1},
-    {22, 32, 35, 1, 11170, 1},
+    {22, 32, 35, 1, 11176, 1},  // by hand 04/10: Pure Chaos (a player's tip, top players) instead of Chaos Fusion (11170), same node and gate
     {22, 32, 36, 0, 6162, 1},
     {22, 32, 37, 1, 5367, 1},
     {22, 32, 38, 0, 6162, 2},
