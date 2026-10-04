@@ -34,6 +34,7 @@
 #include "Position.h"
 #include "RaceMgr.h"
 #include "Random.h"
+#include "RandomBotLevelMgr.h"
 #include "RandomPlayerbotFactory.h"
 #include "ServerFacade.h"
 #include "SharedDefines.h"
@@ -2724,6 +2725,110 @@ void RandomPlayerbotMgr::OnPlayerLogout(Player* player)
     std::vector<Player*>::iterator i = std::find(players.begin(), players.end(), player);
     if (i != players.end())
         players.erase(i);
+}
+
+bool RandomPlayerbotMgr::CoaIsOrphanGroup(Group const* group)
+{
+    if (!group || group->isBGGroup() || group->isBFGroup() || group->isLFGGroup())
+        return false;
+
+    bool character = false;
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+    {
+        // FindConnectedPlayer also finds a player in a battleground (another group) or on a loading screen.
+        if (Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid))
+        {
+            // A player, a selfbot, or an alt or addclass bot, which is only online with its owner.
+            if (!GET_PLAYERBOT_AI(member) || !IsRandomBot(member))
+                return false;
+        }
+        else if (!sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(slot.guid)))
+            character = true;
+    }
+    return character;
+}
+
+// The core keeps a player who logs out in his raid, and the bots he left there had no master and stood still
+// until he came back. One look per group, never per bot, so that the whole group goes at once.
+void RandomPlayerbotMgr::CoaReleaseOrphanGroups()
+{
+    uint32 const delay = sPlayerbotAIConfig.coaOrphanGroupReleaseDelay;
+    if (!delay)
+    {
+        coaOrphanGroups.clear();
+        return;
+    }
+
+    time_t const now = time(nullptr);
+    if (now < coaOrphanCheckAt)
+        return;
+    coaOrphanCheckAt = now + 10;
+
+    // Groups of bots only, groups with a player connected and groups gone since the last pass drop out of the map.
+    std::unordered_set<ObjectGuid::LowType> seen;
+    std::unordered_map<ObjectGuid::LowType, time_t> orphans;
+    std::vector<std::pair<Group*, time_t>> due;
+    for (auto const& [guid, bot] : playerBots)
+    {
+        Group* group = bot ? bot->GetGroup() : nullptr;
+        if (!group || !seen.insert(group->GetGUID().GetCounter()).second)
+            continue;
+
+        if (!CoaIsOrphanGroup(group) || sLFGMgr->GetState(group->GetGUID()) != lfg::LFG_STATE_NONE)
+            continue;
+
+        auto const known = coaOrphanGroups.find(group->GetGUID().GetCounter());
+        time_t const since = known != coaOrphanGroups.end() ? known->second : now;
+        orphans.emplace(group->GetGUID().GetCounter(), since);
+        if (now - since >= time_t(delay))
+            due.emplace_back(group, since);
+    }
+    coaOrphanGroups.swap(orphans);
+
+    uint32 released = 0;
+    for (auto const& [group, since] : due)
+    {
+        if (released >= 1)  // one group per pass: each removal costs database queries of mod-coa-challenges
+            break;
+
+        // A member in a battleground is linked here through its original group only; a bot on its way
+        // somewhere or held by a test bench goes on a later pass.
+        ObjectGuid const groupGuid = group->GetGUID();
+        std::vector<Player*> leaving;
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (member && member->GetGroup() == group && IsRandomBot(member) && GetPlayerBot(member->GetGUID()) &&
+                member->IsInWorld() && !member->IsBeingTeleported() && !RandomBotLevelMgr::IsHeld(member->GetGUID()))
+                leaving.push_back(member);
+        }
+        if (leaving.empty())
+            continue;
+        ++released;
+
+        // A leave as on /leave; the last ones disband the group, so it is never touched after the first one.
+        for (Player* member : leaving)
+            if (Group* current = member->GetGroup(); current && current->GetGUID() == groupGuid)
+                member->RemoveFromGroup(GROUP_REMOVEMETHOD_LEAVE);
+
+        uint32 left = 0;
+        for (Player* member : leaving)
+        {
+            if (member->GetGroup())
+                continue;
+
+            ++left;
+            // Back to the life of a random bot, as UpdateAIGroupMaster does for a bot out of its group.
+            if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(member))
+            {
+                botAI->SetMaster(nullptr);
+                botAI->Reset(true);
+                botAI->ResetStrategies();
+            }
+        }
+        LOG_INFO("playerbots", "coa: released {} bots of a group whose players are offline for {}s", left,
+                 uint32(now - since));
+    }
 }
 
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)

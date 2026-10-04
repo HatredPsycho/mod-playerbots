@@ -418,6 +418,7 @@ public:
     bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
+    uint32 coaOrphanGroupReleaseDelay;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
     bool coaStatusEnabled;

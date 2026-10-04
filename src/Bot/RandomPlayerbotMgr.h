@@ -14,6 +14,7 @@
 #include "PlayerbotMgr.h"
 #include <array>
 #include <atomic>
+#include <unordered_map>
 #include <unordered_set>
 
 struct BattlegroundInfo
@@ -53,6 +54,7 @@ struct BattlegroundInfo
 };
 
 class ChatHandler;
+class Group;
 class PerfMonitorOperation;
 class WorldLocation;
 
@@ -126,6 +128,12 @@ public:
     void OnPlayerLogout(Player* player);
     void OnPlayerLogin(Player* player);
     void OnPlayerLoginError(uint32 bot);
+    // A group whose random bots wait for their player (AiPlayerbot.CoaOrphanGroupReleaseDelay): a character of a
+    // player's account is in it and none of the players is connected, not even in a battleground or on a loading
+    // screen. Never a battleground or dungeon finder group. Only reads, so map threads may ask too.
+    bool CoaIsOrphanGroup(Group const* group);
+    // World thread, every tick: every 10 s, the random bots of the groups orphaned for that delay leave them.
+    void CoaReleaseOrphanGroups();
     Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
     PlayerBotMap GetAllBots() { return playerBots; };
@@ -244,6 +252,8 @@ private:
     time_t RealPlayerLastTimeSeen = 0;
     time_t DelayLoginBotsTimer;
     time_t printStatsTimer;
+    std::unordered_map<ObjectGuid::LowType, time_t> coaOrphanGroups;  // group -> since when it has been orphaned
+    time_t coaOrphanCheckAt = 0;
     uint32 AddRandomBots();
     bool ProcessBot(uint32 bot);
     void ScheduleRandomize(uint32 bot, uint32 time);

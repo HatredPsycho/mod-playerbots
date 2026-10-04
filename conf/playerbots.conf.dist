@@ -1439,6 +1439,19 @@ AiPlayerbot.CoaGroupTelemetry = 0
 AiPlayerbot.CoaRaidPlayerMax = 5
 AiPlayerbot.CoaRaidPlayerCooldown = 30
 
+# Random bots left in the group of a player who logged out (the core keeps him in a raid, and in a
+# party too with LeaveGroupOnLogout.Enabled = 0) stood there with no master until he came back.
+# Once none of the group's players has been connected for this many seconds, its random bots leave
+# it and go back to their own life; the core disbands the group when the last ones are gone. A
+# player who comes back in time keeps his bots, and one in a battleground, an arena or on a loading
+# screen still counts as connected. While they wait, the bots are neither moved to another level
+# bracket nor randomized or teleported, and a second player still in the group becomes their master.
+# Groups of bots only (test benches, random parties), battleground, arena and dungeon finder groups,
+# and the players' own bots (alts, addclass bots, selfbots) are never touched. Checked every 10
+# seconds, one group released at a time. Read again by ".reload config".
+# Default: 300 (0 = the bots stay until their player comes back, as before)
+AiPlayerbot.CoaOrphanGroupReleaseDelay = 300
+
 # A snapshot of every random bot online, written as JSON for the SquidBots dashboard (bot-status.json,
 # its "botStatusFile" setting): position, health, power, what the bot is doing, its group and its
 # quests, shown on the map and on each bot's card. The file is written whole under a .tmp name and

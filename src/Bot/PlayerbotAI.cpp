@@ -4731,9 +4731,24 @@ Player* PlayerbotAI::FindNewMaster()
         return nullptr;
 
     Player* groupLeader = GetGroupLeader();
-    PlayerbotAI* leaderBotAI = GET_PLAYERBOT_AI(groupLeader);
-    if (!leaderBotAI || IsSelfBot(groupLeader))
-        return groupLeader;
+    if (sPlayerbotAIConfig.coaOrphanGroupReleaseDelay)
+    {
+        // A leader who logged out leaves GetGroupLeader() on the master, null since that logout: another player of
+        // the group is looked for below. A master who is no longer in the group is not kept either.
+        if (groupLeader && !bot->InBattleground() && groupLeader->GetGroup() != group &&
+            groupLeader->GetOriginalGroup() != group)
+            groupLeader = nullptr;
+        if (!groupLeader && bot->InBattleground())
+            return nullptr;
+        if (groupLeader && (!GET_PLAYERBOT_AI(groupLeader) || IsSelfBot(groupLeader)))
+            return groupLeader;
+    }
+    else
+    {
+        PlayerbotAI* leaderBotAI = GET_PLAYERBOT_AI(groupLeader);
+        if (!leaderBotAI || IsSelfBot(groupLeader))
+            return groupLeader;
+    }
 
     // Find the real player in group
     for (GroupReference* gref = group->GetFirstMember(); gref; gref = gref->next())

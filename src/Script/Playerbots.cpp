@@ -411,6 +411,7 @@ public:
     {
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
+        sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
     }
 };
 
