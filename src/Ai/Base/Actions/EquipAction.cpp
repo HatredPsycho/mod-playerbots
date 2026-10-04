@@ -119,6 +119,7 @@ void EquipAction::EquipItem(Item* item)
         bot->SetAmmo(itemId);
         std::ostringstream out;
         out << "equipping " << chat->FormatItem(itemProto);
+        if (!silent)
         botAI->TellMaster(out);
         return;
     }
@@ -156,7 +157,8 @@ void EquipAction::EquipItem(Item* item)
 
             std::ostringstream out;
             out << "Equipping " << FormatEquipped(item) << " in ranged slot";
-            botAI->TellMaster(out);
+            if (!silent)
+        botAI->TellMaster(out);
             return;
         }
 
@@ -268,12 +270,14 @@ void EquipAction::EquipItem(Item* item)
 
                     std::ostringstream moveMsg;
                     moveMsg << "Main hand upgrade found. Moving " << chat->FormatItem(oldMHProto) << " to offhand";
-                    botAI->TellMaster(moveMsg);
+                    if (!silent)
+        botAI->TellMaster(moveMsg);
                 }
 
                 std::ostringstream out;
                 out << "Equipping " << FormatEquipped(item) << " in main hand";
-                botAI->TellMaster(out);
+                if (!silent)
+        botAI->TellMaster(out);
                 return;
             }
 
@@ -290,7 +294,8 @@ void EquipAction::EquipItem(Item* item)
 
                 std::ostringstream out;
                 out << "Equipping " << FormatEquipped(item) << " in offhand";
-                botAI->TellMaster(out);
+                if (!silent)
+        botAI->TellMaster(out);
                 return;
             }
             else
@@ -370,7 +375,8 @@ void EquipAction::EquipItem(Item* item)
 
     std::ostringstream out;
     out << "Equipping " << FormatEquipped(item);
-    botAI->TellMaster(out);
+    if (!silent)
+        botAI->TellMaster(out);
 }
 
 ItemIds EquipAction::SelectInventoryItemsToEquip()
@@ -447,13 +453,17 @@ bool EquipUpgradesPacketAction::Execute(Event event)
     }
 
     ItemIds items = SelectInventoryItemsToEquip();
+    silent = !sPlayerbotAIConfig.coaTellEquipUpgrades;
     EquipItems(items);
+    silent = false;
     return true;
 }
 
 bool EquipUpgradeAction::Execute(Event /*event*/)
 {
     ItemIds items = SelectInventoryItemsToEquip();
+    silent = !sPlayerbotAIConfig.coaTellEquipUpgrades;
     EquipItems(items);
+    silent = false;
     return true;
 }

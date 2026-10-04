@@ -1452,6 +1452,11 @@ AiPlayerbot.CoaRaidPlayerCooldown = 30
 # Default: 300 (0 = the bots stay until their player comes back, as before)
 AiPlayerbot.CoaOrphanGroupReleaseDelay = 300
 
+# Bots whisper their master each item they put on by themselves (loot, trade, regear: "Equipping [item]").
+# In a raid of 25 bots that is a lot of whispers. An item you ask for (e <item>) is always answered.
+# Default: 0 (silent), 1 = whisper every automatic upgrade, as before. Read again by ".reload config".
+AiPlayerbot.CoaTellEquipUpgrades = 0
+
 # A snapshot of every random bot online, written as JSON for the SquidBots dashboard (bot-status.json,
 # its "botStatusFile" setting): position, health, power, what the bot is doing, its group and its
 # quests, shown on the map and on each bot's card. The file is written whole under a .tmp name and
