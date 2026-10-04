@@ -178,6 +178,16 @@ bool IsControlAura(SpellEffectInfo const& effect)
     }
 }
 
+// A spell that sends its caster to its home inn, the way a hearthstone does.
+bool TeleportsCasterHome(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.Effect == SPELL_EFFECT_TELEPORT_UNITS &&
+            (effect.TargetA.GetTarget() == TARGET_DEST_HOME || effect.TargetB.GetTarget() == TARGET_DEST_HOME))
+            return true;
+    return false;
+}
+
 bool IsDefensiveAura(SpellEffectInfo const& effect)
 {
     switch (effect.ApplyAuraName)
@@ -3569,6 +3579,11 @@ bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
 {
     if (!info)
         return true;
+    // Temporal Return, the Chronomancer's hearthstone, is in the three Chronomancer rotations: cast between
+    // two packs, it sent a Time healer to Orgrimmar in the middle of Razorfen Kraul
+    // (jealous-sound/azerothcore-wotlk-coa#6286).
+    if (TeleportsCasterHome(info))
+        return false;
     if (CoaHoldsExclusiveSibling(bot, info))
         return false;
     if (!sPlayerbotAIConfig.coaExclusiveFamilies)
