@@ -178,6 +178,17 @@ bool IsControlAura(SpellEffectInfo const& effect)
     }
 }
 
+// A spell that hands its caster a creature to steer from the client: the caster stands still meanwhile,
+// and a bot steers nothing.
+bool PossessesTarget(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (IsAuraEffect(effect) && effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS &&
+            effect.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+            return true;
+    return false;
+}
+
 // A spell that sends its caster to its home inn, the way a hearthstone does.
 bool TeleportsCasterHome(SpellInfo const* info)
 {
@@ -623,6 +634,12 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
             (effect.ApplyAuraName == SPELL_AURA_MOD_SHAPESHIFT || effect.ApplyAuraName == SPELL_AURA_MOD_STUN ||
              effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY || effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY_SILENCE))
             ability.kind &= ~KIND_BUFF;
+
+    // Befriend Beast (Ranger, 562301) possesses a beast for 40 s: no bot can steer it, and the beast and
+    // the bot stood idle while the beast took hits (jealous-sound/azerothcore-wotlk-coa#6111). No action
+    // of the kit casts such a spell.
+    if (!depth && PossessesTarget(info))
+        ability.kind = 0;
 }
 
 std::unordered_map<uint8, ClassKit> const& ClassAbilities()
@@ -3581,8 +3598,9 @@ bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
         return true;
     // Temporal Return, the Chronomancer's hearthstone, is in the three Chronomancer rotations: cast between
     // two packs, it sent a Time healer to Orgrimmar in the middle of Razorfen Kraul
-    // (jealous-sound/azerothcore-wotlk-coa#6286).
-    if (TeleportsCasterHome(info))
+    // (jealous-sound/azerothcore-wotlk-coa#6286). Befriend Beast, in the three Ranger rotations, possesses
+    // a beast no bot can steer (#6111).
+    if (TeleportsCasterHome(info) || PossessesTarget(info))
         return false;
     if (CoaHoldsExclusiveSibling(bot, info))
         return false;
