@@ -189,6 +189,23 @@ bool PossessesTarget(SpellInfo const* info)
     return false;
 }
 
+// Whether the control a spell puts on an enemy ends with the first damage it takes (a sap, a sleep, a
+// polymorph), looking into the spells it triggers.
+bool DamageEndsControl(SpellInfo const* info, uint8 depth = 0)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (IsAuraEffect(effect) && IsControlAura(effect) && effect.TargetA.GetTarget() != TARGET_UNIT_CASTER &&
+            (info->AuraInterruptFlags & AURA_INTERRUPT_FLAG_TAKE_DAMAGE))
+            return true;
+        if (effect.TriggerSpell && effect.TriggerSpell != info->Id && depth < 2)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (DamageEndsControl(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 // A spell that sends its caster to its home inn, the way a hearthstone does.
 bool TeleportsCasterHome(SpellInfo const* info)
 {
@@ -640,6 +657,13 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
     // of the kit casts such a spell.
     if (!depth && PossessesTarget(info))
         ability.kind = 0;
+
+    // A control that deals no damage and that the first hit ends is no attack: on the enemy the group is
+    // hitting it only gives that enemy time. A Time Chronomancer's attack kit cast Babify on it, which
+    // also regenerates its health (jealous-sound/azerothcore-wotlk-coa#6287). It stays a control, out of
+    // the attack and area attack kits.
+    if (!depth && (ability.kind & KIND_CONTROL) && !(ability.kind & KIND_DAMAGE) && DamageEndsControl(info))
+        ability.kind &= ~KIND_HOSTILE;
 }
 
 std::unordered_map<uint8, ClassKit> const& ClassAbilities()
