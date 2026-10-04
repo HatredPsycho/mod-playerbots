@@ -39,6 +39,7 @@
 #include "ReputationMgr.h"
 #include "SharedDefines.h"
 #include "StatsWeightCalculator.h"
+#include "SpellAuras.h"
 #include "SpellMgr.h"
 #include "Trainer.h"
 #include "World.h"
@@ -54,6 +55,7 @@
 #include <array>
 #include <unordered_set>
 #include <utility>
+#include <vector>
 
 #include <array>
 #include <utility>
@@ -2608,7 +2610,7 @@ void PlayerbotFactory::DressNakedCoaStarter(Player* bot)
     StoreCoaStarterItems(bot);
 }
 
-void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
+void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32 onlySlot)
 {
     if (level < 5)
     {
@@ -2694,6 +2696,9 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
 
     for (int32 slot : initSlotsOrder)
     {
+        if (onlySlot >= 0 && slot != onlySlot)
+            continue;
+
         if (slot == EQUIPMENT_SLOT_TABARD || slot == EQUIPMENT_SLOT_BODY)
             continue;
 
@@ -2747,7 +2752,8 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
         }
 
         int32 desiredQuality = itemQuality;
-        if (urand(0, 100) < 100 * sPlayerbotAIConfig.randomGearLoweringChance && desiredQuality > ITEM_QUALITY_NORMAL)
+        if (!deterministic && urand(0, 100) < 100 * sPlayerbotAIConfig.randomGearLoweringChance &&
+            desiredQuality > ITEM_QUALITY_NORMAL)
             desiredQuality--;
 
         do
@@ -2760,7 +2766,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
                     for (uint32 itemId : sRandomItemMgr.GetEquipmentNew(requiredLevel, inventoryType))
                     {
                         uint32 skipProb = 25;
-                        if (urand(1, 100) <= skipProb)
+                        if (!deterministic && urand(1, 100) <= skipProb)
                             continue;
 
                         ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
@@ -2866,7 +2872,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance)
             continue;
         }
 
-        if (incremental && oldItem)
+        // CoA: an idol or a wand held by a spec that shoots gives way to the bow whatever it scores.
+        bool const oldCannotShoot = slot == EQUIPMENT_SLOT_RANGED && oldItem &&
+                                    CoaRangedSlotCannotShoot(bot, oldItem->GetTemplate());
+        if (incremental && oldItem && !oldCannotShoot)
         {
             float old_score = calculator.CalculateItem(oldItem->GetEntry(), oldItem->GetItemRandomPropertyId(), slot);
             if (bestScoreForSlot < 1.2f * old_score)
@@ -5145,7 +5154,38 @@ void PlayerbotFactory::InitGlyphs(bool increment)
     bot->SendTalentsInfoData(false);
 }
 
-void PlayerbotFactory::CancelAuras() { bot->RemoveAllAuras(); }
+// AiPlayerbot.CoaKeepPassiveAuras: RemoveAllAuras also takes the passives, which the core lays only at login or
+// when a spell is learned anew. A CoA class keeps its spells through ClearSpells, so a randomized bot played
+// without them (Thirst, stat conversions, procs) until its next login, and lost PvE Mode as well. With the
+// option, passives and positive death-persistent auras stay; the rest goes in one pass over a fixed list,
+// so an aura a class script lays back at once stays instead of looping.
+void PlayerbotFactory::CancelAuras()
+{
+    if (!sPlayerbotAIConfig.coaKeepPassiveAuras)
+    {
+        bot->RemoveAllAuras();
+        return;
+    }
+
+    std::vector<std::pair<uint32, Aura const*>> listed;
+    for (auto const& [spellId, application] : bot->GetAppliedAuras())
+    {
+        Aura const* aura = application->GetBase();
+        if (!application->GetRemoveMode() && !aura->IsPassive() &&
+            !(application->IsPositive() && aura->IsDeathPersistent()))
+            listed.emplace_back(spellId, aura);
+    }
+    for (auto const& [spellId, aura] : listed)
+    {
+        auto const range = bot->GetAppliedAuras().equal_range(spellId);
+        for (auto itr = range.first; itr != range.second; ++itr)
+            if (itr->second->GetBase() == aura && !itr->second->GetRemoveMode())
+            {
+                bot->RemoveAura(itr->second);
+                break;
+            }
+    }
+}
 
 void PlayerbotFactory::InitInventory()
 {
@@ -5742,7 +5782,9 @@ std::vector<InventoryType> PlayerbotFactory::GetPossibleInventoryTypeListBySlot(
         case EQUIPMENT_SLOT_RANGED:
             ret.push_back(INVTYPE_RANGED);
             ret.push_back(INVTYPE_RANGEDRIGHT);
-            ret.push_back(INVTYPE_RELIC);
+            // CoA: no relic for a spec that shoots with what this slot holds (CoaSpecNeedsShootingWeapon).
+            if (!CoaSpecNeedsShootingWeapon(bot))
+                ret.push_back(INVTYPE_RELIC);
             // CoA: a thrown weapon is never offered here, so a spec whose only
             // ranged ability throws something runs with an empty belt and the
             // spell is simply uncastable. The Barbarian has no bow or gun skill

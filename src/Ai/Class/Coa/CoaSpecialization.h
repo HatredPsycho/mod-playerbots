@@ -16,6 +16,7 @@
 class Channel;
 class Group;
 class Player;
+class PlayerbotAI;
 class SpellInfo;
 
 enum class CoaRole : uint8
@@ -72,6 +73,16 @@ bool CoaHealerAvoidsForm(Player* bot, SpellInfo const* info);
 // Skin active at a time", "Only 1 Ascension spell can be active"): the rotations list them all, and
 // each one cast removed the other (Pyromancer skins, 23 casts a fight).
 bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info);
+
+// For a rotation line ("buff missing", "can cast"): whether the bot may cast this spell now as far
+// as exclusive families go. Besides CoaHoldsExclusiveSibling, with AiPlayerbot.CoaExclusiveFamilies a
+// family the world database makes exclusive (spell_group_stack_rules: Stormbringer Aegis and
+// Pressures, Barbarian shouts, Starcaller Aspects) keeps the member named by the highest priority line
+// of the rotation: the other lines of the family wait until the bot wears none of it, where each line
+// recast its buff in turn (Shocking and Tempest Aegis, Barometric and Atmospheric Pressure, report of
+// 02/10). The kept member replaces a sibling of the bot's own, one "coa buff" put on, never one of
+// another caster.
+bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info);
 
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);
@@ -148,6 +159,13 @@ void CoaDropForeignInstanceBinds(Player* bot, Player* master);
 bool CoaInOtherInstance(Player* bot, Player* master);
 
 void AddSC_coa_lfg();
+
+// AiPlayerbot.Coa.AncestralCombatFix: a Barbarian that knows the passive Ancestral Combat (801782) without
+// its aura gets it at the start of a fight. The spell asks for form 28 (Stances 0x8000000), which no
+// Barbarian takes, so the core lays the aura only now and then: it was up in 43 % of the boss bench
+// fights of 02/10, which then did 960 damage a second instead of 570. To remove once the core clears
+// those Stances, as it does for other passives (AscensionGuardianCompletion.cpp).
+void CoaRestoreAncestralCombat(Player* bot);
 
 // The group fight log (AiPlayerbot.CoaGroupTelemetry) follows a group of bots only, as it follows a
 // group with a real player, while `follow` is true. For test tools (mod-coa-diag); inert otherwise.

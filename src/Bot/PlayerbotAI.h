@@ -672,6 +672,7 @@ protected:
     Position jumpDestination = Position();
     uint32 nextTransportCheck = 0;
     bool spellInterruptRequested = false;
+    uint32 coaAncestralCombatCheckedAt = 0;
 };
 
 #endif

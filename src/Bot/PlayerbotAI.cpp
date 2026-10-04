@@ -22,6 +22,7 @@
 #include "GameObjectData.h"
 #include "GameTime.h"
 #include "GuildMgr.h"
+#include "Helpers.h"
 #include "LFGMgr.h"
 #include "LastMovementValue.h"
 #include "LastSpellCastValue.h"
@@ -1641,6 +1642,9 @@ void PlayerbotAI::ChangeEngine(BotState type)
 
 void PlayerbotAI::ChangeEngineOnCombat()
 {
+    CoaRestoreAncestralCombat(bot);
+    coaAncestralCombatCheckedAt = getMSTime();
+
     if (HasStrategy("wait for attack", BOT_STATE_COMBAT))
         aiObjectContext->GetValue<time_t>("combat start time")->Set(time(nullptr));
 
@@ -1709,6 +1713,15 @@ void PlayerbotAI::DoNextAction(bool min)
         {
             aiObjectContext->GetValue<Unit*>("current target")->Set(nullptr);
         }
+    }
+
+    // AiPlayerbot.Coa.AncestralCombatFix: a Barbarian that stays in combat from one pack to the next, or
+    // changes form, loses the aura without a new start of fight; looked at again every 5 seconds.
+    if (sPlayerbotAIConfig.coaAncestralCombatFix && currentEngine == engines[BOT_STATE_COMBAT] &&
+        GetMSTimeDiffToNow(coaAncestralCombatCheckedAt) >= 5000)
+    {
+        coaAncestralCombatCheckedAt = getMSTime();
+        CoaRestoreAncestralCombat(bot);
     }
 
     bool minimal = !this->AllowActivity();
@@ -3396,11 +3409,9 @@ bool PlayerbotAI::HasAura(std::string const name, Unit* unit, bool maxStack, boo
     if (!IsValidUnit(unit))
         return false;
 
-    std::wstring wnamepart;
-    if (!Utf8toWStr(name, wnamepart))
+    std::wstring const wnamepart = CoaNameKey(name);
+    if (wnamepart.empty())
         return false;
-
-    wstrToLower(wnamepart);
 
     int auraAmount = 0;
 
@@ -3423,7 +3434,7 @@ bool PlayerbotAI::HasAura(std::string const name, Unit* unit, bool maxStack, boo
 
             // Check if the aura name matches
             std::string_view const auraName = spellInfo->SpellName[0];
-            if (auraName.empty() || auraName.length() != wnamepart.length() || !Utf8FitTo(auraName, wnamepart))
+            if (!CoaNameIs(auraName, wnamepart))
                 continue;
 
             // Check if this is a valid aura for the bot
@@ -3482,11 +3493,9 @@ Aura* PlayerbotAI::GetAura(std::string const name, Unit* unit, bool checkIsOwner
     if (!IsValidUnit(unit))
         return nullptr;
 
-    std::wstring wnamepart;
-    if (!Utf8toWStr(name, wnamepart))
+    std::wstring const wnamepart = CoaNameKey(name);
+    if (wnamepart.empty())
         return nullptr;
-
-    wstrToLower(wnamepart);
 
     for (uint32 auraType = SPELL_AURA_BIND_SIGHT; auraType < TOTAL_AURAS; ++auraType)
     {
@@ -3503,7 +3512,7 @@ Aura* PlayerbotAI::GetAura(std::string const name, Unit* unit, bool checkIsOwner
             std::string const& auraName = spellInfo->SpellName[0];
 
             // Directly skip if name mismatch (both length and content)
-            if (auraName.empty() || auraName.length() != wnamepart.length() || !Utf8FitTo(auraName, wnamepart))
+            if (!CoaNameIs(auraName, wnamepart))
                 continue;
 
             if (!IsRealAura(bot, aurEff, unit))
@@ -3607,7 +3616,15 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
         return false;
     }
 
-    if (bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL) != nullptr)
+    // What the core lets through without breaking the bot's channel (Unit::SetCurrentCastedSpell) stays
+    // possible with AiPlayerbot.CoaKeepChannels: a spell the class may cast during it (Brine during a
+    // Stormbringer's Stormflow, Unit::CanCastDuringChannel), or any spell but another channel during a
+    // channel that allows actions (a Barbarian's Berserker). The rotation line that names it is how the bot
+    // weaves it in.
+    Spell const* const channel = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL);
+    SpellInfo const* const info = sSpellMgr->GetSpellInfo(spellid);
+    if (channel && !(sPlayerbotAIConfig.coaKeepChannels && info && !info->IsChanneled() &&
+                     (channel->GetSpellInfo()->IsActionAllowedChannel() || bot->CanCastDuringChannel(info))))
     {
         if (!sPlayerbotAIConfig.logInGroupOnly || (bot->GetGroup() && HasGameClientMaster()))
             LOG_DEBUG("playerbots", "CanCastSpell() target name: {}, spellid: {}, bot name: {}, failed because has current channeled spell",

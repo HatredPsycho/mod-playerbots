@@ -6,6 +6,7 @@
 
 #include "TargetValue.h"
 #include "CombatManager.h"
+#include "Helpers.h"
 #include "LastMovementValue.h"
 #include "ObjectGuid.h"
 #include "Playerbots.h"
@@ -173,10 +174,7 @@ Unit* FindTargetValue::Calculate()
         if (!unit)
             continue;
 
-        std::wstring wnamepart;
-        Utf8toWStr(unit->GetName(), wnamepart);
-        wstrToLower(wnamepart);
-        if (!qualifier.empty() && qualifier.length() == wnamepart.length() && Utf8FitTo(qualifier, wnamepart))
+        if (CoaNameIs(qualifier, CoaNameKey(unit->GetName())))
             return unit;
     }
 

@@ -19,6 +19,7 @@
  *   aura stacks::Fury,6        > cast::Consuming Strike    (spend at full stacks)
  *   coa resource::Static,75    > cast::Arm of Thorim       (from three quarters of the resource)
  *   coa summon missing         > cast::Tentacle of C'Thun  (only while no summon of our own stands)
+ *   coa summon missing::Sentry Turret > cast::Build: Sentry Turret  (only while that one is down)
  *
  * And for a healer, with the base triggers that rank the group by damage
  * taken:
@@ -62,7 +63,20 @@
 COA_QUALIFIED_CAST(CoaCastAction, CastSpellAction, "cast")
 COA_QUALIFIED_CAST(CoaCastMeleeAction, CastMeleeSpellAction, "cast melee")
 COA_QUALIFIED_CAST(CoaCastBuffAction, CastBuffSpellAction, "cast buff")
-COA_QUALIFIED_CAST(CoaCastDebuffAction, CastDebuffSpellAction, "cast debuff")
+/* "cast debuff::<spell>" - as the original. With AiPlayerbot.CoaShortLivedDebuffs, the target only has
+ * to live as long as the spell needs (CoaDebuffNeedLifeTime), not the fixed 8 s of the original. */
+class CoaCastDebuffAction : public CastDebuffSpellAction, public Qualified
+{
+public:
+    CoaCastDebuffAction(PlayerbotAI* botAI) : CastDebuffSpellAction(botAI, "") {}
+    void Qualify(std::string const qual) override
+    {
+        Qualified::Qualify(qual);
+        spell = qual;
+    }
+    std::string const getName() override { return "cast debuff::" + qualifier; }
+    bool isUseful() override;
+};
 // Resurrection: aims at the dead party member, not at the current target.
 // Together with the base trigger "party member dead" that is enough.
 COA_QUALIFIED_CAST(CoaCastRezAction, ResurrectPartyMemberAction, "cast rez")
@@ -285,13 +299,28 @@ private:
  * end up there - they are created through SummonProperties with the player as
  * their summoner. So the surroundings are searched as well, for creatures the
  * bot owns.
+ *
+ * "coa summon missing::<creature>" looks only at the bot's own creatures of that name, or of that
+ * entry when the qualifier is a number. Without it, ANY creature of the bot counts: a Tinker's
+ * Mechsuit or drone kept "coa summon missing > cast::Build: Sentry Turret" off, and Mechanics bots
+ * put their turret down in 2 fights out of 6 (02/10).
  */
-class CoaSummonMissingTrigger : public Trigger
+class CoaSummonMissingTrigger : public Trigger, public Qualified
 {
 public:
     CoaSummonMissingTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa summon missing") {}
-    std::string const getName() override { return "coa summon missing"; }
+    void Qualify(std::string const qual) override;
+    std::string const getName() override
+    {
+        return qualifier.empty() ? "coa summon missing" : "coa summon missing::" + qualifier;
+    }
     bool IsActive() override;
+
+private:
+    bool Counts(Unit* unit) const;
+
+    uint32 entry = 0;
+    std::wstring nameKey;
 };
 
 /* "cure party::<spell>" - a group member carries something this spell removes.
@@ -414,7 +443,8 @@ private:
     CoaLineBackoff backoff;
 };
 /* "debuff missing::<spell>" - as the original, except for a healer keeping its mana for heals
- * (a Chronomancer healer put Unmake back 12 times in one fight and ran dry for 20 s). */
+ * (a Chronomancer healer put Unmake back 12 times in one fight and ran dry for 20 s), and, with
+ * AiPlayerbot.CoaShortLivedDebuffs, for the life the target must have left (CoaDebuffNeedLifeTime). */
 class CoaDebuffMissingTrigger : public DebuffTrigger, public Qualified
 {
 public:

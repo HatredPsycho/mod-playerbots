@@ -742,8 +742,14 @@ bool PlayerbotAIConfig::Initialize()
     coaBotSurname = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBotSurname", true);
     coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
     coaAttackLoop = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackLoop", true);
+    coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
+    coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
     coaSpellReplacement = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSpellReplacement", true);
+    coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", true);
+    coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", true);
+    coaShortLivedDebuffs = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaShortLivedDebuffs", 0);
     coaAttackCheckBench = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackCheckBench", false);
+    coaStealthIsNotStance = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaStealthIsNotStance", false);
     coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
     coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
     coaStatusFile = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaStatusFile", "");

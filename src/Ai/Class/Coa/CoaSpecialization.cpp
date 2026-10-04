@@ -23,6 +23,7 @@
 #include "Playerbots.h"
 #include "PlayerbotFactory.h"
 #include "Random.h"
+#include "RandomBotLevelMgr.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedDefines.h"
 #include "SpellAuras.h"
@@ -399,7 +400,8 @@ uint32 ApplyCoaTalents(Player* bot)
     // Rank each entry should hold at the bot's level: the build's picks up to that level, never an entry
     // the Character Advancement does not offer yet at that level. The build lists some end-game
     // abilities early, and the core does not check the level when a rank is set: level 10 bots cast
-    // Brutal Shot (spell level 59) for 2000 on a 548 health player (PvP bench, 28/09).
+    // Brutal Shot (spell level 59) for 2000 on a 548 health player (PvP bench, 28/09). Never a rank the
+    // entry does not have either: the core refuses it, and a bot made above that pick had no rank at all.
     std::vector<std::pair<uint32, uint8>> wanted;
     for (CoaLevelBuildData::Pick const& pick : CoaLevelBuildData::Picks)
     {
@@ -409,12 +411,13 @@ uint32 ApplyCoaTalents(Player* bot)
         if (!entry || entry->RequiredLevel > bot->GetLevel())
             continue;
 
+        uint8 const rank = std::min(pick.Rank, entry->SpellCount);
         auto itr = std::find_if(wanted.begin(), wanted.end(),
             [&pick](std::pair<uint32, uint8> const& w) { return w.first == pick.EntryId; });
         if (itr == wanted.end())
-            wanted.emplace_back(pick.EntryId, pick.Rank);
-        else if (itr->second < pick.Rank)
-            itr->second = pick.Rank;
+            wanted.emplace_back(pick.EntryId, rank);
+        else if (itr->second < rank)
+            itr->second = rank;
     }
 
     // Entries of one free-choice group exclude each other: the core removes the others when one is set.
@@ -581,6 +584,10 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
         if (skip.count(bot->GetGUID()) || CoaLfgOfferedToOther(bot, master))
             continue;
 
+        // Held by a test bench for a match: recruited from there, it would leave its fight in the middle.
+        if (RandomBotLevelMgr::IsHeld(bot->GetGUID()))
+            continue;
+
         // The bot is added to the group directly, past the invitation checks, so the faction rule
         // has to be applied here: an Alliance player was handed a Forsaken healer, whom the first
         // city guard outside the dungeon would have attacked. A realm that allows cross-faction
@@ -652,6 +659,15 @@ void DropThreatStances(Player* bot)
         bot->RemoveAurasDueToSpell(spellId);
 }
 
+void CoaRestoreAncestralCombat(Player* bot)
+{
+    static constexpr uint32 AncestralCombat = 801782;
+    if (!sPlayerbotAIConfig.coaAncestralCombatFix || !bot || bot->getClass() != CLASS_BARBARIAN || !bot->IsAlive())
+        return;
+    if (bot->HasSpell(AncestralCombat) && !bot->HasAura(AncestralCombat))
+        bot->AddAura(AncestralCombat, bot);
+}
+
 bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosenFits, uint32 levelTolerance,
                        std::string& message)
 {
@@ -696,10 +712,11 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
     }
     else if (CoaSpecNeedsShootingWeapon(chosen))
     {
-        // A bot geared before the rule still holds a wand and cannot fire its shot.
+        // A bot geared before the rule still holds a wand or an idol and cannot fire its shots.
         Item const* ranged = chosen->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
-        if (!ranged || ranged->GetTemplate()->SubClass == ITEM_SUBCLASS_WEAPON_WAND)
-            PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(false);
+        // Only that slot is looked at again: with no bow to be had, the rest of its gear stays as it is.
+        if (CoaRangedSlotCannotShoot(chosen, ranged ? ranged->GetTemplate() : nullptr))
+            PlayerbotFactory(chosen, chosen->GetLevel()).InitEquipment(true, false, EQUIPMENT_SLOT_RANGED);
     }
 
     // Points for every level it just skipped.

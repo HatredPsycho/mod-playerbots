@@ -77,7 +77,12 @@ public:
                                              Trainer::Spell const* trainerSpell);
     void InitClassSpells();
     void InitSpecialSpells();
-    void InitEquipment(bool incremental, bool second_chance = false);
+    // onlySlot: with an EquipmentSlots value, that slot alone is looked at.
+    void InitEquipment(bool incremental, bool second_chance = false, int32 onlySlot = -1);
+    // Gear without its random parts (the quality lowered by RandomGearLoweringChance, the items skipped
+    // at random): every bot of a class and specialization gets the same items, for the test benches.
+    void SetDeterministic(bool on) { deterministic = on; }
+    bool IsDeterministic() const { return deterministic; }
     // A CoA bot under level 5 left naked by an older version gets its class starter kit back.
     static void DressNakedCoaStarter(Player* bot);
     // Takes off the CoA spell ranks above `level`: the core grants them on the way up only, so a bot
@@ -244,6 +249,7 @@ private:
     uint32 level;
     uint32 itemQuality;
     uint32 gearScoreLimit;
+    bool deterministic = false;
     static std::list<uint32> specialQuestIds;
     static std::unordered_map<uint32, std::vector<uint32>> trainerIdCache;
     static std::vector<uint32> enchantSpellIdCache;

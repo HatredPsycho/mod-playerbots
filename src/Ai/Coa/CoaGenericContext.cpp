@@ -11,14 +11,19 @@
 #include "CellImpl.h"
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
+#include "Helpers.h"
+#include "ObjectMgr.h"
 #include "Playerbots.h"
+#include "PlayerbotAIConfig.h"
 #include "CoaSpecialization.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "Timer.h"
 #include <map>
 #include <cctype>
+#include <cstdlib>
 #include <algorithm>
+#include <limits>
 
 // The dispel type of a cure spell, taken from the spell itself.
 //
@@ -182,20 +187,174 @@ bool CoaBuffMissingTrigger::IsActive()
     {
         uint32 const id = AI_VALUE2(uint32, "spell id", spell);
         SpellInfo const* info = id ? sSpellMgr->GetSpellInfo(id) : nullptr;
-        active = !CoaHealerAvoidsForm(bot, info) && !CoaHoldsExclusiveSibling(bot, info);
+        active = !CoaHealerAvoidsForm(bot, info) && CoaRotationMayCast(botAI, bot, info);
     }
     return backoff.Allow(active);
 }
 
+/* How long a debuff target must still live, with AiPlayerbot.CoaShortLivedDebuffs.
+ *
+ * The base DebuffTrigger and CastDebuffSpellAction want 8 s of life left on the target (its health
+ * over "estimated group dps"), whatever the spell. Right for a long DoT on a creature about to die;
+ * wrong for the rest. A trial or trash creature never has 8 s left, so on the dungeon trials of
+ * 02-03/10 only 7 of the 64 such lines of the web DPS rotations ever fired (Conjure Storm, Melt
+ * Reality, Unmake, Earthquake, Hex of Malice... never cast; nuit-0310/aoe/AOE.md).
+ *
+ * Here the life needed follows the spell:
+ *   - half its duration: the DoT pays back its global cooldown once half its ticks land
+ *     (Unmake, 1.5 s: 0.75 s; Conjure Storm, 10 s: 5 s; a DoT of 16 s or more keeps the 8 s);
+ *   - 2 s at most when it also hits at once (school or weapon damage, leech): that part is never
+ *     lost (Hex of Malice, Nerubian Sting, Conjure Storm, Blade of Faith, Ravage);
+ *   - 8 s for a permanent aura or one without a duration, as before.
+ * And for a spell that strikes an area (ground effect, area around the target or the caster), the
+ * life left is that of the enemies inside the area, not of the current target alone (CoaDebuffLifeTime).
+ */
+namespace
+{
+bool CoaHitsAtOnce(SpellInfo const* info)
+{
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        switch (info->Effects[i].Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_HEALTH_LEECH:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+                return true;
+            default:
+                break;
+        }
+    }
+    return false;
+}
+
+float CoaDebuffNeedLifeTime(SpellInfo const* info, float base)
+{
+    if (!info)
+        return base;
+
+    float need = base;
+    int32 const duration = info->GetMaxDuration();
+    if (duration > 0)
+        need = std::min(need, float(duration) / 2000.0f);
+    if (CoaHitsAtOnce(info))
+        need = std::min(need, 2.0f);
+    return need;
+}
+
+// The radius of the spell's enemy area, and whether it is centred on the caster. 0 when it has none.
+float CoaEnemyArea(Player* bot, SpellInfo const* info, bool& aroundCaster)
+{
+    aroundCaster = false;
+    float radius = 0.0f;
+    for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        SpellEffectInfo const& effect = info->Effects[i];
+        if (!effect.IsEffect())
+            continue;
+
+        bool const persistent = effect.IsEffect(SPELL_EFFECT_PERSISTENT_AREA_AURA);
+        SpellImplicitTargetInfo const* area = nullptr;
+        if (effect.TargetA.IsArea() && effect.TargetA.GetCheckType() == TARGET_CHECK_ENEMY)
+            area = &effect.TargetA;
+        else if (effect.TargetB.IsArea() && effect.TargetB.GetCheckType() == TARGET_CHECK_ENEMY)
+            area = &effect.TargetB;
+        if (!area && !persistent)
+            continue;
+
+        // Centred on the caster: an area around it or its cone, or a place set at its feet
+        // (TARGET_DEST_CASTER). Otherwise on the target, where a bot puts its ground effects.
+        if (area && (area->GetReferenceType() == TARGET_REFERENCE_TYPE_CASTER ||
+                     area->GetReferenceType() == TARGET_REFERENCE_TYPE_SRC))
+            aroundCaster = true;
+        else if (effect.TargetA.GetObjectType() == TARGET_OBJECT_TYPE_DEST &&
+                 effect.TargetA.GetReferenceType() == TARGET_REFERENCE_TYPE_CASTER)
+            aroundCaster = true;
+        radius = std::max(radius, std::max(effect.CalcRadius(bot), 5.0f));
+    }
+    return radius;
+}
+
+float CoaDebuffLifeTime(PlayerbotAI* botAI, Unit* target, SpellInfo const* info)
+{
+    AiObjectContext* context = botAI->GetAiObjectContext();
+    float const dps = context->GetValue<float>("estimated group dps")->Get();
+    if (dps <= 0.0f)
+        return std::numeric_limits<float>::max();
+
+    float health = float(target->GetHealth());
+    bool aroundCaster = false;
+    float const radius = info ? CoaEnemyArea(botAI->GetBot(), info, aroundCaster) : 0.0f;
+    if (radius > 0.0f)
+    {
+        Unit* centre = aroundCaster ? static_cast<Unit*>(botAI->GetBot()) : target;
+        for (ObjectGuid const guid : context->GetValue<GuidVector>("attackers")->Get())
+        {
+            if (guid == target->GetGUID())
+                continue;
+            Unit* unit = botAI->GetUnit(guid);
+            if (unit && unit->IsAlive() && unit->IsInWorld() && unit->GetMapId() == target->GetMapId() &&
+                centre->GetExactDist(unit) <= radius)
+                health += float(unit->GetHealth());
+        }
+    }
+    return health / dps;
+}
+
+bool CoaShortLivedDebuffAllowed(PlayerbotAI* botAI, Unit* target, std::string const& spell, float base)
+{
+    uint32 const id = botAI->GetAiObjectContext()->GetValue<uint32>("spell id", spell)->Get();
+    SpellInfo const* info = id ? sSpellMgr->GetSpellInfo(id) : nullptr;
+    return CoaDebuffLifeTime(botAI, target, info) >= CoaDebuffNeedLifeTime(info, base);
+}
+
+// AiPlayerbot.CoaShortLivedDebuffs: 1 for every bot, 2 for the bots whose GUID is a multiple of 4 only
+// (half of the even-GUID "web" bots of the A/B bench; the other half, GUID % 4 == 2, is the control).
+bool CoaShortLivedDebuffsFor(Player* bot)
+{
+    uint32 const mode = sPlayerbotAIConfig.coaShortLivedDebuffs;
+    return mode == 1 || (mode == 2 && bot->GetGUID().GetCounter() % 4 == 0);
+}
+}  // namespace
+
+// The life the base classes ask of a debuff target (DebuffTrigger, CastDebuffSpellAction defaults).
+static constexpr float BASE_DEBUFF_LIFE = 8.0f;
+
 bool CoaDebuffMissingTrigger::IsActive()
 {
-    bool active = DebuffTrigger::IsActive();
+    bool active;
+    if (CoaShortLivedDebuffsFor(bot))
+    {
+        // DebuffTrigger::IsActive with the life check below in place of its fixed one.
+        Unit* target = GetTarget();
+        active = target && target->IsAlive() && target->IsInWorld() && BuffTrigger::IsActive() &&
+                 CoaShortLivedDebuffAllowed(botAI, target, spell, needLifeTime);
+    }
+    else
+        active = DebuffTrigger::IsActive();
+
     if (active)
     {
         uint32 const id = AI_VALUE2(uint32, "spell id", spell);
         active = !CoaHealerSavesManaFrom(bot, id ? sSpellMgr->GetSpellInfo(id) : nullptr);
     }
     return backoff.Allow(active);
+}
+
+bool CoaCastDebuffAction::isUseful()
+{
+    if (!CoaShortLivedDebuffsFor(bot))
+        return CastDebuffSpellAction::isUseful();
+
+    // CastDebuffSpellAction::isUseful with the life check below in place of its fixed one.
+    Unit* target = GetTarget();
+    if (!target || !target->IsAlive() || !target->IsInWorld())
+        return false;
+
+    return CastAuraSpellAction::isUseful() && CoaShortLivedDebuffAllowed(botAI, target, spell, BASE_DEBUFF_LIFE);
 }
 
 // What this spell would heal, all its ticks counted, and the health the group is missing around
@@ -266,6 +425,17 @@ bool CoaCanCastTrigger::IsActive()
                 if (target->GetMaxPower(Powers(effect.MiscValue)) == 0)
                     return false;
 
+    // A boss is never charmed: Enslave Elemental, a Felsworn rotation line, charmed Noxxion in Maraudon and
+    // broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835). Hellbound Leash (Knight of Xoroth) too.
+    if (Unit* target = AI_VALUE(Unit*, "current target"))
+        if (Creature* creature = target->ToCreature())
+            if (creature->IsDungeonBoss() || creature->isWorldBoss())
+                for (SpellEffectInfo const& effect : info->Effects)
+                    if (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_MOD_CHARM ||
+                                            effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS ||
+                                            effect.ApplyAuraName == SPELL_AURA_AOE_CHARM))
+                        return false;
+
     int32 const duration = info->GetMaxDuration();
     if (bot->HasAura(id) && (duration < 0 || duration > 60 * IN_MILLISECONDS))
         return false;
@@ -293,6 +463,7 @@ bool CoaCanCastTrigger::IsActive()
         return false;
 
     bool summons = false;
+    std::vector<uint32> summoned;
     for (SpellEffectInfo const& effect : info->Effects)
     {
         if (effect.Effect == SPELL_EFFECT_TRIGGER_SPELL && effect.TriggerSpell)
@@ -300,11 +471,20 @@ bool CoaCanCastTrigger::IsActive()
                 if (travelUtility(triggered))
                     return false;
         if (effect.Effect == SPELL_EFFECT_SUMMON)
+        {
             summons = true;
+            if (effect.MiscValue > 0)
+                summoned.push_back(uint32(effect.MiscValue));
+        }
     }
 
     // A ward or effigy of which only one may stand: not again while the bot's own still stands
-    // (Healing Ward was put down 15 times in one fight, 18% of base mana each).
+    // (Healing Ward was put down 15 times in one fight, 18% of base mana each). The Cultist's summons
+    // come from a script, without UNIT_CREATED_BY_SPELL: the creature the spell names counts too.
+    // Tentacle of Yogg-Saron was still recast all fight long in 1.7
+    // (jealous-sound/azerothcore-wotlk-coa#6093, after #5739).
+    auto const sameSummon = [&summoned](Unit const* unit)
+    { return std::find(summoned.begin(), summoned.end(), unit->GetEntry()) != summoned.end(); };
     if (summons && getMSTimeDiff(summonCheckedAt, getMSTime()) < 3 * IN_MILLISECONDS && summonCheckedAt)
     {
         if (summonStanding)
@@ -319,7 +499,8 @@ bool CoaCanCastTrigger::IsActive()
         Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(bot, nearby, check);
         Cell::VisitObjects(bot, search, SEARCH_RANGE);
         for (Unit* unit : nearby)
-            if (unit && unit->IsAlive() && !unit->IsPlayer() && unit->GetUInt32Value(UNIT_CREATED_BY_SPELL) == id &&
+            if (unit && unit->IsAlive() && !unit->IsPlayer() &&
+                (unit->GetUInt32Value(UNIT_CREATED_BY_SPELL) == id || sameSummon(unit)) &&
                 (unit->GetOwnerGUID() == bot->GetGUID() || unit->GetCreatorGUID() == bot->GetGUID()))
             {
                 summonStanding = true;
@@ -328,13 +509,52 @@ bool CoaCanCastTrigger::IsActive()
     }
 
     return !CoaHealerSavesManaFrom(bot, info) && !CoaHealerAvoidsForm(bot, info) &&
-           !CoaHoldsExclusiveSibling(bot, info);
+           CoaRotationMayCast(botAI, bot, info);
+}
+
+void CoaSummonMissingTrigger::Qualify(std::string const qual)
+{
+    auto const blank = [](char c) { return std::isspace(static_cast<unsigned char>(c)) != 0; };
+    std::string name = qual;
+    name.erase(std::find_if_not(name.rbegin(), name.rend(), blank).base(), name.end());
+    name.erase(name.begin(), std::find_if_not(name.begin(), name.end(), blank));
+    Qualified::Qualify(name);
+    entry = 0;
+    nameKey.clear();
+    if (name.empty())
+        return;
+
+    if (std::all_of(name.begin(), name.end(), [](char c) { return std::isdigit(static_cast<unsigned char>(c)); }))
+    {
+        entry = uint32(std::strtoul(name.c_str(), nullptr, 10));
+        if (!sObjectMgr->GetCreatureTemplate(entry))
+            entry = 0;
+    }
+    else
+        nameKey = CoaNameKey(name);
+}
+
+// With a qualifier, only the creature it names; without one, any creature of the bot.
+bool CoaSummonMissingTrigger::Counts(Unit* unit) const
+{
+    if (qualifier.empty())
+        return true;
+
+    if (entry)
+        return unit->GetEntry() == entry;
+
+    return CoaNameIs(unit->GetName(), nameKey);
 }
 
 bool CoaSummonMissingTrigger::IsActive()
 {
+    // A qualifier that is neither a known creature entry nor valid UTF-8: stay quiet rather than summon forever.
+    // A misspelt name is not caught here and keeps the trigger on.
+    if (!qualifier.empty() && !entry && nameKey.empty())
+        return false;
+
     for (Unit* unit : bot->m_Controlled)
-        if (unit && unit->IsAlive() && unit->GetOwnerGUID() == bot->GetGUID())
+        if (unit && unit->IsAlive() && unit->GetOwnerGUID() == bot->GetGUID() && Counts(unit))
             return false;
 
     // NOT through AI_VALUE("nearest npcs"): that value is cached. Freshly
@@ -349,7 +569,9 @@ bool CoaSummonMissingTrigger::IsActive()
 
     for (Unit* unit : nearby)
         if (unit && unit->IsAlive() && !unit->IsPlayer() &&
-            unit->GetOwnerGUID() == bot->GetGUID())
+            (unit->GetOwnerGUID() == bot->GetGUID() ||
+             (!qualifier.empty() && unit->GetCreatorGUID() == bot->GetGUID())) &&
+            Counts(unit))
             return false;
 
     return true;

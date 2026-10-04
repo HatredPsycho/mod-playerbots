@@ -409,8 +409,14 @@ public:
     bool coaBotSurname;
     uint32 coaThreatHold;
     bool coaAttackLoop;
+    bool coaKeepChannels;
+    bool coaExclusiveFamilies;
     bool coaSpellReplacement;
+    bool coaAncestralCombatFix;
+    bool coaKeepPassiveAuras;
+    uint32 coaShortLivedDebuffs;
     bool coaAttackCheckBench;
+    bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
     std::string coaStatusFile;
