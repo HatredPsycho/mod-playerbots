@@ -1498,6 +1498,8 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
     if (bot->InBattlegroundQueue())
         return false;
 
+    CoaApplyRuleset(bot);
+
      uint32 botId = bot->GetGUID().GetCounter();
 
     // if death revive
@@ -2831,6 +2833,49 @@ void RandomPlayerbotMgr::CoaReleaseOrphanGroups()
     }
 }
 
+// Spells and auras of the CoA rulesets (core: src/server/coa/AscensionRulesets.cpp, ApplyRuleset).
+namespace
+{
+constexpr uint32 COA_RULESET_HIGH_RISK = 1004019;
+constexpr uint32 COA_RULESET_WAR_MODE = 1004119;
+constexpr uint32 COA_RULESET_PVE = 9931032;
+constexpr uint32 COA_RULESET_MERCENARY = 9930874;
+}
+
+// The core puts every character without a ruleset in PvE at login, bots included. With
+// AiPlayerbot.CoaRulesetForBots, a share of the random bots is put in High Risk or War Mode instead: the bucket
+// comes from the guid, so a bot keeps its ruleset from one login to the next, and changing the shares moves
+// only the bots whose bucket changed side. Not in a battleground, in combat or dead.
+void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
+{
+    if (!sPlayerbotAIConfig.coaRulesetForBots || !bot || !bot->IsInWorld() || !IsRandomBot(bot))
+        return;
+    if (bot->InBattleground() || bot->InArena() || bot->IsInCombat() || !bot->IsAlive())
+        return;
+
+    uint32 const highRisk = std::min<uint32>(sPlayerbotAIConfig.coaRulesetHighRiskPct, 100);
+    uint32 const warMode = std::min<uint32>(sPlayerbotAIConfig.coaRulesetWarModePct, 100 - highRisk);
+    uint32 const bucket = (bot->GetGUID().GetCounter() * 2654435761u) % 100;
+    uint32 const wanted = bucket < highRisk ? COA_RULESET_HIGH_RISK
+                        : bucket < highRisk + warMode ? COA_RULESET_WAR_MODE
+                        : COA_RULESET_PVE;
+
+    bool const hasHighRisk = bot->HasAura(COA_RULESET_HIGH_RISK);
+    bool const hasPve = bot->HasAura(COA_RULESET_PVE);
+    bool const hasWarMode = bot->HasAura(COA_RULESET_WAR_MODE);
+    bool const ok = wanted == COA_RULESET_HIGH_RISK ? hasHighRisk && !hasPve && !hasWarMode
+                  : wanted == COA_RULESET_WAR_MODE ? hasWarMode && !hasPve && !hasHighRisk
+                  : hasPve && !hasHighRisk;
+    if (ok)
+        return;
+
+    for (uint32 spell : {COA_RULESET_HIGH_RISK, COA_RULESET_WAR_MODE, COA_RULESET_PVE, COA_RULESET_MERCENARY})
+        bot->RemoveAurasDueToSpell(spell);
+    bot->CastSpell(bot, wanted, true);
+    LOG_DEBUG("playerbots", "coa: {} ruleset {}", bot->GetName(),
+              wanted == COA_RULESET_HIGH_RISK ? "High Risk" : wanted == COA_RULESET_WAR_MODE ? "War Mode" : "PvE");
+}
+
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
 {
     if (_isBotLogging)
@@ -2852,6 +2897,7 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
     }
 
     RandomPlayerbotFactory::AssignBotToArenaTeam(bot);
+    CoaApplyRuleset(bot);
 
     // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
     PlayerbotFactory::DressNakedCoaStarter(bot);

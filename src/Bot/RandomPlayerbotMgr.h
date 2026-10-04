@@ -194,6 +194,8 @@ public:
 
 protected:
     void OnBotLoginInternal(Player* const bot) override;
+    // AiPlayerbot.CoaRulesetForBots: puts a random bot in its High Risk / War Mode / PvE ruleset (see the .dist).
+    void CoaApplyRuleset(Player* bot);
 
 private:
     RandomPlayerbotMgr() : PlayerbotHolder()

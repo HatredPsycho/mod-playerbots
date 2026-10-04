@@ -1457,6 +1457,17 @@ AiPlayerbot.CoaOrphanGroupReleaseDelay = 300
 # Default: 0 (silent), 1 = whisper every automatic upgrade, as before. Read again by ".reload config".
 AiPlayerbot.CoaTellEquipUpgrades = 0
 
+# The CoA core puts every character without a ruleset in PvE at login, so all random bots are in PvE.
+# With 1, a share of the random bots is put in High Risk (open world PvP, full loss rules for players;
+# bots never lose items) or War Mode instead; the rest stays in PvE. Each bot always gets the same
+# ruleset (chosen from its guid). In dungeons and raids the ruleset changes nothing, and grouping with
+# such a bot does not change yours. 0 = as before (every bot in PvE, bots keep the ruleset they have).
+# Read again by ".reload config"; ungrouped bots move at their next update, the others at login.
+AiPlayerbot.CoaRulesetForBots = 0
+# Shares, in percent of the random bots, when CoaRulesetForBots = 1 (the rest is PvE).
+AiPlayerbot.CoaRulesetHighRiskPct = 30
+AiPlayerbot.CoaRulesetWarModePct = 0
+
 # A snapshot of every random bot online, written as JSON for the SquidBots dashboard (bot-status.json,
 # its "botStatusFile" setting): position, health, power, what the bot is doing, its group and its
 # quests, shown on the map and on each bot's card. The file is written whole under a .tmp name and
