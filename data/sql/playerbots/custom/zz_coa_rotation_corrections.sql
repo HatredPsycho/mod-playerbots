@@ -174,7 +174,7 @@ SELECT 0, 'bloodmage-fleshweaver', idx, line FROM (
 
 -- Trois rotations remises dans l'ordre, d'après ce que lancent de vrais joueurs (24/09/2026).
 --
--- Source : les journaux de combat mythic+ du serveur officiel CoA (C:\COA-JS\mythicslogs), fournis
+-- Source : les journaux de combat mythic+ du serveur officiel CoA, fournis
 -- par un joueur. On y retrouve chaque spé par ses sorts, et on compare ce qu'un humain compétent
 -- lance à ce que notre rotation prescrit.
 --
