@@ -744,8 +744,8 @@ bool PlayerbotAIConfig::Initialize()
     coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
     coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
     coaSpellReplacement = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSpellReplacement", true);
-    coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", false);
-    coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", false);
+    coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", true);
+    coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", true);
     coaShortLivedDebuffs = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaShortLivedDebuffs", 0);
     coaAttackCheckBench = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackCheckBench", false);
     coaStealthIsNotStance = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaStealthIsNotStance", false);

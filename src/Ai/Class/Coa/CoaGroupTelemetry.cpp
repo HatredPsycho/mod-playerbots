@@ -649,25 +649,25 @@ public:
         if (!reload)
             return;
 
-        sPlayerbotAIConfig.coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", true);
+        sPlayerbotAIConfig.coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", false);
         sPlayerbotAIConfig.coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
         sPlayerbotAIConfig.coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
         sPlayerbotAIConfig.coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
         sPlayerbotAIConfig.coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
-        sPlayerbotAIConfig.coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", false);
-        sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", false);
-        sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", false);
+        sPlayerbotAIConfig.coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
+        sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", true);
+        sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", true);
         sPlayerbotAIConfig.coaShortLivedDebuffs = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaShortLivedDebuffs", 0);
         sPlayerbotAIConfig.coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
         sPlayerbotAIConfig.coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
         sPlayerbotAIConfig.coaExcludedSpecializations.clear();
-        std::string const excluded = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "51,101");
+        std::string const excluded = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "99");
         std::istringstream ids(excluded);
         for (std::string id; std::getline(ids, id, ',');)
             if (!id.empty())
                 sPlayerbotAIConfig.coaExcludedSpecializations.insert(uint32(std::stoul(id)));
         sPlayerbotAIConfig.coaOffensiveHealerSpecs.clear();
-        std::istringstream offensive(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaOffensiveHealerSpecs", "40"));
+        std::istringstream offensive(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaOffensiveHealerSpecs", "40,43"));
         for (std::string id; std::getline(offensive, id, ',');)
             if (!id.empty())
                 sPlayerbotAIConfig.coaOffensiveHealerSpecs.insert(uint32(std::stoul(id)));
