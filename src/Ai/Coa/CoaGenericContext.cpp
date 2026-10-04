@@ -425,6 +425,17 @@ bool CoaCanCastTrigger::IsActive()
                 if (target->GetMaxPower(Powers(effect.MiscValue)) == 0)
                     return false;
 
+    // A boss is never charmed: Enslave Elemental, a Felsworn rotation line, charmed Noxxion in Maraudon and
+    // broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835). Hellbound Leash (Knight of Xoroth) too.
+    if (Unit* target = AI_VALUE(Unit*, "current target"))
+        if (Creature* creature = target->ToCreature())
+            if (creature->IsDungeonBoss() || creature->isWorldBoss())
+                for (SpellEffectInfo const& effect : info->Effects)
+                    if (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_MOD_CHARM ||
+                                            effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS ||
+                                            effect.ApplyAuraName == SPELL_AURA_AOE_CHARM))
+                        return false;
+
     int32 const duration = info->GetMaxDuration();
     if (bot->HasAura(id) && (duration < 0 || duration > 60 * IN_MILLISECONDS))
         return false;
@@ -452,6 +463,7 @@ bool CoaCanCastTrigger::IsActive()
         return false;
 
     bool summons = false;
+    std::vector<uint32> summoned;
     for (SpellEffectInfo const& effect : info->Effects)
     {
         if (effect.Effect == SPELL_EFFECT_TRIGGER_SPELL && effect.TriggerSpell)
@@ -459,11 +471,20 @@ bool CoaCanCastTrigger::IsActive()
                 if (travelUtility(triggered))
                     return false;
         if (effect.Effect == SPELL_EFFECT_SUMMON)
+        {
             summons = true;
+            if (effect.MiscValue > 0)
+                summoned.push_back(uint32(effect.MiscValue));
+        }
     }
 
     // A ward or effigy of which only one may stand: not again while the bot's own still stands
-    // (Healing Ward was put down 15 times in one fight, 18% of base mana each).
+    // (Healing Ward was put down 15 times in one fight, 18% of base mana each). The Cultist's summons
+    // come from a script, without UNIT_CREATED_BY_SPELL: the creature the spell names counts too.
+    // Tentacle of Yogg-Saron was still recast all fight long in 1.7
+    // (jealous-sound/azerothcore-wotlk-coa#6093, after #5739).
+    auto const sameSummon = [&summoned](Unit const* unit)
+    { return std::find(summoned.begin(), summoned.end(), unit->GetEntry()) != summoned.end(); };
     if (summons && getMSTimeDiff(summonCheckedAt, getMSTime()) < 3 * IN_MILLISECONDS && summonCheckedAt)
     {
         if (summonStanding)
@@ -478,7 +499,8 @@ bool CoaCanCastTrigger::IsActive()
         Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(bot, nearby, check);
         Cell::VisitObjects(bot, search, SEARCH_RANGE);
         for (Unit* unit : nearby)
-            if (unit && unit->IsAlive() && !unit->IsPlayer() && unit->GetUInt32Value(UNIT_CREATED_BY_SPELL) == id &&
+            if (unit && unit->IsAlive() && !unit->IsPlayer() &&
+                (unit->GetUInt32Value(UNIT_CREATED_BY_SPELL) == id || sameSummon(unit)) &&
                 (unit->GetOwnerGUID() == bot->GetGUID() || unit->GetCreatorGUID() == bot->GetGUID()))
             {
                 summonStanding = true;

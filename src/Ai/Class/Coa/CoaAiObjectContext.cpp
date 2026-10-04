@@ -178,6 +178,59 @@ bool IsControlAura(SpellEffectInfo const& effect)
     }
 }
 
+// A spell that hands its caster a creature to steer from the client: the caster stands still meanwhile,
+// and a bot steers nothing.
+bool PossessesTarget(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (IsAuraEffect(effect) && effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS &&
+            effect.TargetA.GetTarget() != TARGET_UNIT_CASTER)
+            return true;
+    return false;
+}
+
+// Whether the control a spell puts on an enemy ends with the first damage it takes (a sap, a sleep, a
+// polymorph), looking into the spells it triggers.
+bool DamageEndsControl(SpellInfo const* info, uint8 depth = 0)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (IsAuraEffect(effect) && IsControlAura(effect) && effect.TargetA.GetTarget() != TARGET_UNIT_CASTER &&
+            (info->AuraInterruptFlags & AURA_INTERRUPT_FLAG_TAKE_DAMAGE))
+            return true;
+        if (effect.TriggerSpell && effect.TriggerSpell != info->Id && depth < 2)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (DamageEndsControl(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
+// Whether the spell would charm or possess a dungeon, raid or world boss: Enslave Elemental (Felsworn)
+// charmed Noxxion in Maraudon and broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835).
+bool TakesOverBoss(SpellInfo const* info, Unit* target)
+{
+    Creature* creature = target ? target->ToCreature() : nullptr;
+    if (!creature || !(creature->IsDungeonBoss() || creature->isWorldBoss()))
+        return false;
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (IsAuraEffect(effect) && (effect.ApplyAuraName == SPELL_AURA_MOD_CHARM ||
+                                     effect.ApplyAuraName == SPELL_AURA_MOD_POSSESS ||
+                                     effect.ApplyAuraName == SPELL_AURA_AOE_CHARM))
+            return true;
+    return false;
+}
+
+// A spell that sends its caster to its home inn, the way a hearthstone does.
+bool TeleportsCasterHome(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.Effect == SPELL_EFFECT_TELEPORT_UNITS &&
+            (effect.TargetA.GetTarget() == TARGET_DEST_HOME || effect.TargetB.GetTarget() == TARGET_DEST_HOME))
+            return true;
+    return false;
+}
+
 bool IsDefensiveAura(SpellEffectInfo const& effect)
 {
     switch (effect.ApplyAuraName)
@@ -613,6 +666,19 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
             (effect.ApplyAuraName == SPELL_AURA_MOD_SHAPESHIFT || effect.ApplyAuraName == SPELL_AURA_MOD_STUN ||
              effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY || effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY_SILENCE))
             ability.kind &= ~KIND_BUFF;
+
+    // Befriend Beast (Ranger, 562301) possesses a beast for 40 s: no bot can steer it, and the beast and
+    // the bot stood idle while the beast took hits (jealous-sound/azerothcore-wotlk-coa#6111). No action
+    // of the kit casts such a spell.
+    if (!depth && PossessesTarget(info))
+        ability.kind = 0;
+
+    // A control that deals no damage and that the first hit ends is no attack: on the enemy the group is
+    // hitting it only gives that enemy time. A Time Chronomancer's attack kit cast Babify on it, which
+    // also regenerates its health (jealous-sound/azerothcore-wotlk-coa#6287). It stays a control, out of
+    // the attack and area attack kits.
+    if (!depth && (ability.kind & KIND_CONTROL) && !(ability.kind & KIND_DAMAGE) && DamageEndsControl(info))
+        ability.kind &= ~KIND_HOSTILE;
 }
 
 std::unordered_map<uint8, ClassKit> const& ClassAbilities()
@@ -833,6 +899,10 @@ SpellCastResult StrictCheck(Player* bot, SpellInfo const* info, Unit* target)
 {
     // The spell prepare() will see, replacement included: its cost and range, not the base spell's.
     info = EffectiveSpell(bot, info);
+
+    // The core lets a boss be charmed; a bot never tries (#4835).
+    if (TakesOverBoss(info, target))
+        return SPELL_FAILED_BAD_TARGETS;
 
     ObjectGuid const oldSel = bot->GetTarget();
 
@@ -3569,6 +3639,12 @@ bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
 {
     if (!info)
         return true;
+    // Temporal Return, the Chronomancer's hearthstone, is in the three Chronomancer rotations: cast between
+    // two packs, it sent a Time healer to Orgrimmar in the middle of Razorfen Kraul
+    // (jealous-sound/azerothcore-wotlk-coa#6286). Befriend Beast, in the three Ranger rotations, possesses
+    // a beast no bot can steer (#6111).
+    if (TeleportsCasterHome(info) || PossessesTarget(info))
+        return false;
     if (CoaHoldsExclusiveSibling(bot, info))
         return false;
     if (!sPlayerbotAIConfig.coaExclusiveFamilies)
