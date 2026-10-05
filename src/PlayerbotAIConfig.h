@@ -423,6 +423,7 @@ public:
     bool coaRulesetForBots;
     uint32 coaRulesetHighRiskPct;
     uint32 coaRulesetWarModePct;
+    uint32 coaBgLowLevelJoinChance;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
     bool coaStatusEnabled;

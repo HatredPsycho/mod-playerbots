@@ -14,6 +14,7 @@
 #include "PlayerbotAI.h"
 #include "Playerbots.h"
 #include "PositionValue.h"
+#include "World.h"
 
 bool BGJoinAction::Execute(Event /*event*/)
 {
@@ -309,6 +310,10 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
     if (FactionMissing(queueTypeId))
         return true;
 
+    // Queues a real player waits in are filled above, as before.
+    if (LowLevelSkips(bg, bracketId))
+        return false;
+
     // Check if bots should join Battleground
     uint32 bgAllianceBotCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount;
     uint32 bgAlliancePlayerCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAlliancePlayerCount;
@@ -329,6 +334,19 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
     }
 
     return false;
+}
+
+// CoA: random bots filled a battleground on a first come, first served basis, whatever their level in the
+// bracket; on a 1,000-bot test realm the two sides started up to 5.5 levels apart and the higher one won 9
+// games out of 10. A bot more than 2 levels under the top of the bracket (or of the level cap) only joins
+// on CoaBgLowLevelJoinChance percent of its tries, so both teams are made of bots near the top.
+bool BGJoinAction::LowLevelSkips(Battleground const* bg, BattlegroundBracketId bracketId) const
+{
+    PvPDifficultyEntry const* range = GetBattlegroundBracketById(bg->GetMapId(), bracketId);
+    if (!range || sPlayerbotAIConfig.coaBgLowLevelJoinChance >= 100)
+        return false;
+    uint32 const top = std::min<uint32>(range->maxLevel, sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
+    return bot->GetLevel() + 2 < top && urand(1, 100) > sPlayerbotAIConfig.coaBgLowLevelJoinChance;
 }
 
 bool BGJoinAction::isUseful()
@@ -647,6 +665,10 @@ bool FreeBGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battleg
 
         return false;
     }
+
+    // Not where a real player waits for the bot's faction: that queue fills as before.
+    if (!FactionMissing(queueTypeId) && LowLevelSkips(bg, bracketId))
+        return false;
 
     // Check if bots should join Battleground
     uint32 bgAllianceBotCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount;

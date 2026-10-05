@@ -10,6 +10,7 @@
 #include "Action.h"
 #include "DBCEnums.h"
 
+class Battleground;
 class PlayerbotAI;
 
 struct CreatureData;
@@ -34,6 +35,8 @@ public:
 
 protected:
     bool JoinQueue(uint32 type);
+    // A bot well under the top of the bracket skips most of its tries (AiPlayerbot.CoaBgLowLevelJoinChance).
+    bool LowLevelSkips(Battleground const* bg, BattlegroundBracketId bracketId) const;
     std::vector<uint32> bgList;
     std::vector<uint32> ratedList;
 };
