@@ -1,0 +1,405 @@
+{
+ "format": 1,
+ "module": "SquidBots (mod-playerbots for Conquest of Azeroth)",
+ "version": "1.8",
+ "tag": "v1.8",
+ "commit": "48c4786a",
+ "file": "configs/modules/playerbots.conf",
+ "notes": "The options a server owner usually changes, not all of playerbots.conf.dist. default = value in playerbots.conf.dist; default_if_missing = what the code uses when the key is absent; min/max where the code or the meaning bounds the value; coa = option of the Conquest of Azeroth fork; new_in / changed_in compare with 1.7. Every option needs a world server restart, except those whose description in the .dist says \".reload config\".",
+ "groups": {
+  "population": "Population",
+  "party": "Groups and players' bots",
+  "combat": "Combat",
+  "activities": "Dungeons and PvP",
+  "chat": "Chat",
+  "other": "Other"
+ },
+ "settings": [
+  {
+   "key": "AiPlayerbot.RandomBotAutologin",
+   "group": "population",
+   "title": "Populate the world automatically",
+   "description": "Random bots log in when the world server starts. Off: only the bots players add themselves.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.MinRandomBots",
+   "group": "population",
+   "title": "Minimum online bots",
+   "description": "Lower bound of the random bot population. 500 is what 16 GB of memory holds comfortably; 5,000 bots use about 9 GB of server memory.",
+   "type": "int",
+   "default": 500,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.MaxRandomBots",
+   "group": "population",
+   "title": "Maximum online bots",
+   "description": "Upper bound of the random bot population; more bots use more CPU and memory. Keep it at or above the minimum.",
+   "type": "int",
+   "default": 500,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotAccountCount",
+   "group": "population",
+   "title": "Random bot accounts",
+   "description": "Accounts that hold the random bots; 0 works out how many are needed.",
+   "type": "int",
+   "default": 0,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.DisabledWithoutRealPlayer",
+   "group": "population",
+   "title": "Only while players are online",
+   "description": "Random bots log out when no real player is online and come back when one logs in.",
+   "type": "bool",
+   "default": false,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotMinLevel",
+   "group": "population",
+   "title": "Lowest bot level",
+   "description": "Lowest level of the random bots.",
+   "type": "int",
+   "default": 1,
+   "min": 1,
+   "max": 80,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotMaxLevel",
+   "group": "population",
+   "title": "Highest bot level",
+   "description": "Highest level of the random bots (60 is the Conquest of Azeroth level cap).",
+   "type": "int",
+   "default": 60,
+   "min": 1,
+   "max": 80,
+   "default_if_missing": 80,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.CoaClassesOnly",
+   "group": "population",
+   "title": "Conquest of Azeroth classes only",
+   "description": "Random bots are created only in the 21 Conquest of Azeroth classes, never in the nine WotLK classes.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaBotSurname",
+   "group": "population",
+   "title": "\"Bot\" surname",
+   "description": "Random bots carry the surname \"Bot\", so players tell them from real players at a glance.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.RandomGearQualityLimit",
+   "group": "population",
+   "title": "Best gear quality",
+   "description": "Highest item quality random bots get: 2 uncommon, 3 rare, 4 epic.",
+   "type": "int",
+   "default": 4,
+   "min": 1,
+   "max": 5,
+   "default_if_missing": 3,
+   "coa": false,
+   "changed_in": "1.8",
+   "previous_default": 3
+  },
+  {
+   "key": "AiPlayerbot.RandomGearScoreLimit",
+   "group": "population",
+   "title": "Item level cap",
+   "description": "Highest item level random bots wear: 78 matches Molten Core, Onyxia and Zul'Gurub gear; 0 = no limit.",
+   "type": "int",
+   "default": 78,
+   "default_if_missing": 0,
+   "coa": false,
+   "changed_in": "1.8",
+   "previous_default": 0
+  },
+  {
+   "key": "AiPlayerbot.CoaEpicGearMinLevel",
+   "group": "population",
+   "title": "Level for epic gear",
+   "description": "With epic quality allowed, the level from which bots may wear epic gear; below it they keep to rare.",
+   "type": "int",
+   "default": 60,
+   "min": 0,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.RandomGearLoweringChance",
+   "group": "population",
+   "title": "Chance of lower gear",
+   "description": "Chance (0 to 1) that an item of a random bot is one quality lower, so not every bot wears the best gear.",
+   "type": "float",
+   "default": 0.3,
+   "min": 0.0,
+   "max": 1.0,
+   "default_if_missing": 0.0,
+   "coa": false,
+   "changed_in": "1.8",
+   "previous_default": 0.0
+  },
+  {
+   "key": "AiPlayerbot.AllowAccountBots",
+   "group": "party",
+   "title": "Your own characters as bots",
+   "description": "Players may log their own characters in as bots (.playerbots bot add <name>); they keep their own level and gear.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.AllowGuildBots",
+   "group": "party",
+   "title": "Guild members' characters as bots",
+   "description": "Players may also add the characters of their guild members as bots.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.MaxAddedBots",
+   "group": "party",
+   "title": "Bots per player",
+   "description": "How many bots one player may control at the same time.",
+   "type": "int",
+   "default": 40,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.AutoInitOnly",
+   "group": "party",
+   "title": "Class bots: automatic setup only",
+   "description": "Players may only use init=auto on their class bots (rebuilt at their level with matching gear); game masters keep every init= command.",
+   "type": "bool",
+   "default": false,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.CoaRecruitSameFaction",
+   "group": "party",
+   "title": "Recruited bots of the player's faction",
+   "description": "Bots recruited by a player (lfg bot, .playerbots coa tank|heal|dps, the SquidBots Lite buttons) are of the player's faction.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaRaidPlayerMax",
+   "group": "party",
+   "title": "Player-built raids at a time",
+   "description": "\".playerbots coa raid\" fills the raid of whoever types it with bots; players may only build one while the realm has fewer such raids than this. Game masters have no limit.",
+   "type": "int",
+   "default": 5,
+   "min": 0,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaRaidPlayerCooldown",
+   "group": "party",
+   "title": "Minutes between two player raids",
+   "description": "A player may build one raid of bots every so many minutes.",
+   "type": "int",
+   "default": 30,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaSpecRotations",
+   "group": "combat",
+   "title": "Conquest of Azeroth rotations",
+   "description": "Each Conquest of Azeroth specialization plays its authored rotation and position; off, bots pick spells on their own only.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaSmartHeal",
+   "group": "combat",
+   "title": "Smart healing",
+   "description": "Healers heal whoever is under 25% health first and the tank before the others, and pick the heal for how urgent it is.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaSmartTank",
+   "group": "combat",
+   "title": "Smart tanking",
+   "description": "Tanks take first the enemy on the healer, then the one on whoever is lowest, rather than the nearest.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaInterruptCoordination",
+   "group": "combat",
+   "title": "Coordinated interrupts",
+   "description": "In a group, one bot kicks each enemy cast and the others keep their interrupt for the next one.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaBossKnowledge",
+   "group": "combat",
+   "title": "Boss mechanics",
+   "description": "Bots read dungeon and raid casts: they step out of point blank casts, cones and areas while the cast bar runs.",
+   "type": "bool",
+   "default": true,
+   "coa": true,
+   "new_in": "1.8"
+  },
+  {
+   "key": "AiPlayerbot.CoaKeepPassiveAuras",
+   "group": "combat",
+   "title": "Keep passive auras",
+   "description": "A bot whose level or gear is rebuilt keeps its class passives; without it, it lost them until its next login and did far less damage.",
+   "type": "bool",
+   "default": true,
+   "coa": true,
+   "new_in": "1.8"
+  },
+  {
+   "key": "AiPlayerbot.CoaHealerManaReserve",
+   "group": "combat",
+   "title": "Healer mana reserve (%)",
+   "description": "Share of mana a bot that can heal keeps for healing; under it, it stops spending mana on damage. 0 = no reserve.",
+   "type": "int",
+   "default": 35,
+   "min": 0,
+   "max": 100,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaAttackLoop",
+   "group": "combat",
+   "title": "Reliable attack casting",
+   "description": "Attacks go through the same cast path as heals: a spell refused for a passing reason is retried soon instead of set aside.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaExcludedSpecializations",
+   "group": "combat",
+   "title": "Specializations bots never play",
+   "description": "Conquest of Azeroth specialization ids, comma separated; a bot holding one switches to another of its role.",
+   "type": "string",
+   "default": "99",
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.TellWhenAvoidAoe",
+   "group": "combat",
+   "title": "Say which spell is avoided",
+   "description": "Bots say in chat which enemy spell they step out of (\"avoiding Rain of Fire\"). Off by default: noisy.",
+   "type": "bool",
+   "default": false,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotJoinLfg",
+   "group": "activities",
+   "title": "Join players' dungeon queues",
+   "description": "Random bots fill the dungeon finder groups of players.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotJoinBG",
+   "group": "activities",
+   "title": "Join players' battleground queues",
+   "description": "Random bots fill the battleground and arena queues of players.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.RandomBotAutoJoinBG",
+   "group": "activities",
+   "title": "Battlegrounds between bots",
+   "description": "Random bots also start battlegrounds and arenas by themselves, without players.",
+   "type": "bool",
+   "default": false,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.CoaLfgBots",
+   "group": "activities",
+   "title": "\"lfg bot\" in chat",
+   "description": "A player who says \"lfg bot heal\", \"lfg bot tank\" or \"lfg bot dps\" in chat is whispered by free bots of those roles to invite.",
+   "type": "bool",
+   "default": true,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaLfgLevelRange",
+   "group": "activities",
+   "title": "\"lfg bot\" level range",
+   "description": "A bot within this many levels of the player keeps its level and gear; one further away is rebuilt at the player's level.",
+   "type": "int",
+   "default": 2,
+   "min": 0,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.RandomBotTalk",
+   "group": "chat",
+   "title": "Bots talk",
+   "description": "Random bots say things in chat now and then.",
+   "type": "bool",
+   "default": true,
+   "default_if_missing": false,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.EnableBroadcasts",
+   "group": "chat",
+   "title": "Bot announcements",
+   "description": "Random bots announce what they do (loot, quests, levels) in the chat channels.",
+   "type": "bool",
+   "default": true,
+   "coa": false
+  },
+  {
+   "key": "AiPlayerbot.CoaLfgChannels",
+   "group": "chat",
+   "title": "\"lfg bot\" channels",
+   "description": "Chat channels where bots listen for \"lfg bot\", comma separated.",
+   "type": "string",
+   "default": "Zone,Newcomers,World",
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaLfgAnnounceMinutes",
+   "group": "chat",
+   "title": "\"lfg bot\" reminder (minutes)",
+   "description": "Every so many minutes, a message to the realm on how to ask the bots. 0 = never.",
+   "type": "int",
+   "default": 10,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaStatusFile",
+   "group": "other",
+   "title": "Dashboard status file",
+   "description": "Path of the bot-status.json snapshot the SquidBots dashboard reads (position, health, activity of every bot). Empty = not written.",
+   "type": "string",
+   "default": "",
+   "coa": true
+  }
+ ]
+}
