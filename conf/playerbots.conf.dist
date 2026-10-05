@@ -1460,7 +1460,10 @@ AiPlayerbot.CoaTellEquipUpgrades = 0
 # The CoA core puts every character without a ruleset in PvE at login, so all random bots are in PvE.
 # With 1, a share of the random bots is put in High Risk (open world PvP, full loss rules for players;
 # bots never lose items) or War Mode instead; the rest stays in PvE. Each bot always gets the same
-# ruleset (chosen from its guid). In dungeons and raids the ruleset changes nothing, and grouping with
+# ruleset (chosen from its guid). High Risk and War Mode bots keep the PvP flag on (the core only puts the
+# aura, so on a PvE realm nobody was flagged by it), and in the open world a bot on its own only starts a
+# fight between two characters of a PvP ruleset: PvE characters, bots or players, stay out of world PvP.
+# In dungeons and raids the ruleset changes nothing, and grouping with
 # such a bot does not change yours. 0 = as before (every bot in PvE, bots keep the ruleset they have).
 # Read again by ".reload config"; ungrouped bots move at their next update, the others at login.
 AiPlayerbot.CoaRulesetForBots = 0

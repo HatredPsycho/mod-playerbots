@@ -2881,14 +2881,24 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
     bool const ok = wanted == COA_RULESET_HIGH_RISK ? hasHighRisk && !hasPve && !hasWarMode
                   : wanted == COA_RULESET_WAR_MODE ? hasWarMode && !hasPve && !hasHighRisk
                   : hasPve && !hasHighRisk;
-    if (ok)
-        return;
+    if (!ok)
+    {
+        for (uint32 spell : {COA_RULESET_HIGH_RISK, COA_RULESET_WAR_MODE, COA_RULESET_PVE, COA_RULESET_MERCENARY})
+            bot->RemoveAurasDueToSpell(spell);
+        bot->CastSpell(bot, wanted, true);
+        LOG_DEBUG("playerbots", "coa: {} ruleset {}", bot->GetName(),
+                  wanted == COA_RULESET_HIGH_RISK ? "High Risk" : wanted == COA_RULESET_WAR_MODE ? "War Mode" : "PvE");
+    }
 
-    for (uint32 spell : {COA_RULESET_HIGH_RISK, COA_RULESET_WAR_MODE, COA_RULESET_PVE, COA_RULESET_MERCENARY})
-        bot->RemoveAurasDueToSpell(spell);
-    bot->CastSpell(bot, wanted, true);
-    LOG_DEBUG("playerbots", "coa: {} ruleset {}", bot->GetName(),
-              wanted == COA_RULESET_HIGH_RISK ? "High Risk" : wanted == COA_RULESET_WAR_MODE ? "War Mode" : "PvE");
+    // The core only puts the aura: on a PvE realm a High Risk or War Mode character was never flagged for PvP.
+    // These bots keep the PvP flag on, as the rulesets mean on Ascension; PvE bots let it run out.
+    bool const pvp = wanted != COA_RULESET_PVE;
+    if (pvp && !bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
+        bot->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
+    else if (!pvp && bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
+        bot->RemovePlayerFlag(PLAYER_FLAGS_IN_PVP);
+    if (pvp && !bot->IsPvP())
+        bot->UpdatePvP(true, true);
 }
 
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
