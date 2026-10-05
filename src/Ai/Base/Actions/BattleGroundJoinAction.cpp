@@ -339,11 +339,17 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
 // bracket; on a 1,000-bot test realm the two sides started up to 5.5 levels apart and the higher one won 9
 // games out of 10. Bots of every level still join (low ones are part of the game), but one that would take
 // its side's average level more than 2 levels away from the other side's, and further than it is, only joins
-// on CoaBgLevelBalanceChance percent of its tries.
-bool BGJoinAction::LevelUnbalances(BattlegroundQueueTypeId queueTypeId, BattlegroundBracketId bracketId) const
+// on CoaBgLevelBalanceChance percent of its tries. A refused bot stays out of that queue for a minute: it tried
+// again about every second, so on a realm of a few hundred bots the chance let it in within seconds anyway and
+// the sides of a Warsong Gulch still started up to 11 levels apart.
+bool BGJoinAction::LevelUnbalances(BattlegroundQueueTypeId queueTypeId, BattlegroundBracketId bracketId)
 {
     if (sPlayerbotAIConfig.coaBgLevelBalanceChance >= 100)
         return false;
+    uint32 const now = getMSTime();
+    auto const refused = levelRefusedAt.find(queueTypeId);
+    if (refused != levelRefusedAt.end() && getMSTimeDiff(refused->second, now) < 60 * IN_MILLISECONDS)
+        return true;
     BattlegroundInfo const& info = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId];
     bool const alliance = bot->GetTeamId() == TEAM_ALLIANCE;
     uint32 const mine = alliance ? info.bgAllianceBotCount + info.bgAlliancePlayerCount
@@ -356,9 +362,10 @@ bool BGJoinAction::LevelUnbalances(BattlegroundQueueTypeId queueTypeId, Battlegr
     float const target = float(alliance ? info.bgHordeLevelSum : info.bgAllianceLevelSum) / theirs;
     float const after = std::fabs(float(mineSum + bot->GetLevel()) / (mine + 1) - target);
     float const before = mine ? std::fabs(float(mineSum) / mine - target) : after;
-    if (after <= 2.0f || after < before)
+    if (after <= 2.0f || after < before || urand(1, 100) <= sPlayerbotAIConfig.coaBgLevelBalanceChance)
         return false;
-    return urand(1, 100) > sPlayerbotAIConfig.coaBgLevelBalanceChance;
+    levelRefusedAt[queueTypeId] = now;
+    return true;
 }
 
 bool BGJoinAction::isUseful()
