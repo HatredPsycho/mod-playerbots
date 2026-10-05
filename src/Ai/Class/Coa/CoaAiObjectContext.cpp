@@ -1158,6 +1158,9 @@ Unit* SmartHealTarget(Player* bot, float below, bool overTime = false)
         float score = health;
         if (PlayerbotAI::IsTank(member))
             score -= 15.0f;
+        // A battleground flag carrier before the tank: the game hangs on it reaching its base alive.
+        if (member->HasAura(23333) || member->HasAura(23335) || member->HasAura(34976))
+            score -= 20.0f;
         if (health < sPlayerbotAIConfig.criticalHealth)
             score -= 40.0f;
 

@@ -276,7 +276,11 @@ bool TeamFlagCarrierNear::IsActive()
                 bg->GetFlagState(TEAM_ALLIANCE) != BG_WS_FLAG_STATE_ON_BASE &&
                 bg->GetFlagState(TEAM_HORDE) != BG_WS_FLAG_STATE_ON_BASE;
 
-            if (bothFlagsNotAtBase)
+            // CoA: with both flags taken nobody protected the carrier, which is exactly when it needs it: it
+            // died on the way and the flags went back and forth (on a CoA test realm, 7 flags returned for 2
+            // captures a game). Now the healers and a third of the others escort it, the rest goes after the
+            // enemy carrier ("attack enemy flag carrier" outranks this one when that carrier is near).
+            if (bothFlagsNotAtBase && !PlayerbotAI::IsHeal(bot) && bot->GetGUID().GetCounter() % 3 != 0)
                 return false;
         }
     }
