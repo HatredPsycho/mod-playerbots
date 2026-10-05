@@ -22,6 +22,7 @@
 #include "ItemPackets.h"
 #include "ItemTemplate.h"
 #include "ItemVisitors.h"
+#include "LocalLevelScaling.h"
 #include "Log.h"
 #include "LootMgr.h"
 #include "ObjectMgr.h"
@@ -1546,7 +1547,7 @@ void PlayerbotFactory::InitPet()
             if (!HasCreatureSpawnRow(itr->first))
                 continue;
 
-            if (itr->second.minlevel > bot->GetLevel())
+            if (LocalLevelScaling::GetEffectiveCreatureBaseLevel(&itr->second) > bot->GetLevel())
                 continue;
 
             bool onlyWolf = sPlayerbotAIConfig.hunterWolfPet == 2 ||
@@ -1785,7 +1786,7 @@ std::unordered_map<uint32, uint32> const& CoaQuestGrantLevels(Player* bot)
         if (!quest->GetRequiredClasses() || quest->IsRepeatable() || !bot->SatisfyQuestClass(quest, false) ||
             !bot->SatisfyQuestRace(quest, false))
             continue;
-        uint32 const level = uint32(std::max<int32>(quest->GetMinLevel(), 1));
+        uint32 const level = std::max<uint32>(LocalLevelScaling::GetEffectiveQuestMinLevel(quest), 1);
         // A quest teaching another class's spells is that class's quest: all it grants is "granted"
         // above any level, so DropCoaRanksAbove takes back what was learnt, unless a legitimate source
         // grants it lower.
@@ -4172,7 +4173,7 @@ void PlayerbotFactory::InitQuests(std::list<uint32>& questMap, bool withRewardIt
         uint32 questId = *i;
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
 
-        if (!bot->SatisfyQuestClass(quest, false) || quest->GetMinLevel() > bot->GetLevel() ||
+        if (!bot->SatisfyQuestClass(quest, false) || LocalLevelScaling::GetEffectiveQuestMinLevel(quest) > bot->GetLevel() ||
             !bot->SatisfyQuestRace(quest, false))
             continue;
 

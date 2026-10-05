@@ -8,6 +8,7 @@
 #include "CoaSpecialization.h"
 #include "DBCStores.h"
 #include "ItemTemplate.h"
+#include "LocalLevelScaling.h"
 #include "Playerbots.h"
 
 std::unordered_set<uint32> RandomItemMgr::itemCache;
@@ -2030,7 +2031,7 @@ void RandomItemMgr::BuildCacheEquipNew()
             continue;
 
         // skip quests with invalid or out-of-range level
-        int32 const questLevel = quest->GetQuestLevel();
+        int32 const questLevel = LocalLevelScaling::GetEffectiveQuestBaseLevel(quest);
         if (questLevel <= 0 || static_cast<uint32>(questLevel) > DEFAULT_MAX_LEVEL)
             continue;
 

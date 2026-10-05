@@ -5,6 +5,7 @@
  */
 
 #include "GrindTargetValue.h"
+#include "LocalLevelScaling.h"
 #include "NewRpgInfo.h"
 #include "Playerbots.h"
 #include "ReputationMgr.h"
@@ -170,7 +171,7 @@ bool GrindTargetValue::needForQuest(Unit* target)
         {
             QuestStatusData const* questStatus = &bot->getQuestStatusMap()[questId];
 
-            if (questTemplate->GetQuestLevel() > bot->GetLevel() + 5)
+            if (LocalLevelScaling::GetEffectiveQuestBaseLevel(questTemplate) > static_cast<int32>(bot->GetLevel()) + 5)
                 continue;
 
             for (int j = 0; j < QUEST_OBJECTIVES_COUNT; j++)

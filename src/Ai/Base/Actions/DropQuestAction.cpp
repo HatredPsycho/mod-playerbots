@@ -7,6 +7,7 @@
 #include "DropQuestAction.h"
 #include "ChatHelper.h"
 #include "Event.h"
+#include "LocalLevelScaling.h"
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 
@@ -97,7 +98,7 @@ bool CleanQuestLogAction::Execute(Event event)
             continue;
 
         // Determine if quest is trivial by comparing levels
-        int32 questLevel = quest->GetQuestLevel();
+        int32 questLevel = LocalLevelScaling::GetEffectiveQuestBaseLevel(quest);
         if (questLevel == -1) // For scaling quests, default to bot level
             questLevel = botLevel;
 

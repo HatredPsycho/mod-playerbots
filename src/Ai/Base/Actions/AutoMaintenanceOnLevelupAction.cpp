@@ -7,6 +7,7 @@
 #include "AutoMaintenanceOnLevelupAction.h"
 #include "CoaSpecialization.h"
 #include "BroadcastHelper.h"
+#include "LocalLevelScaling.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotFactory.h"
 #include "RandomPlayerbotMgr.h"
@@ -114,7 +115,7 @@ void AutoMaintenanceOnLevelupAction::LearnQuestSpells(std::ostringstream* out)
         Quest const* quest = i->second;
 
         if (!quest->GetRequiredClasses() || quest->IsRepeatable() || quest->GetMinLevel() < 10 ||
-            quest->GetMinLevel() > bot->GetLevel())
+            LocalLevelScaling::GetEffectiveQuestMinLevel(quest) > bot->GetLevel())
         {
             continue;
         }

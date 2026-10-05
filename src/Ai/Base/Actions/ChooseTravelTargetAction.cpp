@@ -6,6 +6,7 @@
 
 #include "ChooseTravelTargetAction.h"
 #include "ChatHelper.h"
+#include "LocalLevelScaling.h"
 #include "LootObjectStack.h"
 #include "Playerbots.h"
 
@@ -916,7 +917,7 @@ bool ChooseTravelTargetAction::needForQuest(Unit* target)
         {
             QuestStatusData questStatus = quest.second;
 
-            if (questTemplate->GetQuestLevel() > bot->GetLevel())
+            if (LocalLevelScaling::GetEffectiveQuestBaseLevel(questTemplate) > static_cast<int32>(bot->GetLevel()))
                 continue;
 
             for (int j = 0; j < QUEST_OBJECTIVES_COUNT; j++)

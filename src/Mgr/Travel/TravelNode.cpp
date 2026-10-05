@@ -6,6 +6,7 @@
 
 #include "TravelNode.h"
 #include "BudgetValues.h"
+#include "LocalLevelScaling.h"
 #include "PathGenerator.h"
 #include "Playerbots.h"
 #include "RaceMgr.h"
@@ -72,12 +73,13 @@ void TravelNodePath::calculateCost(bool distanceOnly)
                                               factionEntry, sFactionTemplateStore.LookupEntry(2)) > REP_NEUTRAL));
                     hFriend = hReact.find(factionEntry)->second;
 
-                    if (maxLevelCreature[0] < cInfo->maxlevel && !aFriend && !hFriend)
-                        maxLevelCreature[0] = cInfo->maxlevel;
-                    if (maxLevelCreature[1] < cInfo->maxlevel && aFriend && !hFriend)
-                        maxLevelCreature[1] = cInfo->maxlevel;
-                    if (maxLevelCreature[2] < cInfo->maxlevel && !aFriend && hFriend)
-                        maxLevelCreature[2] = cInfo->maxlevel;
+                    uint32 const creatureLevel = LocalLevelScaling::GetEffectiveCreatureBaseLevel(cInfo);
+                    if (maxLevelCreature[0] < creatureLevel && !aFriend && !hFriend)
+                        maxLevelCreature[0] = creatureLevel;
+                    if (maxLevelCreature[1] < creatureLevel && aFriend && !hFriend)
+                        maxLevelCreature[1] = creatureLevel;
+                    if (maxLevelCreature[2] < creatureLevel && !aFriend && hFriend)
+                        maxLevelCreature[2] = creatureLevel;
                 }
             }
         }

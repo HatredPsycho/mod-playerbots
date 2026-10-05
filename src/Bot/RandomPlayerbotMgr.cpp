@@ -20,6 +20,7 @@
 #include "GridNotifiers.h"
 #include "GridNotifiersImpl.h"
 #include "LFGMgr.h"
+#include "LocalLevelScaling.h"
 #include "MapMgr.h"
 #include "NewRpgInfo.h"
 #include "NewRpgStrategy.h"
@@ -2175,8 +2176,8 @@ uint32 RandomPlayerbotMgr::GetZoneLevel(uint16 mapId, float teleX, float teleY, 
     if (results)
     {
         Field* fields = results->Fetch();
-        uint8 minLevel = fields[0].Get<uint8>();
-        uint8 maxLevel = fields[1].Get<uint8>();
+        uint8 minLevel = LocalLevelScaling::GetEffectiveAreaContentLevel(0, mapId, fields[0].Get<uint8>());
+        uint8 maxLevel = LocalLevelScaling::GetEffectiveAreaContentLevel(0, mapId, fields[1].Get<uint8>());
         level = urand(minLevel, maxLevel);
         if (level > maxLevel)
             level = maxLevel;

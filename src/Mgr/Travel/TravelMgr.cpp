@@ -10,6 +10,7 @@
 #include "ChatHelper.h"
 #include "Corpse.h"
 #include "Creature.h"
+#include "LocalLevelScaling.h"
 #include "Log.h"
 #include "Map.h"
 #include "MapCollisionData.h"
@@ -1148,7 +1149,7 @@ bool QuestRelationTravelDestination::isActive(Player* bot)
 
     if (relation == 0)
     {
-        if ((int32)questTemplate->GetQuestLevel() >= (int32)bot->GetLevel() + (int32)5)
+        if (LocalLevelScaling::GetEffectiveQuestBaseLevel(questTemplate) >= (int32)bot->GetLevel() + (int32)5)
             return false;
 
         // skip for now this quest
@@ -1216,19 +1217,20 @@ std::string const QuestRelationTravelDestination::getTitle()
 
 bool QuestObjectiveTravelDestination::isActive(Player* bot)
 {
-    if (questTemplate->GetQuestLevel() > bot->GetLevel() + 1)
+    int32 const questLevel = LocalLevelScaling::GetEffectiveQuestBaseLevel(questTemplate);
+    if (questLevel > static_cast<int32>(bot->GetLevel()) + 1)
         return false;
 
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
     AiObjectContext* context = botAI->GetAiObjectContext();
-    if (questTemplate->GetQuestLevel() + 5 > bot->GetLevel() && !AI_VALUE(bool, "can fight equal"))
+    if (questLevel + 5 > static_cast<int32>(bot->GetLevel()) && !AI_VALUE(bool, "can fight equal"))
         return false;
 
     // Check mob level
     if (getEntry() > 0)
     {
         CreatureTemplate const* cInfo = sObjectMgr->GetCreatureTemplate(getEntry());
-        if (cInfo && (int)cInfo->maxlevel - (int)bot->GetLevel() > 4)
+        if (cInfo && (int)LocalLevelScaling::GetEffectiveCreatureBaseLevel(cInfo) - (int)bot->GetLevel() > 4)
             return false;
 
         // Do not try to hand-in dungeon/elite quests in instances without a group.
@@ -1439,7 +1441,7 @@ bool BossTravelDestination::isActive(Player* bot)
         return false;
     */
 
-    if ((int32)cInfo->maxlevel > bot->GetLevel() + 3)
+    if ((int32)LocalLevelScaling::GetEffectiveCreatureBaseLevel(cInfo) > static_cast<int32>(bot->GetLevel()) + 3)
         return false;
 
     FactionTemplateEntry const* factionEntry = sFactionTemplateStore.LookupEntry(cInfo->faction);
@@ -4643,9 +4645,25 @@ void TravelMgr::PrepareZone2LevelBracket()
     for (auto const& [zoneId, bracketPair] : sPlayerbotAIConfig.zoneBrackets)
         zone2LevelBracket[zoneId] = {bracketPair.first, bracketPair.second};
 
+    // Brackets are written in the levels the zones were made for, here and in playerbots.conf alike. A content
+    // scaling module maps those onto this realm's levels, and the zone then belongs wherever its content now is.
+    if (LocalLevelScaling::ContentScalingActive.load(std::memory_order_relaxed))
+    {
+        for (auto& [zoneId, bracket] : zone2LevelBracket)
+        {
+            AreaTableEntry const* zone = sAreaTableStore.LookupEntry(zoneId);
+            uint32 const mapId = zone ? zone->mapid : 0;
+            uint32 const low = LocalLevelScaling::GetEffectiveAreaContentLevel(zoneId, mapId, uint8(std::min<uint32>(bracket.low, 255)));
+            uint32 const high = LocalLevelScaling::GetEffectiveAreaContentLevel(zoneId, mapId, uint8(std::min<uint32>(bracket.high, 255)));
+            bracket = {std::min(low, high), std::max(low, high)};
+        }
+        return;
+    }
+
     // A realm whose bots stop at 60 (Conquest of Azeroth) has no Burning Crusade or Wrath content to send them
     // to, whatever an older playerbots.conf says: level 58-60 bots were teleported to Hellfire Peninsula and
-    // Zangarmarsh (Zyth45/mod-playerbots#14). The Blood Elf and Draenei zones stay.
+    // Zangarmarsh (Zyth45/mod-playerbots#14). The Blood Elf and Draenei zones stay. With content scaling the
+    // expansions lie inside those 60 levels instead, and the brackets above have already moved them there.
     if (sPlayerbotAIConfig.randomBotMaxLevel <= 60)
         for (uint32 zoneId : std::initializer_list<uint32>{AREA_HELLFIRE_PENINSULA, AREA_NAGRAND, AREA_TEROKKAR_FOREST, AREA_SHADOWMOON_VALLEY,
                               AREA_ZANGARMARSH, AREA_BLADES_EDGE_MOUNTAINS, AREA_NETHERSTORM, AREA_ISLE_OF_QUEL_DANAS,
@@ -4834,7 +4852,8 @@ void TravelMgr::PrepareDestinationCache()
         if (creatureDataList.size() >= 2)
         {
             CreatureTemplate const* creatureTemplate = sObjectMgr->GetCreatureTemplate(creatureDataList[0].id);
-            uint32 level = (creatureTemplate->minlevel + creatureTemplate->maxlevel + 1) / 2;
+            uint32 level = LocalLevelScaling::GetEffectiveAreaContentLevel(0, std::get<0>(gridTuple),
+                (creatureTemplate->minlevel + creatureTemplate->maxlevel + 1) / 2);
             for (int32 l = (int32)level - (int32)sPlayerbotAIConfig.randomBotTeleLowerLevel;
                  l <= (int32)level + (int32)sPlayerbotAIConfig.randomBotTeleHigherLevel; l++)
             {

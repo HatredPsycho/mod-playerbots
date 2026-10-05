@@ -6,6 +6,7 @@
 
 #include "QuestValues.h"
 
+#include "LocalLevelScaling.h"
 #include "MapMgr.h"
 #include "Playerbots.h"
 #include "SharedValueContext.h"
@@ -145,7 +146,8 @@ questGiverMap QuestGiversValue::Calculate()
                 {
                     Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
 
-                    if (quest && (level < quest->GetMinLevel() || (int)level > quest->GetQuestLevel() + 10))
+                    if (quest && (level < LocalLevelScaling::GetEffectiveQuestMinLevel(quest) ||
+                                  (int)level > LocalLevelScaling::GetEffectiveQuestBaseLevel(quest) + 10))
                         continue;
                 }
 
