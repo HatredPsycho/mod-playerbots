@@ -78,6 +78,12 @@ bool CoaHasNoAuraTrigger::IsActive()
     return !botAI->HasAura(qualifier, GetTarget());
 }
 
+bool CoaAoeHasAuraTrigger::IsActive()
+{
+    return !qualifier.empty() && MediumAoeTrigger::IsActive() &&
+           botAI->HasAura(qualifier, bot, false, false, -1, true);
+}
+
 std::string CoaAuraStacksTrigger::SpellPart() const
 {
     size_t comma = qualifier.rfind(',');

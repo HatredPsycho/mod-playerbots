@@ -242,6 +242,17 @@ public:
     bool IsActive() override;
 };
 
+/* "aoe has aura::<aura>" - "medium aoe" (3 enemies within 8 yards of the target) while the bot itself has the
+ * aura: a rotation line has a single trigger, so a pack spender kept for a state (Cultist Godblade: Entropic Slam
+ * only during Total Madness, when it costs nothing) needs both in one. */
+class CoaAoeHasAuraTrigger : public MediumAoeTrigger, public Qualified
+{
+public:
+    CoaAoeHasAuraTrigger(PlayerbotAI* botAI) : MediumAoeTrigger(botAI) {}
+    std::string const getName() override { return "aoe has aura::" + qualifier; }
+    bool IsActive() override;
+};
+
 /* "aura stacks::<spell>,<count>" - carries the builder/spender pattern that
  * several CoA specs use (Felsworn Fury up to 6, for instance). It assumes the
  * resource is implemented as a stacking aura. */
@@ -541,6 +552,7 @@ public:
         creators["has aura"] = &CoaGenericTriggerContext::has_aura;
         creators["target has aura"] = &CoaGenericTriggerContext::target_has_aura;
         creators["no aura"] = &CoaGenericTriggerContext::no_aura;
+        creators["aoe has aura"] = &CoaGenericTriggerContext::aoe_has_aura;
         creators["aura stacks"] = &CoaGenericTriggerContext::aura_stacks;
         creators["coa resource"] = &CoaGenericTriggerContext::coa_resource;
         creators["coa summon missing"] = &CoaGenericTriggerContext::coa_summon_missing;
@@ -555,6 +567,7 @@ private:
     static Trigger* has_aura(PlayerbotAI* botAI) { return new CoaHasAuraTrigger(botAI); }
     static Trigger* target_has_aura(PlayerbotAI* botAI) { return new CoaTargetHasAuraTrigger(botAI); }
     static Trigger* no_aura(PlayerbotAI* botAI) { return new CoaHasNoAuraTrigger(botAI); }
+    static Trigger* aoe_has_aura(PlayerbotAI* botAI) { return new CoaAoeHasAuraTrigger(botAI); }
     static Trigger* aura_stacks(PlayerbotAI* botAI) { return new CoaAuraStacksTrigger(botAI); }
     static Trigger* coa_resource(PlayerbotAI* botAI) { return new CoaResourceTrigger(botAI); }
     static Trigger* coa_summon_missing(PlayerbotAI* botAI)
