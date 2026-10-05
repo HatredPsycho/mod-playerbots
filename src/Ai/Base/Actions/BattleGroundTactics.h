@@ -132,6 +132,10 @@ private:
     bool useBuff();
     uint32 getPlayersInArea(TeamId teamId, Position point, float range, bool combat = true);
     bool IsLockedInsideKeep();
+    bool Unstuck(Battleground* bg);
+    Position stuckAt;
+    uint32 stuckSince = 0;  // getMSTime() since when the bot has stood within 3 yards of stuckAt
+    uint32 lastStep = 0;    // getMSTime() of its last few steps out
 };
 
 class ArenaTactics : public MovementAction

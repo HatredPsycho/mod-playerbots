@@ -5,6 +5,7 @@
  */
 
 #include "BattleGroundTactics.h"
+#include "GameGraveyard.h"
 #include "ArenaTeam.h"
 #include "ArenaTeamMgr.h"
 #include "BattleGroundJoinAction.h"
@@ -1653,6 +1654,9 @@ bool BGTactics::Execute(Event /*event*/)
     {
         if (bg->GetStatus() == STATUS_WAIT_JOIN)
             return false;
+
+        if (Unstuck(bg))
+            return true;
 
         if (bot->isMoving())
             return false;
@@ -3390,6 +3394,50 @@ bool BGTactics::selectObjectiveWp(std::vector<BattleBotPath*> const& vPaths)
     // bot->GetName(), chosenPathIndex);
 
     return moveToObjectiveWp(chosenPath, chosenPathPoint, chosenPathReverse);
+}
+
+// CoA: a bot that stands on one spot for 30 s, out of combat, without a flag and away from its objective, is
+// caught by the terrain: on two CoA test realms the same spot near the Alliance base of Warsong Gulch held bots
+// 3 to 5 minutes, re-picking an objective they could not reach. It takes a few steps in a random direction, and
+// still there after 90 s it is put back at the graveyard of its side. A bot at its objective (a guard on a tower
+// being captured, a base defender) is left alone.
+bool BGTactics::Unstuck(Battleground* bg)
+{
+    if (bg->GetStatus() != STATUS_IN_PROGRESS || !bot->IsAlive() || bot->IsInCombat() ||
+        PlayerHasFlag::IsCapturingFlag(bot) || bot->GetVehicle())
+    {
+        stuckSince = 0;
+        return false;
+    }
+    uint32 const now = getMSTime();
+    if (!stuckSince || bot->GetExactDist2d(stuckAt.GetPositionX(), stuckAt.GetPositionY()) > 3.0f)
+    {
+        stuckAt.Relocate(bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
+        stuckSince = now;
+        return false;
+    }
+    uint32 const still = getMSTimeDiff(stuckSince, now);
+    if (still < 30 * IN_MILLISECONDS)
+        return false;
+    PositionInfo objective = context->GetValue<PositionMap&>("position")->Get()["bg objective"];
+    if (objective.isSet() && bot->GetExactDist2d(objective.x, objective.y) < 15.0f)
+        return false;
+    if (still >= 90 * IN_MILLISECONDS)
+    {
+        stuckSince = 0;
+        if (GraveyardStruct const* graveyard = bg->GetClosestGraveyard(bot))
+        {
+            bot->TeleportTo(graveyard->Map, graveyard->x, graveyard->y, graveyard->z, bot->GetOrientation());
+            return true;
+        }
+        return false;
+    }
+    if (lastStep && getMSTimeDiff(lastStep, now) < 10 * IN_MILLISECONDS)
+        return false;
+    lastStep = now;
+    float x = bot->GetPositionX(), y = bot->GetPositionY(), z = bot->GetPositionZ();
+    bot->GetRandomPoint(bot->GetPosition(), 12.0f, x, y, z);
+    return MoveTo(bot->GetMapId(), x, y, z);
 }
 
 bool BGTactics::resetObjective()
