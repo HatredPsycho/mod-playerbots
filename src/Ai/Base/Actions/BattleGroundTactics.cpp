@@ -2394,10 +2394,36 @@ bool BGTactics::selectObjective(bool reset)
                 break;
             }
 
+            // --- CoA PRIORITY 2b: a base being taken by the enemy: the bots near enough go and take it back.
+            // On CoA test realms bases were assaulted 27 times a game and defended 2: the defenders all went
+            // to the base of the team closest to them, and no other bot ever turned back for one.
+            if (urand(0, 99) < 70)
+            {
+                float closestDist = 150.0f;
+                for (uint32 nodeId : AB_AttackObjectives)
+                {
+                    uint8 state = ab->GetCapturePointInfo(nodeId)._state;
+                    bool underAttack = (team == TEAM_ALLIANCE && state == BG_AB_NODE_STATE_HORDE_CONTESTED) ||
+                                       (team == TEAM_HORDE && state == BG_AB_NODE_STATE_ALLY_CONTESTED);
+                    if (!underAttack)
+                        continue;
+
+                    GameObject* go = bg->GetBGObject(nodeId * BG_AB_OBJECTS_PER_NODE);
+                    if (go && bot->GetDistance(go) < closestDist)
+                    {
+                        closestDist = bot->GetDistance(go);
+                        BgObjective = go;
+                    }
+                }
+            }
+
             // --- PRIORITY 3: Defender logic ---
-            if (isDefender && urand(0, 99) < 85)
+            // CoA: a base under attack first, the closest; otherwise each defender guards one base of the team,
+            // spread by guid, so that every base has its guards instead of all of them standing on one.
+            if (!BgObjective && isDefender && urand(0, 99) < 85)
             {
                 float closestDist = FLT_MAX;
+                std::vector<GameObject*> owned;
                 for (uint32 nodeId : AB_AttackObjectives)
                 {
                     uint8 state = ab->GetCapturePointInfo(nodeId)._state;
@@ -2414,6 +2440,12 @@ bool BGTactics::selectObjective(bool reset)
                     if (!go)
                         continue;
 
+                    if (isOwned)
+                    {
+                        owned.push_back(go);
+                        continue;
+                    }
+
                     float dist = bot->GetDistance(go);
                     if (dist < closestDist)
                     {
@@ -2421,6 +2453,8 @@ bool BGTactics::selectObjective(bool reset)
                         BgObjective = go;
                     }
                 }
+                if (!BgObjective && !owned.empty())
+                    BgObjective = owned[bot->GetGUID().GetCounter() % owned.size()];
             }
 
             // --- PRIORITY 4: Attack objectives ---
