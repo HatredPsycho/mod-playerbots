@@ -36,11 +36,12 @@ bool NearestEnemyPlayersValue::AcceptUnit(Unit* unit)
         if (master && !master->IsPvP() && !master->IsFFAPvP())
             return false;
 
-        // With AiPlayerbot.CoaRulesetForBots, a bot on its own only starts an open world fight between two
-        // characters of a PvP ruleset, as on Ascension: PvE characters stay out of it. Bots with a real player
-        // keep following the rule above.
+        // With AiPlayerbot.CoaRulesetForBots, a bot on its own only starts an open world fight with a character of
+        // a PvP ruleset, whatever its own: as on Ascension, High Risk and War Mode characters may be attacked by
+        // anyone, PvE characters by no one. Defending itself and helping its group (below) are not affected.
+        // Bots with a real player keep following the rule above.
         if (sPlayerbotAIConfig.coaRulesetForBots && !bot->InBattleground() && !bot->InArena() &&
-            !IsRealPlayer(master) && (!CoaPvpRuleset(bot) || !CoaPvpRuleset(enemy)))
+            !IsRealPlayer(master) && !CoaPvpRuleset(enemy))
             return false;
 
         return true;
