@@ -25,8 +25,20 @@
 #include "ScriptMgr.h"
 #include "cmath"
 
+#include <mutex>
+#include <unordered_set>
+
 // Shown to players at login: bump it with every CoA Bots release.
 static constexpr char const* COA_BOTS_VERSION = "1.8";
+
+// The login notices reach each account once per worldserver start, not again with every character it logs in.
+static bool FirstLoginSinceStart(uint32 accountId)
+{
+    static std::mutex greetedLock;
+    static std::unordered_set<uint32> greeted;
+    std::lock_guard<std::mutex> guard(greetedLock);
+    return greeted.insert(accountId).second;
+}
 
 class PlayerbotsDatabaseScript : public DatabaseScript
 {
@@ -121,6 +133,9 @@ public:
             PlayerbotsMgr::instance().AddPlayerbotData(player, false);
             sRandomPlayerbotMgr.OnPlayerLogin(player);
 
+            if (!FirstLoginSinceStart(player->GetSession()->GetAccountId()))
+                return;
+
             // Before modifying the following messages, please make sure it does not violate the GNU GPLv2
             // license especially if you are distributing a repack or hosting a public server
             // e.g. you can replace the URL with your own repository,
@@ -132,7 +147,7 @@ public:
                     "|cffcccccchttps://github.com/mod-playerbots/mod-playerbots|r");
                 ChatHandler(player->GetSession()).SendSysMessage(
                     std::string("|cff00ff00CoA Bots|r |cff00ccffv") + COA_BOTS_VERSION +
-                    "|r |cffcccccchttps://github.com/Zyth45/mod-playerbots|r");
+                    "|r |cffcccccchttps://github.com/HatredPsycho/mod-playerbots|r");
             }
 
             if (sPlayerbotAIConfig.enabled || sPlayerbotAIConfig.randomBotAutologin)
