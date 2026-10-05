@@ -1468,12 +1468,13 @@ AiPlayerbot.CoaRulesetForBots = 0
 AiPlayerbot.CoaRulesetHighRiskPct = 30
 AiPlayerbot.CoaRulesetWarModePct = 0
 
-# Random bots fill a battleground on a first come, first served basis, whatever their level in the
-# bracket: the two sides of a 51-60 Alterac Valley could start several levels apart, and the higher
-# side won nearly every game. A bot more than 2 levels under the top of the bracket (or of the level
-# cap) only joins on this share of its tries, so both teams are made of bots near the top. Queues a
-# real player waits in are filled as before. In percent; 100 = as before. Read again by ".reload config".
-AiPlayerbot.CoaBgLowLevelJoinChance = 15
+# Random bots filled a battleground on a first come, first served basis, whatever their level in the
+# bracket: the two sides of a game could start several levels apart, and the higher side won nearly
+# every game. Bots of every level still join, but one that would take its side's average level more
+# than 2 levels away from the other side's (and further than it is) only joins on this share of its
+# tries, so the two teams have about the same levels. Queues a real player waits in are filled as before.
+# In percent; 100 = as before. Read again by ".reload config".
+AiPlayerbot.CoaBgLevelBalanceChance = 15
 
 # A snapshot of every random bot online, written as JSON for the SquidBots dashboard (bot-status.json,
 # its "botStatusFile" setting): position, health, power, what the bot is doing, its group and its

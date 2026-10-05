@@ -980,9 +980,15 @@ void RandomPlayerbotMgr::CheckBgQueue()
             else
             {
                 if (teamId == TEAM_ALLIANCE)
+                {
                     BattlegroundData[queueTypeId][bracketId].bgAlliancePlayerCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgAllianceLevelSum += player->GetLevel();
+                }
                 else
+                {
                     BattlegroundData[queueTypeId][bracketId].bgHordePlayerCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgHordeLevelSum += player->GetLevel();
+                }
 
                 // If a player has joined the BG, update the instance count in BattlegroundData (for consistency)
                 if (player->InBattleground())
@@ -1097,9 +1103,15 @@ void RandomPlayerbotMgr::CheckBgQueue()
             else
             {
                 if (teamId == TEAM_ALLIANCE)
+                {
                     BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgAllianceLevelSum += bot->GetLevel();
+                }
                 else
+                {
                     BattlegroundData[queueTypeId][bracketId].bgHordeBotCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgHordeLevelSum += bot->GetLevel();
+                }
             }
 
             if (bot->InBattleground())
