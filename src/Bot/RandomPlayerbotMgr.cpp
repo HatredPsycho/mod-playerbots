@@ -1148,8 +1148,11 @@ void RandomPlayerbotMgr::CheckBgQueue()
         }
     }
 
-    // If enabled, wait for all bots to have logged in before queueing for Arena's / BG's
-    if (sPlayerbotAIConfig.randomBotAutoJoinBG && playerBots.size() >= GetMaxAllowedBotCount())
+    // If enabled, wait for (nearly) all bots to have logged in before queueing for Arena's / BG's.
+    // 95 %, not all: a few bots are always logging out and in again (rotation, a new bot count), and on a
+    // CoA test realm with 1,000 bots no battleground started for 30 to 40 minutes of every hour while the
+    // count sat at 975-999.
+    if (sPlayerbotAIConfig.randomBotAutoJoinBG && playerBots.size() * 100 >= GetMaxAllowedBotCount() * 95)
     {
         uint32 randomBotAutoJoinArenaBracket = sPlayerbotAIConfig.randomBotAutoJoinArenaBracket;
         uint32 randomBotAutoJoinBGRatedArena2v2Count = sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena2v2Count;
