@@ -229,7 +229,8 @@ def main():
                  'playerbots.conf.dist; default_if_missing = what the code uses when the key is absent; min/max '
                  'where the code or the meaning bounds the value; coa = option of the Conquest of Azeroth fork; '
                  f'new_in / changed_in compare with {a.since_version or "the previous release"}. Every option '
-                 'needs a world server restart, except those whose description in the .dist says ".reload config".',
+                 'needs a world server restart, except those whose description in the .dist says ".reload config". '
+                 'commit = the commit the options were read from; the build itself is identified by its tag.',
         'groups': GROUPS,
         'settings': settings,
     }
