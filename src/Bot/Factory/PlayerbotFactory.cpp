@@ -1097,7 +1097,30 @@ void PlayerbotFactory::Refresh()
     //     InitEquipment(true);
     // }
     InitAttunementQuests();
-    ClearInventory();
+    // mod-playerbots-auctions: a refresh no longer empties the bags - the bots keep what they looted, bought
+    // and made. Only food, drink and potions are renewed, because InitFood() and InitPotions() below hand out
+    // fresh ones every time (potions also ones the bot cannot use, which would pile up). A realm built without
+    // that module has no PlayerbotsAuctions.Enable and empties the bags as before.
+    if (!sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Enable", false, false))
+        ClearInventory();
+    else
+    {
+        std::vector<Item*> renewed;
+        auto look = [&renewed](Item* item)
+        {
+            if (item && item->GetTemplate() && item->GetTemplate()->Class == ITEM_CLASS_CONSUMABLE &&
+                (item->GetTemplate()->SubClass == ITEM_SUBCLASS_FOOD || item->GetTemplate()->SubClass == ITEM_SUBCLASS_POTION))
+                renewed.push_back(item);
+        };
+        for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+            look(bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+        for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+            if (Bag* bag = bot->GetBagByPos(bagSlot))
+                for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                    look(bag->GetItemByPos(slot));
+        for (Item* item : renewed)
+            bot->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
+    }
     InitAmmo();
     InitFood();
     InitReagents();
