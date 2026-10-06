@@ -407,7 +407,8 @@ public:
     bool coaSmartTank;
     bool coaBossKnowledge;
     bool coaRecruitSameFaction;
-    bool coaBotSurname;
+    uint32 coaBotSurname;
+    std::string coaBotSurnameText;
     uint32 coaThreatHold;
     bool coaAttackLoop;
     bool coaKeepChannels;
