@@ -103,6 +103,9 @@ SETTINGS = [
      'A bot within this many levels of the player keeps its level and gear; one further away is rebuilt at the player\'s level.'),
 
     ('RandomBotTalk', 'chat', 'Bots talk', 'Random bots say things in chat now and then.'),
+    ('BotTextLocale', 'chat', "Language of the bots' chat",
+     'Language of what the bots say in chat (without AI): Auto follows the client language of the players online, '
+     'or one language for everybody. Nearly all texts exist in French and German; about half in Spanish and Russian.'),
     ('EnableBroadcasts', 'chat', 'Bot announcements',
      'Random bots announce what they do (loot, quests, levels) in the chat channels.'),
     ('CoaLfgChannels', 'chat', '"lfg bot" channels', 'Chat channels where bots listen for "lfg bot", comma separated.'),
@@ -114,7 +117,11 @@ SETTINGS = [
 ]
 
 # Bounds the code does not enforce but the meaning does (key without "AiPlayerbot.": min, max)
-RANGES = {'RandomGearQualityLimit': (1, 5), 'RandomBotMinLevel': (1, 80), 'RandomBotMaxLevel': (1, 80)}
+RANGES = {'RandomGearQualityLimit': (1, 5), 'RandomBotMinLevel': (1, 80), 'RandomBotMaxLevel': (1, 80),
+          'BotTextLocale': (-1, 8)}
+# Settings that take one of a few values: shown as a list (value, label).
+CHOICES = {'BotTextLocale': [(-1, "Auto (players' client language)"), (0, 'English'), (2, 'Français'), (3, 'Deutsch'),
+                             (6, 'Español'), (8, 'Русский')]}
 
 KEY = re.compile(r'^((?:AiPlayerbot|Playerbots|PlayerbotsDatabase)[\w.]*)\s*=\s*(.*?)\s*$')
 OPTION = re.compile(r'(?:std::(min|max)<[\w:]+>\(\s*(-?[\d.]+)f?\s*,\s*)?'
@@ -209,6 +216,8 @@ def main():
             item['max'] = hi
         if kind != 'string' and code_default is not None and value(code_default, kind) != item['default']:
             item['default_if_missing'] = value(code_default, kind)
+        if short in CHOICES:
+            item['choices'] = [{'value': v, 'label': label} for v, label in CHOICES[short]]
         item['coa'] = short.startswith('Coa')
         if before:
             if key not in before:
