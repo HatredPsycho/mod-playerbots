@@ -384,6 +384,10 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 /*elapsed*/, bool /*minimal*/)
     {
         if (time(nullptr) > (BgCheckTimer + 35))
             sRandomPlayerbotMgr.CheckBgQueue();
+
+        if (time(nullptr) > (ArenaCaptainCheckTimer + 60) &&
+            (!sPlayerbotAIConfig.disabledWithoutRealPlayer || realPlayerIsLogged))
+            KeepArenaCaptainsOnline();
     }
 
     if (sPlayerbotAIConfig.randomBotJoinLfg /* && !players.empty()*/)
@@ -1822,6 +1826,45 @@ void RandomPlayerbotMgr::Init()
         sRandomPlayerbotMgr.LoadBattleMastersCache();
 
     PlayerbotsDatabase.Execute("DELETE FROM playerbots_random_bots WHERE event = 'add'");
+}
+
+// CoA: a bot team queues only when its captain is online, and every restart or rotation logs in other bots, so
+// the teams stopped playing. Their captains are kept in the world here; they log in their team when they queue.
+void RandomPlayerbotMgr::KeepArenaCaptainsOnline()
+{
+    ArenaCaptainCheckTimer = time(nullptr);
+    if (sPlayerbotAIConfig.deleteRandomBotArenaTeams)
+        return;
+
+    std::pair<ArenaType, uint32> const formats[] = {
+        {ARENA_TYPE_2v2, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena2v2Count},
+        {ARENA_TYPE_3v3, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena3v3Count},
+        {ARENA_TYPE_5v5, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena5v5Count}};
+
+    uint32 logins = 0;
+    for (auto const& [type, count] : formats)
+    {
+        if (!count)
+            continue;
+
+        std::vector<ObjectGuid> captains;
+        RandomPlayerbotFactory::GetBotArenaTeamCaptains(type, captains);
+        for (ObjectGuid const& captain : captains)
+        {
+            uint32 const bot = captain.GetCounter();
+            if (logins >= 10 || ObjectAccessor::FindConnectedPlayer(captain) || currentBots.contains(bot) ||
+                !sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(captain)))
+                continue;
+
+            SetEventValue(bot, "add", 1, sPlayerbotAIConfig.permanentlyInWorldTime);
+            SetEventValue(bot, "logout", 0, 0);
+            currentBots.insert(bot);
+            ++logins;
+        }
+    }
+
+    if (logins)
+        LOG_INFO("playerbots", "Arena captains brought back online: {}", logins);
 }
 
 void RandomPlayerbotMgr::InitArenaTeams()

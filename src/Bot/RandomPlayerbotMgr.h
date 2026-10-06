@@ -174,6 +174,7 @@ public:
     // A queued real player of this team still lacks a tank or a healer: damage dealers hold back.
     std::array<std::atomic<bool>, 2> LfgNeedTankOrHeal{};
     void CheckBgQueue();
+    void KeepArenaCaptainsOnline();
     void CheckLfgQueue();
     void CheckPlayers();
     void LogBattlegroundInfo();
@@ -253,6 +254,7 @@ private:
     void GetBots();
     std::vector<uint32> GetBgBots(uint32 bracket);
     time_t BgCheckTimer;
+    time_t ArenaCaptainCheckTimer = 0;
     time_t LfgCheckTimer;
     time_t PlayersCheckTimer;
     time_t RealPlayerLastTimeSeen = 0;

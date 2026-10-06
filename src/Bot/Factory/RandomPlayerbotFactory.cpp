@@ -1038,6 +1038,17 @@ uint32 RandomPlayerbotFactory::GetBotArenaTeamCount(ArenaType type)
     return it != _botArenaTeamRegistry.end() ? static_cast<uint32>(it->second.size()) : 0;
 }
 
+void RandomPlayerbotFactory::GetBotArenaTeamCaptains(ArenaType type, std::vector<ObjectGuid>& out)
+{
+    auto it = _botArenaTeamRegistry.find(type);
+    if (it == _botArenaTeamRegistry.end())
+        return;
+
+    for (uint32 teamId : it->second)
+        if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(teamId))
+            out.push_back(team->GetCaptain());
+}
+
 void RandomPlayerbotFactory::CollectJoinableBotArenaTeams(ArenaType type, TeamId faction, std::vector<ArenaTeam*>& out)
 {
     auto it = _botArenaTeamRegistry.find(type);

@@ -62,6 +62,7 @@ public:
     static uint32 ArenaTeamMinLevel();
     static void DeleteBotArenaTeams();
     static uint32 GetBotArenaTeamCount(ArenaType type);
+    static void GetBotArenaTeamCaptains(ArenaType type, std::vector<ObjectGuid>& out);
     static void LoadArenaTeamData();
 
 private:
