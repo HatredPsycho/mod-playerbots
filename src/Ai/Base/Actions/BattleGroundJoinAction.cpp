@@ -14,6 +14,7 @@
 #include "PlayerbotAI.h"
 #include "Playerbots.h"
 #include "PositionValue.h"
+#include "RandomPlayerbotFactory.h"
 
 bool BGJoinAction::Execute(Event /*event*/)
 {
@@ -177,7 +178,7 @@ bool BGJoinAction::gatherArenaTeam(ArenaType type)
         if (!member)
             continue;
 
-        if (member->GetLevel() < 70)
+        if (member->GetLevel() < RandomPlayerbotFactory::ArenaTeamMinLevel())
             continue;
 
         if (!group->AddMember(member))

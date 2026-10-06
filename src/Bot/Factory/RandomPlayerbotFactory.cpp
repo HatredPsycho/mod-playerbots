@@ -909,6 +909,13 @@ void RandomPlayerbotFactory::LoadArenaTeamData()
     LOG_INFO("playerbots", "Loaded {} available arena team names", _availableArenaTeamNames.size());
 }
 
+// CoA: random bots stop at level 60 there, so arena teams were never made (bots of level 70 and up only):
+// the level asked is 70, or the random bots' highest level when it is lower.
+uint32 RandomPlayerbotFactory::ArenaTeamMinLevel()
+{
+    return std::min<uint32>(70, sPlayerbotAIConfig.randomBotMaxLevel);
+}
+
 void RandomPlayerbotFactory::AssignBotToArenaTeam(Player* bot)
 {
     if (!sPlayerbotAIConfig.IsInRandomAccountList(bot->GetSession()->GetAccountId()))
@@ -917,7 +924,7 @@ void RandomPlayerbotFactory::AssignBotToArenaTeam(Player* bot)
     if (sPlayerbotAIConfig.deleteRandomBotArenaTeams)
         return;
 
-    if (bot->GetLevel() < 70)
+    if (bot->GetLevel() < ArenaTeamMinLevel())
         return;
 
     for (uint32 arena_slot = 0; arena_slot < MAX_ARENA_SLOT; ++arena_slot)

@@ -59,6 +59,7 @@ public:
 
     // Arena team management
     static void AssignBotToArenaTeam(Player* bot);
+    static uint32 ArenaTeamMinLevel();
     static void DeleteBotArenaTeams();
     static uint32 GetBotArenaTeamCount(ArenaType type);
     static void LoadArenaTeamData();
