@@ -1225,7 +1225,8 @@ public:
 
     void OnUpdate(uint32 diff) override
     {
-        RandomBotLevelMgr::instance().Update(diff);
+        if (sPlayerbotAIConfig.enabled)
+            RandomBotLevelMgr::instance().Update(diff);
     }
 };
 
@@ -1243,21 +1244,22 @@ public:
 
     void OnPlayerLogin(Player* player) override
     {
-        if (!sPlayerbotAIConfig.resetBotLevelEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.resetBotLevelEnabled)
             return;
         RandomBotLevelMgr::instance().OnBotLogin(player);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override
     {
-        if (!sPlayerbotAIConfig.resetBotLevelEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.resetBotLevelEnabled)
             return;
         RandomBotLevelMgr::instance().OnBotLevelChanged(player, oldLevel);
     }
 
     void OnPlayerLogout(Player* player) override
     {
-        RandomBotLevelMgr::instance().OnPlayerLogout(player);
+        if (sPlayerbotAIConfig.enabled)
+            RandomBotLevelMgr::instance().OnPlayerLogout(player);
     }
 };
 

@@ -470,7 +470,7 @@ public:
 
     void OnUpdate(uint32 diff) override
     {
-        if (!sPlayerbotAIConfig.coaStatusEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.coaStatusEnabled)
             return;
         elapsed += diff;
         if (elapsed < sPlayerbotAIConfig.coaStatusIntervalSeconds * IN_MILLISECONDS)

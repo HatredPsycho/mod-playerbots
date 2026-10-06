@@ -1163,8 +1163,9 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
     if (!player || !channel || GET_PLAYERBOT_AI(player))
         return;
 
+    // With the module switched off (AiPlayerbot.Enabled = 0, another bot system in charge), no bot answers.
     CoaLfgSettings const settings = Settings();
-    if (!settings.enabled || !Listened(settings, channel))
+    if (!sPlayerbotAIConfig.enabled || !settings.enabled || !Listened(settings, channel))
         return;
 
     std::vector<CoaRole> const roles = RolesAsked(settings, message);
@@ -1291,7 +1292,8 @@ public:
             return;
 
         CoaLfgSettings const settings = Settings();
-        if (!settings.enabled || !settings.announceSeconds || sinceAnnounce < settings.announceSeconds * IN_MILLISECONDS)
+        if (!sPlayerbotAIConfig.enabled || !settings.enabled || !settings.announceSeconds ||
+            sinceAnnounce < settings.announceSeconds * IN_MILLISECONDS)
             return;
 
         sinceAnnounce = 0;
