@@ -1673,15 +1673,29 @@ AiPlayerbot.CoaHealsExcluded = "Nanobot Reconstruction"
 
 #
 #    AiPlayerbot.CoaBotSurname
-#        Description: Random bots carry the surname "Bot" ("Kegarink Bot"), so players tell them from
-#                     real players at a glance: nameplates, tooltips, chat, /who.
-#                     Applied at the next start: turned off, the bots take their own names back.
+#        Description: The surname random bots carry after their first name.
+#                     1: the fixed surname of AiPlayerbot.CoaBotSurnameText ("Kegarink Bot"), so
+#                        players tell bots from real players at a glance: nameplates, tooltips, chat, /who.
+#                     2: a lore-style family name of the bot's race, drawn once and kept
+#                        ("Kegarink Bloodfang", "Elarian Moonwhisper", "Thurgin Stonebeard").
+#                     Applied to existing bots at the next start: 0 takes the surnames back, 1 puts the
+#                     fixed one on every bot, 2 draws one for each bot that has none or the fixed one.
 #                     Needs a client that shows two-word names (CoA client revision 8 or later).
 #                     To whisper a bot by typing its name: /w "Kegarink Bot" hello
-#        Default:     1 - on
+#        Default:     1 - fixed surname
+#                     2 - surname drawn for the bot's race
 #                     0 - off
 
 AiPlayerbot.CoaBotSurname = 1
+
+#
+#    AiPlayerbot.CoaBotSurnameText
+#        Description: The fixed surname of AiPlayerbot.CoaBotSurname = 1. One word of 2 to 12 letters that
+#                     passes the realm's name rules; anything else falls back to "Bot". Changing it renames
+#                     the bots at the next start.
+#        Default:     "Bot"
+
+AiPlayerbot.CoaBotSurnameText = "Bot"
 
 #
 #    AiPlayerbot.CoaRecruitSameFaction

@@ -120,15 +120,30 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
         return nullptr;
     }
 
-    // "Kegarink Bot" with AiPlayerbot.CoaBotSurname: the first name alone was checked free, the
-    // whole name may not be (a bot renamed at an earlier start holds it).
-    if (std::string const surnamed = CoaBotName(name); surnamed != name)
+    // "Kegarink Bot" or "Kegarink Bloodfang" with AiPlayerbot.CoaBotSurname: the first name alone was
+    // checked free, the whole name may not be (a bot renamed at an earlier start holds it). A drawn
+    // surname is drawn again; the fixed one cannot change, so that bot is not created.
+    if (CoaBotSurnameSetting() != CoaBotSurnameMode::Off)
     {
-        CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHECK_NAME);
-        stmt->SetData(0, surnamed);
-        if (CharacterDatabase.Query(stmt))
+        bool const drawn = CoaBotSurnameSetting() == CoaBotSurnameMode::Generated;
+        bool allTaken = false;
+        for (uint32 attempt = 0; attempt < (drawn ? 5u : 1u); ++attempt)
+        {
+            std::string const candidate = CoaBotName(name, race);
+            allTaken = candidate != name;
+            if (!allTaken)
+                break;
+            CharacterDatabasePreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHECK_NAME);
+            stmt->SetData(0, candidate);
+            if (!CharacterDatabase.Query(stmt))
+            {
+                name = candidate;
+                allTaken = false;
+                break;
+            }
+        }
+        if (allTaken)
             return nullptr;
-        name = surnamed;
     }
 
     std::vector<uint8> skinColors, facialHairTypes;
