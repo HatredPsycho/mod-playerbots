@@ -102,10 +102,10 @@ SETTINGS = [
     ('CoaLfgLevelRange', 'activities', '"lfg bot" level range',
      'A bot within this many levels of the player keeps its level and gear; one further away is rebuilt at the player\'s level.'),
 
-    ('RandomBotTalk', 'chat', 'Bots talk', 'Random bots say things in chat now and then.'),
     ('BotTextLocale', 'chat', "Language of the bots' chat",
      'Language of what the bots say in chat (without AI): Auto follows the client language of the players online, '
      'or one language for everybody. Nearly all texts exist in French and German; about half in Spanish and Russian.'),
+    ('RandomBotTalk', 'chat', 'Bots talk', 'Random bots say things in chat now and then.'),
     ('EnableBroadcasts', 'chat', 'Bot announcements',
      'Random bots announce what they do (loot, quests, levels) in the chat channels.'),
     ('CoaLfgChannels', 'chat', '"lfg bot" channels', 'Chat channels where bots listen for "lfg bot", comma separated.'),
