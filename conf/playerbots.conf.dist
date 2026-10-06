@@ -2137,12 +2137,14 @@ AiPlayerbot.RandomBotAutoJoinBGEYCount = 0
 AiPlayerbot.RandomBotAutoJoinBGICCount = 0
 
 # Arena bracket (single bracket only):
-# Custom code changes are required for lower-level arena brackets to function properly.
+# CoA: 10 is the 60-64 bracket of the arenas, that of level 60 bots. Random bots make arena teams at
+# AiPlayerbot.RandomBotMaxLevel (60) when it is below 70 (before 1.9, only from level 70: no team on CoA).
 AiPlayerbot.RandomBotAutoJoinArenaBracket = 10
 
 # Arena battles count:
-AiPlayerbot.RandomBotAutoJoinBGRatedArena2v2Count = 0
-AiPlayerbot.RandomBotAutoJoinBGRatedArena3v3Count = 0
+# CoA: one rated 2v2 and one rated 3v3 kept going by the bots by default (1.9, PvP).
+AiPlayerbot.RandomBotAutoJoinBGRatedArena2v2Count = 1
+AiPlayerbot.RandomBotAutoJoinBGRatedArena3v3Count = 1
 AiPlayerbot.RandomBotAutoJoinBGRatedArena5v5Count = 0
 
 # Randombot arena team count
