@@ -33,6 +33,17 @@ bool TankLeadPoint(PlayerbotAI* botAI, Player* bot, Unit* leader, float& x, floa
         botAI->IsTank(leader->ToPlayer(), true) || leader->GetMapId() != bot->GetMapId())
         return false;
 
+    // Only while the player walks forward: turning on the spot, strafing or stopping swung the point round them, and
+    // the tank went back and forth (Ragefire Chasm, jealous-sound/azerothcore-wotlk-coa#6505, #6493). A stopped
+    // player keeps the tank where it stands, if it stands close and in sight.
+    if (!leader->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD) || leader->HasUnitMovementFlag(MOVEMENTFLAG_BACKWARD))
+    {
+        if (bot->GetExactDist2d(leader) > TankLeadDistance * 2.0f || !leader->IsWithinLOSInMap(bot))
+            return false;
+        bot->GetPosition(x, y, z);
+        return true;
+    }
+
     leader->GetNearPoint(bot, x, y, z, 0.0f, TankLeadDistance, leader->GetOrientation());
     return std::fabs(z - leader->GetPositionZ()) < 4.0f &&
            leader->GetExactDist2d(x, y) > TankLeadDistance - 2.0f && leader->IsWithinLOS(x, y, z);

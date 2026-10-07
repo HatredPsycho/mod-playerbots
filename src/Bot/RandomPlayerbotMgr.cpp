@@ -7,6 +7,8 @@
 #include "RandomPlayerbotMgr.h"
 #include "BattlegroundUtils.h"
 #include "AiFactory.h"
+#include "ArenaTeam.h"
+#include "ArenaTeamMgr.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
 #include "Cell.h"
@@ -1553,6 +1555,28 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
         LOG_INFO("playerbots", "Bot {} remove from group since leader is random bot.", bot->GetName().c_str());
     }
 
+    // CoA: on a new install every new bot starts at level 1 in the same few starting areas, and those waiting on
+    // the respawn of a "kill 8" quest mob stood by the quest giver for good (Blood Elves at Deathknell, 07/10). A
+    // low level bot on its own that earns no experience for 10 minutes goes to another grinding spot of its level.
+    if (bot->GetLevel() <= 10 && !bot->GetGroup() && !bot->IsInCombat())
+    {
+        uint32 const progress = bot->GetLevel() * 1000000 + bot->GetUInt32Value(PLAYER_XP) + 1;
+        uint32 const now = uint32(time(nullptr));
+        if (GetEventValue(botId, "coaXp") != progress)
+        {
+            SetEventValue(botId, "coaXp", progress, 30 * DAY);
+            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+        }
+        else if (now - GetEventValue(botId, "coaXpAt") >= 10 * MINUTE)
+        {
+            LOG_INFO("playerbots", "coa: {} (level {}) earned no experience for 10 minutes, new grinding spot",
+                     bot->GetName(), bot->GetLevel());
+            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+            RandomTeleportGrindForLevel(bot);
+            return true;
+        }
+    }
+
     // only randomize and teleport idle bots
     bool idleBot = false;
     if (TravelTarget* target = botAI->GetAiObjectContext()->GetValue<TravelTarget*>("travel target")->Get())
@@ -2474,6 +2498,8 @@ CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
 
 bool RandomPlayerbotMgr::IsSpecPvp(uint32 bot, uint8 cls)
 {
+    if (sPlayerbotAIConfig.coaGearByContent && GetValue(bot, "coaGearPvp"))
+        return true;
     uint32 stored = GetValue(bot, "specNo");
     if (!stored)
         return false;
@@ -2952,6 +2978,91 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
         bot->UpdatePvP(true, true);
 }
 
+void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
+{
+    // Any bot of a random bot account, those the LFG recruits out of the active list included; never a player's own
+    // characters.
+    if (!bot || !bot->IsInWorld() || !bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() || bot->GetLevel() < 10 ||
+        !sPlayerbotAIConfig.IsInRandomAccountList(bot->GetSession()->GetAccountId()))
+        return;
+    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+    if (!botAI)
+        return;
+
+    // The player who groups the bot sets its item level; a High Risk bot stays in PvP gear with them.
+    Player* master = botAI->GetMaster();
+    if (!master || master == bot || GET_PLAYERBOT_AI(master) || !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
+        master = nullptr;
+
+    bool const pvp = bot->HasAura(COA_RULESET_HIGH_RISK) || bot->InBattleground() || bot->InArena() ||
+                     bot->InBattlegroundQueue();
+
+    // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
+    // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts.
+    static std::array<std::pair<uint32, uint32>, 5> const tiers = {{
+        { ITEM_QUALITY_RARE, 66 }, { ITEM_QUALITY_RARE, 68 }, { ITEM_QUALITY_RARE, 71 },
+        { ITEM_QUALITY_EPIC, 71 }, { ITEM_QUALITY_EPIC, 74 } }};
+    uint32 quality = 0;
+    uint32 itemLevel = 0;
+    if (master)
+    {
+        // The player's average item level, compared item by item: a gear score weighed by quality let green
+        // items far above it in (a bot at 88 for a player at 72). In PvP, never under the first honor tier.
+        uint32 sum = 0;
+        uint32 count = 0;
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+            if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
+                if (Item* item = master->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                {
+                    sum += item->GetTemplate()->ItemLevel;
+                    ++count;
+                }
+        if (!count)
+            return;
+        quality = ITEM_QUALITY_EPIC;
+        itemLevel = sum / count;
+        if (pvp && bot->GetLevel() >= 60)
+            itemLevel = std::max(itemLevel, tiers[0].second);
+    }
+    else if (pvp && bot->GetLevel() >= 60)
+    {
+        // The tier follows the bot's best arena rating; without a team it is drawn once from the guid.
+        uint32 rating = 0;
+        for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
+            if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(bot->GetArenaTeamId(slot)))
+                rating = std::max<uint32>(rating, team->GetRating());
+        uint32 const tier = rating ? (rating < 1300 ? 0 : rating < 1500 ? 1 : rating < 1700 ? 2 : rating < 1900 ? 3 : 4)
+                                   : (bot->GetGUID().GetCounter() * 2654435761u) % 4;
+        quality = tiers[tier].first;
+        itemLevel = tiers[tier].second;
+    }
+
+    uint32 const botId = bot->GetGUID().GetCounter();
+    if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == itemLevel)
+        return;
+
+    // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
+    static std::atomic<uint32> lastRegear{0};
+    uint32 last = lastRegear.load();
+    // A bot grouped with a player goes first: it waited behind the High Risk bots regeared after a restart.
+    if (!master && (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime())))
+        return;
+
+    SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
+    SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
+    PlayerbotFactory::DestroyEquippedGear(bot);
+    PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
+    factory.maxItemLevel = itemLevel;
+    factory.preferResilience = pvp;
+    factory.InitEquipment(false, false);
+    factory.InitAmmo();
+    if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
+        factory.ApplyEnchantAndGemsNew();
+    bot->DurabilityRepairAll(false, 1.0f, false);
+    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
+              master ? " (grouped)" : "");
+}
+
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
 {
     if (_isBotLogging)
@@ -2974,6 +3085,18 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
 
     RandomPlayerbotFactory::AssignBotToArenaTeam(bot);
     CoaApplyRuleset(bot);
+
+    // CoA starts Blood Elves in Deathknell and Draenei in Shadowglen (jealous-sound/azerothcore-wotlk-coa#6397). Bots
+    // made before stayed at Sunstrider Isle or Ammen Vale, where no CoA quest awaits them, and stood there (Discord
+    // 07/10): a low level random bot in Outland's map goes to its race's start.
+    if (bot->GetMapId() == 530 && bot->GetLevel() <= 20 && IsRandomBot(bot) && !bot->IsInCombat() && !bot->GetGroup())
+        if (PlayerInfo const* info = sObjectMgr->GetPlayerInfo(bot->getRace(), bot->getClass()))
+            if (info->mapId != 530)
+            {
+                LOG_INFO("playerbots", "coa: {} (level {}) leaves map 530 for its race's start", bot->GetName(),
+                         bot->GetLevel());
+                bot->TeleportTo(info->mapId, info->positionX, info->positionY, info->positionZ, info->orientation);
+            }
 
     // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
     PlayerbotFactory::DressNakedCoaStarter(bot);

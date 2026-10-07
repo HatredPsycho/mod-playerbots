@@ -29,7 +29,7 @@
 #include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "1.9";
+static constexpr char const* COA_BOTS_VERSION = "1.9.1";
 
 // The login notices reach each account once per worldserver start, not again with every character it logs in.
 static bool FirstLoginSinceStart(uint32 accountId)

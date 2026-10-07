@@ -1479,6 +1479,13 @@ AiPlayerbot.CoaRulesetForBots = 1
 AiPlayerbot.CoaRulesetHighRiskPct = 30
 AiPlayerbot.CoaRulesetWarModePct = 0
 
+# Random bots wear the gear of what they do. PvP gear (resilience) in a battleground, an arena, their queue, and
+# for a High Risk bot all the time; PvE gear otherwise, put back as soon as a PvE bot leaves the battleground or
+# arena. Grouped with a player, a bot is geared at the player's own item level (a High Risk bot in PvP gear). At
+# level 60 and on its own, a PvP bot's tier follows its best arena rating (a fixed tier per bot without one).
+# Never the player's own characters. 0 = gear as before.
+AiPlayerbot.CoaGearByContent = 1
+
 # Random bots filled a battleground on a first come, first served basis, whatever their level in the
 # bracket: the two sides of a game could start several levels apart, and the higher side won nearly
 # every game. Bots of every level still join, but one that would take its side's average level more

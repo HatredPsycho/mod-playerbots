@@ -18,6 +18,7 @@ class Group;
 class Player;
 class PlayerbotAI;
 class SpellInfo;
+class Unit;
 
 enum class CoaRole : uint8
 {
@@ -83,6 +84,10 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info);
 // 02/10). The kept member replaces a sibling of the bot's own, one "coa buff" put on, never one of
 // another caster.
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info);
+
+// Whether a bot that is no tank must leave this spell alone: a taunt, or a buff raising the threat of the
+// bot itself (Dogsmeller, 07/10: a damage dealer taunting the mobs off the tank). Every cast passes here.
+bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target);
 
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);

@@ -426,6 +426,16 @@
    "new_in": "1.9"
   },
   {
+   "key": "AiPlayerbot.CoaGearByContent",
+   "group": "activities",
+   "title": "Gear by activity",
+   "description": "Random bots wear PvP gear in battlegrounds, arenas and High Risk, PvE gear otherwise, and the item level of the player who groups them.",
+   "type": "bool",
+   "default": true,
+   "coa": true,
+   "new_in": "1.9.1"
+  },
+  {
    "key": "AiPlayerbot.CoaRulesetWarModePct",
    "group": "activities",
    "title": "War Mode bots (%)",

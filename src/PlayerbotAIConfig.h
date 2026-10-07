@@ -426,6 +426,7 @@ public:
     bool coaRulesetForBots;
     uint32 coaRulesetHighRiskPct;
     uint32 coaRulesetWarModePct;
+    bool coaGearByContent;
     uint32 coaBgLevelBalanceChance;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;

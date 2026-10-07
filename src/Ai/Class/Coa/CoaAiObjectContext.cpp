@@ -206,6 +206,25 @@ bool DamageEndsControl(SpellInfo const* info, uint8 depth = 0)
     return false;
 }
 
+// Whether the spell makes an enemy immune to damage or banishes it, looking into the spells it triggers.
+bool ShieldsEnemy(SpellInfo const* info, uint8 depth = 0)
+{
+    if (info->Mechanic == MECHANIC_BANISH)
+        return true;
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (IsAuraEffect(effect) && effect.TargetA.GetTarget() != TARGET_UNIT_CASTER &&
+            (effect.Mechanic == MECHANIC_BANISH || effect.ApplyAuraName == SPELL_AURA_SCHOOL_IMMUNITY ||
+             effect.ApplyAuraName == SPELL_AURA_DAMAGE_IMMUNITY))
+            return true;
+        if (effect.TriggerSpell && effect.TriggerSpell != info->Id && depth < 2)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (ShieldsEnemy(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 // Whether the spell would charm or possess a dungeon, raid or world boss: Enslave Elemental (Felsworn)
 // charmed Noxxion in Maraudon and broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835).
 bool TakesOverBoss(SpellInfo const* info, Unit* target)
@@ -679,6 +698,11 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
     // the attack and area attack kits.
     if (!depth && (ability.kind & KIND_CONTROL) && !(ability.kind & KIND_DAMAGE) && DamageEndsControl(info))
         ability.kind &= ~KIND_HOSTILE;
+
+    // Nor one that makes the enemy immune or banishes it: a Templar Oathkeeper's attack kit cast Shackle the
+    // Unrepentant on the enemy the group was hitting (jealous-sound/azerothcore-wotlk-coa#6724).
+    if (!depth && !(ability.kind & KIND_DAMAGE) && ShieldsEnemy(info))
+        ability.kind &= ~KIND_HOSTILE;
 }
 
 std::unordered_map<uint8, ClassKit> const& ClassAbilities()
@@ -867,13 +891,15 @@ bool IsAttack(uint16 kind, bool tank)
     if (!(kind & (KIND_HOSTILE | KIND_DAMAGE)))
         return false;
 
+    // A taunt pulls aggro off the tank, with or without damage: only tanks use it. A Witch Hunter
+    // dealing damage kept taunting the mobs off a player tank (Dogsmeller, 07/10).
+    if (kind & KIND_TAUNT)
+        return tank;
+
     if (kind & KIND_DAMAGE)
         return true;
 
-    // A taunt that deals no damage pulls aggro off the tank: only tanks use it. Interrupts
-    // are kept for enemy casts.
-    if (kind & KIND_TAUNT)
-        return tank;
+    // Interrupts are kept for enemy casts.
 
     return !(kind & KIND_INTERRUPT);
 }
@@ -2797,11 +2823,12 @@ public:
         // buff 803999, and the second one made a tank believe it stood in its stance.
         bool const inTankStance = WearsThreatStance(bot);
 
-        // A damage dealer or a healer standing in a tank stance (its rotation used to put it on) steps out.
+        // A damage dealer or a healer standing in a tank stance or wearing a buff of its own that raises its
+        // threat (its rotation used to put them on) takes it off.
         if (!tank)
             for (Usable const& spell : spells)
-                if ((spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && bot->HasAura(spell.info->Id))
-                    bot->RemoveAurasDueToSpell(spell.info->Id);
+                if (RaisesThreat(spell.info) && bot->HasAura(spell.info->Id, bot->GetGUID()))
+                    bot->RemoveAurasDueToSpell(spell.info->Id, bot->GetGUID());
 
         time_t const now = time(nullptr);
         if (recent.size() > 64)
@@ -2828,6 +2855,10 @@ public:
             for (Player* member : group)
             {
                 if (member != bot && !(spell.kind & KIND_ALLY_CAST))
+                    continue;
+
+                // A buff raising its bearer's threat goes on a tank only.
+                if (!(spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && !PlayerbotAI::IsTank(member))
                     continue;
 
                 // A stance is the bot's own, and only when it stands in none.
@@ -3640,6 +3671,39 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info)
                 return true;
     }
     return false;
+}
+
+bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
+{
+    // Per class, the taunts and the buffs raising their bearer's threat, by id and by first rank.
+    static std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> const tankOnly = []
+    {
+        std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> byClass;
+        for (auto const& [classId, kit] : ClassAbilities())
+            for (CoaAbility const& ability : kit.abilities)
+            {
+                SpellInfo const* spell = sSpellMgr->GetSpellInfo(ability.spellId);
+                bool const taunt = ability.kind & KIND_TAUNT;
+                bool const threat = spell && (ability.kind & (KIND_BUFF | KIND_STANCE)) && RaisesThreat(spell);
+                if (taunt)
+                    byClass[classId].first.insert({ ability.spellId, ability.firstSpellId });
+                if (threat)
+                    byClass[classId].second.insert({ ability.spellId, ability.firstSpellId });
+                if (spell && (taunt || threat))
+                    LOG_INFO("playerbots", "CoA tank only: class {} {} {} ({})", classId, taunt ? "taunt" : "threat buff",
+                             spell->SpellName[LOCALE_enUS], ability.spellId);
+            }
+        return byClass;
+    }();
+
+    if (!info || !bot || GetCoaRole(bot) == CoaRole::Tank)
+        return false;
+    auto const found = tankOnly.find(bot->getClass());
+    if (found == tankOnly.end())
+        return false;
+    uint32 const first = info->GetFirstRankSpell()->Id;
+    auto const in = [&](std::unordered_set<uint32> const& ids) { return ids.count(info->Id) || ids.count(first); };
+    return in(found->second.first) || ((!target || target == bot) && in(found->second.second));
 }
 
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)

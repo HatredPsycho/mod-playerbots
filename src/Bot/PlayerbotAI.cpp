@@ -5,6 +5,7 @@
  */
 
 #include "PlayerbotAI.h"
+#include "RaceMgr.h"
 #include "CoaSpecialization.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
@@ -1722,6 +1723,29 @@ void PlayerbotAI::DoNextAction(bool min)
     {
         coaAncestralCombatCheckedAt = getMSTime();
         CoaRestoreAncestralCombat(bot);
+    }
+
+    if (!bot->IsInCombat() && GetMSTimeDiffToNow(coaGearCheckedAt) >= 10000)
+    {
+        coaGearCheckedAt = getMSTime();
+        if (sPlayerbotAIConfig.coaGearByContent)
+            sRandomPlayerbotMgr.CoaUpdateGear(bot);
+
+        // A bot standing still indoors gets off its mount: one stayed mounted in the Scarlet Raven Tavern
+        // (jealous-sound/azerothcore-wotlk-coa#6802).
+        if (bot->IsMounted() && !bot->isMoving() && !bot->IsInFlight() && !bot->GetTransport() && !bot->IsOutdoors())
+            bot->RemoveAurasByType(SPELL_AURA_MOUNTED);
+
+        // A bot out of a taxi kept its flying or gravity flag and floated over the flight master: it sends no landing
+        // packet (Orgrimmar, jealous-sound/azerothcore-wotlk-coa#6261).
+        if (!bot->IsInFlight() && !bot->GetTransport() && !bot->IsInWater() && !bot->HasAuraType(SPELL_AURA_FLY) &&
+            !bot->HasAuraType(SPELL_AURA_MOD_INCREASE_MOUNTED_FLIGHT_SPEED) &&
+            (bot->HasUnitMovementFlag(MOVEMENTFLAG_FLYING) || bot->HasUnitMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY)))
+        {
+            bot->SetDisableGravity(false);
+            bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FLYING);
+            bot->GetMotionMaster()->MoveFall();
+        }
     }
 
     bool minimal = !this->AllowActivity();
@@ -3603,6 +3627,9 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
      if (!IsValidUnit(target))
         return false;
 
+    if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellid), target))
+        return false;
+
     if (Pet* pet = bot->GetPet())
         if (pet->HasSpell(spellid))
             return true;
@@ -4718,8 +4745,12 @@ bool IsSelfBot(Player* player)
 
 bool IsAlliance(uint8 race)
 {
-    return race == RACE_HUMAN || race == RACE_DWARF || race == RACE_NIGHTELF || race == RACE_GNOME ||
-           race == RACE_DRAENEI;
+    if (race == RACE_HUMAN || race == RACE_DWARF || race == RACE_NIGHTELF || race == RACE_GNOME || race == RACE_DRAENEI)
+        return true;
+
+    // Races a realm adds (Worgen, Vrykul...) take their side from the core's race table: they all counted as Horde
+    // (idea of rrawnsley, Zyth45/mod-playerbots#17, rewritten on RaceMgr's mask).
+    return race > RACE_DRAENEI && race <= 32 && (RaceMgr::GetAllianceRaceMask() & (1u << (race - 1)));
 }
 
 Player* PlayerbotAI::FindNewMaster()

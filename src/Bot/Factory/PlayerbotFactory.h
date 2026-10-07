@@ -100,6 +100,8 @@ public:
     void InitPet();
     void InitAmmo();
     static uint32 CalcMixedGearScore(uint32 gs, uint32 quality);
+    // An item of the honor quartermasters or with resilience.
+    static bool IsCoaPvpItem(ItemTemplate const* proto);
     static void DestroyEquippedGear(Player* bot);
     static void AutoGear(Player* bot, uint32 itemQuality, uint32 ilvl, bool incremental, bool secondChance = false,
                         bool applyFinishers = true);
@@ -119,6 +121,11 @@ public:
     void InitReputation();
     void InitAttunementQuests();
     void InitGuild();
+
+    // Highest item level InitEquipment takes, whatever the quality (0 = no limit).
+    uint32 maxItemLevel = 0;
+    // PvP gear: an item with resilience is preferred over any without (CoaUpdateGear).
+    bool preferResilience = false;
 
 private:
     enum class ProfessionSpecializationSpell : uint32
