@@ -1,9 +1,9 @@
 -- CoA Bots 1.9: default rotations (owner 0) of the CoA specs, as played on the dev server.
--- Exported 2026-10-07 09:02 from the dev server (module d7efc8b7). Applied once by Installer-Bots
+-- Exported 2026-10-07 09:06 from the dev server (module ad423d8c). Applied once by Installer-Bots
 -- (coa_bots_installed). Re-runnable: the same result every time. Rows with owner <> 0 and the 'say'
 -- strategy are never touched. A wrong result (count, checksum, apostrophes) aborts the transaction.
--- Rows: 2424 in 71 specs. Checksum SUM(CRC32(CONCAT_WS('|',name,idx,owner,action_line))) = 5241296574014.
--- Rows per spec: barbarian-ancestry 28, barbarian-brutality 30, barbarian-headhunting 34, bloodmage-accursed 40, bloodmage-eternal 36, bloodmage-fleshweaver 38, bloodmage-sanguine 38, chronomancer-artificer 32, chronomancer-infinite 37, chronomancer-time 35, cultist-corruption 40, cultist-dreadnought 32, cultist-godblade 34, cultist-heretic 40, felsworn-infernal 23, felsworn-slayer 33, felsworn-tyrant 33, guardian-gladiator 33, guardian-inspiration 43, guardian-vanguard 35, knight-of-xoroth-defiance 38, knight-of-xoroth-hellfire 36, knight-of-xoroth-war 39, necromancer-animation 43, necromancer-death 36, necromancer-rime 37, primalist-geomancy 36, primalist-grovekeeper 39, primalist-mountain-king 33, primalist-wildwalker 33, pyromancer-draconic 45, pyromancer-flameweaving 41, pyromancer-incineration 40, ranger-archery 30, ranger-brigand 24, ranger-farstrider 37, reaper-domination 37, reaper-harvest 38, reaper-soul 37, runemaster-engravement 20, runemaster-glyphic 25, runemaster-riftblade 22, starcaller-moon-guard 30, starcaller-moon-priest 37, starcaller-sentinel 24, starcaller-warden 18, stormbringer-lightning 42, stormbringer-maelstrom 39, stormbringer-wind 37, sun-cleric-blessings 44, sun-cleric-piety 35, sun-cleric-seraphim 34, sun-cleric-valkyrie 35, templar-crusader 25, templar-oathkeeper 33, templar-zealot 36, tinker-demolition 39, tinker-invention 35, tinker-mechanics 39, tinker-nc 2, venomancer-fortitude 32, venomancer-rot 32, venomancer-stalking 29, venomancer-vizier 33, witch-doctor-brewing 40, witch-doctor-shadowhunting 43, witch-doctor-voodoo 38, witch-hunter-black-knight 34, witch-hunter-boltslinger 36, witch-hunter-houndmaster 31, witch-hunter-inquisition 32
+-- Rows: 2422 in 71 specs. Checksum SUM(CRC32(CONCAT_WS('|',name,idx,owner,action_line))) = 5228735949355.
+-- Rows per spec: barbarian-ancestry 28, barbarian-brutality 30, barbarian-headhunting 34, bloodmage-accursed 40, bloodmage-eternal 36, bloodmage-fleshweaver 38, bloodmage-sanguine 38, chronomancer-artificer 32, chronomancer-infinite 37, chronomancer-time 35, cultist-corruption 40, cultist-dreadnought 32, cultist-godblade 32, cultist-heretic 40, felsworn-infernal 23, felsworn-slayer 33, felsworn-tyrant 33, guardian-gladiator 33, guardian-inspiration 43, guardian-vanguard 35, knight-of-xoroth-defiance 38, knight-of-xoroth-hellfire 36, knight-of-xoroth-war 39, necromancer-animation 43, necromancer-death 36, necromancer-rime 37, primalist-geomancy 36, primalist-grovekeeper 39, primalist-mountain-king 33, primalist-wildwalker 33, pyromancer-draconic 45, pyromancer-flameweaving 41, pyromancer-incineration 40, ranger-archery 30, ranger-brigand 24, ranger-farstrider 37, reaper-domination 37, reaper-harvest 38, reaper-soul 37, runemaster-engravement 20, runemaster-glyphic 25, runemaster-riftblade 22, starcaller-moon-guard 30, starcaller-moon-priest 37, starcaller-sentinel 24, starcaller-warden 18, stormbringer-lightning 42, stormbringer-maelstrom 39, stormbringer-wind 37, sun-cleric-blessings 44, sun-cleric-piety 35, sun-cleric-seraphim 34, sun-cleric-valkyrie 35, templar-crusader 25, templar-oathkeeper 33, templar-zealot 36, tinker-demolition 39, tinker-invention 35, tinker-mechanics 39, tinker-nc 2, venomancer-fortitude 32, venomancer-rot 32, venomancer-stalking 29, venomancer-vizier 33, witch-doctor-brewing 40, witch-doctor-shadowhunting 43, witch-doctor-voodoo 38, witch-hunter-black-knight 34, witch-hunter-boltslinger 36, witch-hunter-houndmaster 31, witch-hunter-inquisition 32
 
 DROP PROCEDURE IF EXISTS coa19_check;
 DELIMITER $$
@@ -17,13 +17,13 @@ BEGIN
    WHERE owner = 0 AND name IN ('barbarian-ancestry', 'barbarian-brutality', 'barbarian-headhunting', 'bloodmage-accursed', 'bloodmage-eternal', 'bloodmage-fleshweaver', 'bloodmage-sanguine', 'chronomancer-artificer', 'chronomancer-infinite', 'chronomancer-time', 'cultist-corruption', 'cultist-dreadnought', 'cultist-godblade', 'cultist-heretic', 'felsworn-infernal', 'felsworn-slayer', 'felsworn-tyrant', 'guardian-gladiator', 'guardian-inspiration', 'guardian-vanguard', 'knight-of-xoroth-defiance', 'knight-of-xoroth-hellfire', 'knight-of-xoroth-war', 'necromancer-animation', 'necromancer-death', 'necromancer-rime', 'primalist-geomancy', 'primalist-grovekeeper', 'primalist-mountain-king', 'primalist-wildwalker', 'pyromancer-draconic', 'pyromancer-flameweaving', 'pyromancer-incineration', 'ranger-archery', 'ranger-brigand', 'ranger-farstrider', 'reaper-domination', 'reaper-harvest', 'reaper-soul', 'runemaster-engravement', 'runemaster-glyphic', 'runemaster-riftblade', 'starcaller-moon-guard', 'starcaller-moon-priest', 'starcaller-sentinel', 'starcaller-warden', 'stormbringer-lightning', 'stormbringer-maelstrom', 'stormbringer-wind', 'sun-cleric-blessings', 'sun-cleric-piety', 'sun-cleric-seraphim', 'sun-cleric-valkyrie', 'templar-crusader', 'templar-oathkeeper', 'templar-zealot', 'tinker-demolition', 'tinker-invention', 'tinker-mechanics', 'tinker-nc', 'venomancer-fortitude', 'venomancer-rot', 'venomancer-stalking', 'venomancer-vizier', 'witch-doctor-brewing', 'witch-doctor-shadowhunting', 'witch-doctor-voodoo', 'witch-hunter-black-knight', 'witch-hunter-boltslinger', 'witch-hunter-houndmaster', 'witch-hunter-inquisition');
   SELECT COUNT(*) INTO a FROM playerbots_custom_strategy WHERE owner = 0 AND name IN ('barbarian-ancestry', 'barbarian-brutality', 'barbarian-headhunting', 'bloodmage-accursed', 'bloodmage-eternal', 'bloodmage-fleshweaver', 'bloodmage-sanguine', 'chronomancer-artificer', 'chronomancer-infinite', 'chronomancer-time', 'cultist-corruption', 'cultist-dreadnought', 'cultist-godblade', 'cultist-heretic', 'felsworn-infernal', 'felsworn-slayer', 'felsworn-tyrant', 'guardian-gladiator', 'guardian-inspiration', 'guardian-vanguard', 'knight-of-xoroth-defiance', 'knight-of-xoroth-hellfire', 'knight-of-xoroth-war', 'necromancer-animation', 'necromancer-death', 'necromancer-rime', 'primalist-geomancy', 'primalist-grovekeeper', 'primalist-mountain-king', 'primalist-wildwalker', 'pyromancer-draconic', 'pyromancer-flameweaving', 'pyromancer-incineration', 'ranger-archery', 'ranger-brigand', 'ranger-farstrider', 'reaper-domination', 'reaper-harvest', 'reaper-soul', 'runemaster-engravement', 'runemaster-glyphic', 'runemaster-riftblade', 'starcaller-moon-guard', 'starcaller-moon-priest', 'starcaller-sentinel', 'starcaller-warden', 'stormbringer-lightning', 'stormbringer-maelstrom', 'stormbringer-wind', 'sun-cleric-blessings', 'sun-cleric-piety', 'sun-cleric-seraphim', 'sun-cleric-valkyrie', 'templar-crusader', 'templar-oathkeeper', 'templar-zealot', 'tinker-demolition', 'tinker-invention', 'tinker-mechanics', 'tinker-nc', 'venomancer-fortitude', 'venomancer-rot', 'venomancer-stalking', 'venomancer-vizier', 'witch-doctor-brewing', 'witch-doctor-shadowhunting', 'witch-doctor-voodoo', 'witch-hunter-black-knight', 'witch-hunter-boltslinger', 'witch-hunter-houndmaster', 'witch-hunter-inquisition')
      AND action_line LIKE '%’%';
-  IF n <> 2424 THEN
+  IF n <> 2422 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CoA Bots 1.9 rotations: wrong row count, nothing was changed';
   END IF;
   IF a <> 3 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CoA Bots 1.9 rotations: apostrophes lost (character set), nothing was changed';
   END IF;
-  IF h <> 5241296574014 THEN
+  IF h <> 5228735949355 THEN
     SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'CoA Bots 1.9 rotations: wrong checksum, nothing was changed';
   END IF;
 END$$
@@ -463,39 +463,37 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('cultist-dreadnought', 31, 0, 'can cast::Gaze of C''Thun>cast melee::Gaze of C''Thun!2'),
  ('cultist-dreadnought', 32, 0, 'can cast::Hammer of Twilight>cast melee::Hammer of Twilight!1'),
  ('cultist-godblade', 1, 0, 'buff missing::Presence of C''Thun>cast buff::Presence of C''Thun!98'),
- ('cultist-godblade', 2, 0, 'buff missing::Voidborne>cast buff::Voidborne!94'),
- ('cultist-godblade', 3, 0, 'aura stacks::Insanity,80>cast buff::Rift!92'),
- ('cultist-godblade', 4, 0, 'aura stacks::Insanity,80>cast melee::Hammer of Twilight!90'),
- ('cultist-godblade', 5, 0, 'can cast::Netherstrike>cast melee::Netherstrike!86'),
- ('cultist-godblade', 6, 0, 'can cast::Blade of the Empire>cast melee::Blade of the Empire!84'),
- ('cultist-godblade', 7, 0, 'can cast::Tentacle of N''Zoth>cast::Tentacle of N''Zoth!78'),
- ('cultist-godblade', 8, 0, 'can cast::Hammer of Twilight>cast melee::Hammer of Twilight!70'),
- ('cultist-godblade', 9, 0, 'can cast::Void Shield>cast melee::Void Shield!30'),
- ('cultist-godblade', 10, 0, 'can cast::Corrupt Mind>cast melee::Corrupt Mind!29'),
- ('cultist-godblade', 11, 0, 'can cast::Hallucination>cast melee::Hallucination!28'),
- ('cultist-godblade', 12, 0, 'buff missing::Embrace the Void>cast buff::Embrace the Void!27'),
- ('cultist-godblade', 13, 0, 'buff missing::Voidborne>cast buff::Voidborne!26'),
- ('cultist-godblade', 14, 0, 'can cast::Entropic Singularity>cast melee::Entropic Singularity!25'),
- ('cultist-godblade', 15, 0, 'buff missing::End Times>cast buff::End Times!24'),
- ('cultist-godblade', 16, 0, 'buff missing::Rift>cast buff::Rift!23'),
+ ('cultist-godblade', 2, 0, 'medium health>cast buff::Abyssal Ward!96'),
+ ('cultist-godblade', 3, 0, 'aura stacks::Insanity,80>cast buff::Voidborne!94'),
+ ('cultist-godblade', 4, 0, 'aura stacks::Insanity,80>cast buff::Vision of Doom!93'),
+ ('cultist-godblade', 5, 0, 'aura stacks::Insanity,80>cast buff::Rift!92'),
+ ('cultist-godblade', 6, 0, 'aura stacks::Insanity,100>cast melee::Hammer of Twilight!90'),
+ ('cultist-godblade', 7, 0, 'aura stacks::Insanity,100>cast melee::Entropic Slam!89'),
+ ('cultist-godblade', 8, 0, 'can cast::Netherstrike>cast melee::Netherstrike!86'),
+ ('cultist-godblade', 9, 0, 'can cast::Gaze of C''Thun>cast::Gaze of C''Thun!85'),
+ ('cultist-godblade', 10, 0, 'can cast::Blade of the Empire>cast melee::Blade of the Empire!84'),
+ ('cultist-godblade', 11, 0, 'can cast::Tentacle of N''Zoth>cast::Tentacle of N''Zoth!78'),
+ ('cultist-godblade', 12, 0, 'can cast::Tentacle of C''Thun>cast::Tentacle of C''Thun!77'),
+ ('cultist-godblade', 13, 0, 'can cast::Void Shield>cast melee::Void Shield!30'),
+ ('cultist-godblade', 14, 0, 'can cast::Hallucination>cast melee::Hallucination!28'),
+ ('cultist-godblade', 15, 0, 'buff missing::Embrace the Void>cast buff::Embrace the Void!27'),
+ ('cultist-godblade', 16, 0, 'buff missing::End Times>cast buff::End Times!24'),
  ('cultist-godblade', 17, 0, 'buff missing::Greater Whispers of C''thun>cast buff party::Greater Whispers of C''thun!22'),
  ('cultist-godblade', 18, 0, 'can cast::Greater Whispers of Y''shaarj>cast melee::Greater Whispers of Y''shaarj!21'),
  ('cultist-godblade', 19, 0, 'buff missing::Greater Whispers of N''zoth>cast buff party::Greater Whispers of N''zoth!20'),
- ('cultist-godblade', 20, 0, 'can cast::Restore Sanity>cast melee::Restore Sanity!19'),
- ('cultist-godblade', 21, 0, 'can cast::Eldritch Ritual>cast melee::Eldritch Ritual!17'),
- ('cultist-godblade', 22, 0, 'can cast::Summoning Obelisk>cast melee::Summoning Obelisk!16'),
- ('cultist-godblade', 23, 0, 'can cast::Whispers of C''thun>cast melee::Whispers of C''thun!15'),
- ('cultist-godblade', 24, 0, 'can cast::Eldritch Shock>cast melee::Eldritch Shock!14'),
- ('cultist-godblade', 25, 0, 'buff missing::Satiate>cast buff::Satiate!13'),
- ('cultist-godblade', 26, 0, 'can cast::Void Resilience>cast melee::Void Resilience!11'),
- ('cultist-godblade', 27, 0, 'can cast::Isolate>cast melee::Isolate!10'),
- ('cultist-godblade', 28, 0, 'can cast::Tentacle of Yogg-Saron>cast melee::Tentacle of Yogg-Saron!9'),
- ('cultist-godblade', 29, 0, 'can cast::Whispers of N''Zoth>cast melee::Whispers of N''Zoth!8'),
- ('cultist-godblade', 30, 0, 'can cast::Sermon of Dread>cast melee::Sermon of Dread!6'),
- ('cultist-godblade', 31, 0, 'can cast::Whispers of Y''shaarj>cast melee::Whispers of Y''shaarj!5'),
- ('cultist-godblade', 32, 0, 'can cast::Sanity Tap>cast melee::Sanity Tap!4'),
- ('cultist-godblade', 34, 0, 'can cast::Entropic Slam>cast melee::Entropic Slam!2'),
- ('cultist-godblade', 35, 0, 'can cast::Ritual of Awakening>cast melee::Ritual of Awakening!1'),
+ ('cultist-godblade', 20, 0, 'can cast::Eldritch Ritual>cast melee::Eldritch Ritual!17'),
+ ('cultist-godblade', 21, 0, 'can cast::Summoning Obelisk>cast melee::Summoning Obelisk!16'),
+ ('cultist-godblade', 22, 0, 'can cast::Whispers of C''thun>cast melee::Whispers of C''thun!15'),
+ ('cultist-godblade', 23, 0, 'can cast::Eldritch Shock>cast melee::Eldritch Shock!14'),
+ ('cultist-godblade', 24, 0, 'can cast::Void Resilience>cast melee::Void Resilience!11'),
+ ('cultist-godblade', 25, 0, 'can cast::Isolate>cast melee::Isolate!10'),
+ ('cultist-godblade', 26, 0, 'can cast::Tentacle of Yogg-Saron>cast melee::Tentacle of Yogg-Saron!9'),
+ ('cultist-godblade', 27, 0, 'can cast::Whispers of N''Zoth>cast melee::Whispers of N''Zoth!8'),
+ ('cultist-godblade', 28, 0, 'can cast::Sermon of Dread>cast melee::Sermon of Dread!6'),
+ ('cultist-godblade', 29, 0, 'can cast::Whispers of Y''shaarj>cast melee::Whispers of Y''shaarj!5'),
+ ('cultist-godblade', 30, 0, 'low mana>cast melee::Sanity Tap!4'),
+ ('cultist-godblade', 31, 0, 'can cast::Ritual of Awakening>cast melee::Ritual of Awakening!1'),
+ ('cultist-godblade', 32, 0, 'aoe has aura::Total Madness>cast melee::Entropic Slam!91'),
  ('cultist-heretic', 1, 0, 'party member critical health>cast buff party::Void Shield!92'),
  ('cultist-heretic', 2, 0, 'medium group heal setting>cast::Malevolence!91'),
  ('cultist-heretic', 3, 0, 'medium group heal setting>cast::Satiate!90'),
@@ -641,11 +639,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('guardian-gladiator', 14, 0, 'can cast::Pulverize>cast melee::Pulverize!75'),
  ('guardian-gladiator', 15, 0, 'buff missing::Assume Peak Posture>cast buff::Assume Peak Posture!29'),
  ('guardian-gladiator', 16, 0, 'buff missing::Greater Fire Protection>cast buff party::Greater Fire Protection!28'),
- ('guardian-gladiator', 17, 0, 'buff missing::Greater Honor>cast buff party::Greater Honor!27');
+ ('guardian-gladiator', 17, 0, 'buff missing::Greater Honor>cast buff party::Greater Honor!27'),
+ ('guardian-gladiator', 18, 0, 'can cast::Shoulder The Burden>cast melee::Shoulder The Burden!23'),
+ ('guardian-gladiator', 19, 0, 'can cast::Jagged Reinforcement>cast melee::Jagged Reinforcement!22');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('guardian-gladiator', 18, 0, 'can cast::Shoulder The Burden>cast melee::Shoulder The Burden!23'),
- ('guardian-gladiator', 19, 0, 'can cast::Jagged Reinforcement>cast melee::Jagged Reinforcement!22'),
  ('guardian-gladiator', 20, 0, 'can cast::Cavalry Charge>cast melee::Cavalry Charge!21'),
  ('guardian-gladiator', 21, 0, 'buff missing::Chivalry>cast buff::Chivalry!20'),
  ('guardian-gladiator', 22, 0, 'can cast::Fire Protection>cast melee::Fire Protection!19'),
@@ -843,11 +841,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('knight-of-xoroth-war', 29, 0, 'can cast::Melt>cast melee::Melt!11'),
  ('knight-of-xoroth-war', 30, 0, 'can cast::Mark of Blaumeux>cast melee::Mark of Blaumeux!9'),
  ('knight-of-xoroth-war', 31, 0, 'buff missing::Hellrider>cast buff::Hellrider!10'),
- ('knight-of-xoroth-war', 32, 0, 'can cast::Dreadrider''s Stomp>cast melee::Dreadrider''s Stomp!8');
+ ('knight-of-xoroth-war', 32, 0, 'can cast::Dreadrider''s Stomp>cast melee::Dreadrider''s Stomp!8'),
+ ('knight-of-xoroth-war', 33, 0, 'can cast::Hellfire Trample>cast melee::Hellfire Trample!7'),
+ ('knight-of-xoroth-war', 34, 0, 'can cast::Hell''s Forge>cast melee::Hell''s Forge!5');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('knight-of-xoroth-war', 33, 0, 'can cast::Hellfire Trample>cast melee::Hellfire Trample!7'),
- ('knight-of-xoroth-war', 34, 0, 'can cast::Hell''s Forge>cast melee::Hell''s Forge!5'),
  ('knight-of-xoroth-war', 36, 0, 'can cast::Flames of Xoroth>cast melee::Flames of Xoroth!3'),
  ('knight-of-xoroth-war', 37, 0, 'can cast::Mark of Korth''azz>cast melee::Mark of Korth''azz!2'),
  ('knight-of-xoroth-war', 38, 0, 'can cast::Throw>cast melee::Throw!1'),
@@ -1045,11 +1043,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('primalist-grovekeeper', 39, 0, 'can cast::Shoot>cast::Shoot!2'),
  ('primalist-grovekeeper', 40, 0, 'can cast::Wand>cast::Wand!1'),
  ('primalist-mountain-king', 1, 0, 'medium aoe>cast melee::Quake!87'),
- ('primalist-mountain-king', 2, 0, 'buff missing::Boon of the Turtle>cast buff::Boon of the Turtle!86');
+ ('primalist-mountain-king', 2, 0, 'buff missing::Boon of the Turtle>cast buff::Boon of the Turtle!86'),
+ ('primalist-mountain-king', 3, 0, 'can cast::Primal Rush>cast melee::Primal Rush!85'),
+ ('primalist-mountain-king', 4, 0, 'can cast::Quake>cast melee::Quake!84');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('primalist-mountain-king', 3, 0, 'can cast::Primal Rush>cast melee::Primal Rush!85'),
- ('primalist-mountain-king', 4, 0, 'can cast::Quake>cast melee::Quake!84'),
  ('primalist-mountain-king', 5, 0, 'lose aggro>cast melee::Gaze of Theradras!94'),
  ('primalist-mountain-king', 6, 0, 'buff missing::Boulder Dash>cast buff::Boulder Dash!30'),
  ('primalist-mountain-king', 7, 0, 'buff missing::Rock Barrier>cast buff::Rock Barrier!29'),
@@ -1247,11 +1245,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('ranger-archery', 7, 0, 'medium aoe>cast::Hunting Shot!87'),
  ('ranger-archery', 8, 0, 'aura stacks::Advantage,5>cast::Skullpiercer!86'),
  ('ranger-archery', 9, 0, 'can cast::Deadshot>cast::Deadshot!85'),
- ('ranger-archery', 10, 0, 'buff missing::Poison Quiver>cast buff::Poison Quiver!84');
+ ('ranger-archery', 10, 0, 'buff missing::Poison Quiver>cast buff::Poison Quiver!84'),
+ ('ranger-archery', 11, 0, 'can cast::Quick Shot>cast::Quick Shot!83'),
+ ('ranger-archery', 12, 0, 'can cast::Brutal Shot>cast::Brutal Shot!80');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('ranger-archery', 11, 0, 'can cast::Quick Shot>cast::Quick Shot!83'),
- ('ranger-archery', 12, 0, 'can cast::Brutal Shot>cast::Brutal Shot!80'),
  ('ranger-archery', 13, 0, 'can cast::Skullpiercer>cast::Skullpiercer!70'),
  ('ranger-archery', 14, 0, 'can cast::Neurotoxin Arrow>cast::Neurotoxin Arrow!30'),
  ('ranger-archery', 15, 0, 'can cast::Guise>cast::Guise!28'),
@@ -1449,11 +1447,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('runemaster-engravement', 4, 0, 'buff missing::Zenith>cast buff::Zenith!86'),
  ('runemaster-engravement', 5, 0, 'target has aura::Marked: Runic Brand>cast melee::Runeblade!85'),
  ('runemaster-engravement', 6, 0, 'can cast::Primordial Blast>cast melee::Primordial Blast!84'),
- ('runemaster-engravement', 7, 0, 'can cast::Runic Brand>cast melee::Runic Brand!83');
+ ('runemaster-engravement', 7, 0, 'can cast::Runic Brand>cast melee::Runic Brand!83'),
+ ('runemaster-engravement', 8, 0, 'can cast::Fist of the Ancients>cast melee::Fist of the Ancients!89'),
+ ('runemaster-engravement', 9, 0, 'can cast::Power Engraving>cast melee::Power Engraving!80');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('runemaster-engravement', 8, 0, 'can cast::Fist of the Ancients>cast melee::Fist of the Ancients!89'),
- ('runemaster-engravement', 9, 0, 'can cast::Power Engraving>cast melee::Power Engraving!80'),
  ('runemaster-engravement', 10, 0, 'can cast::Runeblade>cast melee::Runeblade!79'),
  ('runemaster-engravement', 11, 0, 'can cast::Warpdagger>cast melee::Warpdagger!29'),
  ('runemaster-engravement', 12, 0, 'buff missing::Greater Etching of the Dextrous>cast buff party::Greater Etching of the Dextrous!27'),
@@ -1651,11 +1649,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('stormbringer-lightning', 28, 0, 'buff missing::Gale Guard>cast buff::Gale Guard!13'),
  ('stormbringer-lightning', 29, 0, 'buff missing::Shocking Aegis>cast buff::Shocking Aegis!12'),
  ('stormbringer-lightning', 30, 0, 'can cast::Atmospheric Pressure>cast::Atmospheric Pressure!11'),
- ('stormbringer-lightning', 31, 0, 'can cast::Stormbreaker>cast::Stormbreaker!10');
+ ('stormbringer-lightning', 31, 0, 'can cast::Stormbreaker>cast::Stormbreaker!10'),
+ ('stormbringer-lightning', 32, 0, 'can cast::Aether Current>cast::Aether Current!9'),
+ ('stormbringer-lightning', 33, 0, 'can cast::Call of the Wind>cast::Call of the Wind!8');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('stormbringer-lightning', 32, 0, 'can cast::Aether Current>cast::Aether Current!9'),
- ('stormbringer-lightning', 33, 0, 'can cast::Call of the Wind>cast::Call of the Wind!8'),
  ('stormbringer-lightning', 34, 0, 'buff missing::Cloud Watcher>cast buff::Cloud Watcher!7'),
  ('stormbringer-lightning', 35, 0, 'can cast::Barometric Pressure>cast::Barometric Pressure!6'),
  ('stormbringer-lightning', 36, 0, 'can cast::Conjure Thunder Ale>cast::Conjure Thunder Ale!5'),
@@ -1853,11 +1851,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('sun-cleric-seraphim', 31, 0, 'buff missing::Sol Invictus>cast buff::Sol Invictus!95'),
  ('sun-cleric-seraphim', 32, 0, 'can cast::Revivify>cast melee::Revivify!4'),
  ('sun-cleric-seraphim', 33, 0, 'can cast::Gavel of Light>cast melee::Gavel of Light!3'),
- ('sun-cleric-seraphim', 34, 0, 'can cast::Devotion of Grace>cast melee::Devotion of Grace!2');
+ ('sun-cleric-seraphim', 34, 0, 'can cast::Devotion of Grace>cast melee::Devotion of Grace!2'),
+ ('sun-cleric-valkyrie', 1, 0, 'buff missing::Vow of the Valkyr>cast buff::Vow of the Valkyr!95'),
+ ('sun-cleric-valkyrie', 2, 0, 'medium health>cast heal::Solar Prayer!94');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('sun-cleric-valkyrie', 1, 0, 'buff missing::Vow of the Valkyr>cast buff::Vow of the Valkyr!95'),
- ('sun-cleric-valkyrie', 2, 0, 'medium health>cast heal::Solar Prayer!94'),
  ('sun-cleric-valkyrie', 3, 0, 'aura stacks::Solar Power,20>cast melee::Dawn!90'),
  ('sun-cleric-valkyrie', 4, 0, 'has aura::Dawn>cast buff::Paragon!89'),
  ('sun-cleric-valkyrie', 5, 0, 'medium aoe>cast melee::Horusath Blast!88'),
@@ -2055,11 +2053,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('tinker-invention', 31, 0, 'can cast::Defibrillate>cast::Defibrillate!6'),
  ('tinker-invention', 32, 0, 'can cast::Build: Clockwork Assistant>cast::Build: Clockwork Assistant!5'),
  ('tinker-invention', 33, 0, 'can cast::Magic Augmentation>cast::Magic Augmentation!4'),
- ('tinker-invention', 34, 0, 'can cast::Deploy Blast Mine>cast::Deploy Blast Mine!3');
+ ('tinker-invention', 34, 0, 'can cast::Deploy Blast Mine>cast::Deploy Blast Mine!3'),
+ ('tinker-invention', 35, 0, 'can cast::Sticky Bomb>cast::Sticky Bomb!2'),
+ ('tinker-invention', 36, 0, 'can cast::Power Module>cast::Power Module!1');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('tinker-invention', 35, 0, 'can cast::Sticky Bomb>cast::Sticky Bomb!2'),
- ('tinker-invention', 36, 0, 'can cast::Power Module>cast::Power Module!1'),
  ('tinker-invention', 37, 0, 'can cast::Auto Shot>cast::Auto Shot!3'),
  ('tinker-mechanics', 1, 0, 'medium aoe>cast::Sticky Bomb!88'),
  ('tinker-mechanics', 2, 0, 'medium aoe>cast::Scrap Shot!87'),
@@ -2257,11 +2255,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('witch-doctor-brewing', 27, 0, 'can cast::Mana Jinx>cast::Mana Jinx!12'),
  ('witch-doctor-brewing', 28, 0, 'can cast::Spiritual Recall>cast::Spiritual Recall!11'),
  ('witch-doctor-brewing', 29, 0, 'buff missing::Shadow Avatar>cast buff::Shadow Avatar!10'),
- ('witch-doctor-brewing', 30, 0, 'can cast::Resourceful Wuju>cast::Resourceful Wuju!9');
+ ('witch-doctor-brewing', 30, 0, 'can cast::Resourceful Wuju>cast::Resourceful Wuju!9'),
+ ('witch-doctor-brewing', 31, 0, 'can cast::Shadowflare>cast::Shadowflare!8'),
+ ('witch-doctor-brewing', 32, 0, 'can cast::Spirit in a Bottle>cast::Spirit in a Bottle!7');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('witch-doctor-brewing', 31, 0, 'can cast::Shadowflare>cast::Shadowflare!8'),
- ('witch-doctor-brewing', 32, 0, 'can cast::Spirit in a Bottle>cast::Spirit in a Bottle!7'),
  ('witch-doctor-brewing', 33, 0, 'can cast::Spirit Idol>cast::Spirit Idol!6'),
  ('witch-doctor-brewing', 34, 0, 'can cast::Stasis Ward>cast::Stasis Ward!5'),
  ('witch-doctor-brewing', 35, 0, 'can cast::Concoct Rejuvenating Mojo>cast::Concoct Rejuvenating Mojo!4'),
@@ -2459,11 +2457,11 @@ INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
  ('witch-hunter-inquisition', 5, 0, 'can cast::Purifier''s Edge>cast melee::Purifier''s Edge!86'),
  ('witch-hunter-inquisition', 6, 0, 'medium aoe>cast melee::Smite Evil!85'),
  ('witch-hunter-inquisition', 7, 0, 'medium health>cast melee::Dusk Blade!84'),
- ('witch-hunter-inquisition', 8, 0, 'can cast::Hunt>cast melee::Hunt!83');
+ ('witch-hunter-inquisition', 8, 0, 'can cast::Hunt>cast melee::Hunt!83'),
+ ('witch-hunter-inquisition', 9, 0, 'can cast::Dawn Blade>cast melee::Dawn Blade!82'),
+ ('witch-hunter-inquisition', 10, 0, 'can cast::Dusk Blade>cast melee::Dusk Blade!81');
 
 INSERT INTO playerbots_custom_strategy (name, idx, owner, action_line) VALUES
- ('witch-hunter-inquisition', 9, 0, 'can cast::Dawn Blade>cast melee::Dawn Blade!82'),
- ('witch-hunter-inquisition', 10, 0, 'can cast::Dusk Blade>cast melee::Dusk Blade!81'),
  ('witch-hunter-inquisition', 11, 0, 'can cast::Torchlight>cast melee::Torchlight!80'),
  ('witch-hunter-inquisition', 12, 0, 'buff missing::Greater Knight''s Edict>cast buff party::Greater Knight''s Edict!28'),
  ('witch-hunter-inquisition', 13, 0, 'can cast::Shadow Trap>cast melee::Shadow Trap!27'),
