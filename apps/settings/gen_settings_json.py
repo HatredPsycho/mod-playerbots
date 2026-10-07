@@ -109,6 +109,11 @@ SETTINGS = [
      'Number of 3v3 arena teams of bots, each with a rating from 1000 to 2000 kept between restarts. A bot is in one team at most.'),
     ('RandomBotArenaTeam5v5Count', 'activities', 'Bot arena teams (5v5)',
      'Number of 5v5 arena teams of bots, each with a rating from 1000 to 2000 kept between restarts. A bot is in one team at most.'),
+    ('CoaRulesetForBots', 'activities', 'High Risk and War Mode bots',
+     'A share of the random bots plays in High Risk or War Mode (PvP flag on; anyone may attack them, and they attack '
+     'High Risk and War Mode characters). Off: every bot in PvE.'),
+    ('CoaRulesetHighRiskPct', 'activities', 'High Risk bots (%)', 'Share of the random bots in High Risk, when the option above is on.'),
+    ('CoaRulesetWarModePct', 'activities', 'War Mode bots (%)', 'Share of the random bots in War Mode, when the option above is on.'),
     ('CoaLfgBots', 'activities', '"lfg bot" in chat',
      'A player who says "lfg bot heal", "lfg bot tank" or "lfg bot dps" in chat is whispered by free bots of those roles to invite.'),
     ('CoaLfgLevelRange', 'activities', '"lfg bot" level range',
@@ -130,7 +135,7 @@ SETTINGS = [
 
 # Bounds the code does not enforce but the meaning does (key without "AiPlayerbot.": min, max)
 RANGES = {'RandomGearQualityLimit': (1, 5), 'RandomBotMinLevel': (1, 80), 'RandomBotMaxLevel': (1, 80),
-          'BotTextLocale': (-1, 8)}
+          'BotTextLocale': (-1, 8), 'CoaRulesetHighRiskPct': (0, 100), 'CoaRulesetWarModePct': (0, 100)}
 # Settings that take one of a few values: shown as a list (value, label).
 CHOICES = {'BotTextLocale': [(-1, "Auto (players' client language)"), (0, 'English'), (2, 'Français'), (3, 'Deutsch'),
                              (6, 'Español'), (8, 'Русский')]}

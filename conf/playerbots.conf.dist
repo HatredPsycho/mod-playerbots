@@ -1467,7 +1467,8 @@ AiPlayerbot.CoaTellEquipUpgrades = 0
 # In dungeons and raids the ruleset changes nothing, and grouping with
 # such a bot does not change yours. 0 = as before (every bot in PvE, bots keep the ruleset they have).
 # Read again by ".reload config"; ungrouped bots move at their next update, the others at login.
-AiPlayerbot.CoaRulesetForBots = 0
+# CoA Bots 1.9 (PvP): on by default, 30 % of the random bots in High Risk.
+AiPlayerbot.CoaRulesetForBots = 1
 # Shares, in percent of the random bots, when CoaRulesetForBots = 1 (the rest is PvE).
 AiPlayerbot.CoaRulesetHighRiskPct = 30
 AiPlayerbot.CoaRulesetWarModePct = 0
@@ -2086,7 +2087,9 @@ AiPlayerbot.AutoTeleportForLevel = 1
 AiPlayerbot.RandomBotJoinBG = 1
 
 # Enable auto-joining of battlegrounds - have bots start battlegrounds and arenas on their own
-AiPlayerbot.RandomBotAutoJoinBG = 0
+# CoA Bots 1.9 (PvP): on by default, with one Warsong Gulch, one Arathi Basin, one rated 2v2 and one rated 3v3
+# kept going at level 60 (the counts below). 0 = bots only fill the queues of players.
+AiPlayerbot.RandomBotAutoJoinBG = 1
 
 # Required Configuration for RandomBotAutoJoinBG
 #
