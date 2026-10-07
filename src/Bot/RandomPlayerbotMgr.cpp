@@ -2957,8 +2957,10 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
 
 void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
 {
+    // Any bot of a random bot account, those the LFG recruits out of the active list included; never a player's own
+    // characters.
     if (!bot || !bot->IsInWorld() || !bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() || bot->GetLevel() < 10 ||
-        !IsRandomBot(bot))
+        !sPlayerbotAIConfig.IsInRandomAccountList(bot->GetSession()->GetAccountId()))
         return;
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
     if (!botAI)
