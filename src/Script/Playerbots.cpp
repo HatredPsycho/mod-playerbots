@@ -127,11 +127,12 @@ public:
             if (sPlayerbotAIConfig.enabled)
             {
                 ChatHandler(player->GetSession()).SendSysMessage(
-                    "|cff00ff00This server runs with |cff00ccffmod-playerbots|r "
-                    "|cffcccccchttps://github.com/mod-playerbots/mod-playerbots|r");
+                    "|cff00ff00For easy bot control, use the SquidBots addon:|r "
+                    "|cffcccccchttps://github.com/Zyth45/squidbots-addon|r");
+                // The source of this build (mod-playerbots and every CoA change) stays linked here.
                 ChatHandler(player->GetSession()).SendSysMessage(
                     std::string("|cff00ff00CoA Bots|r |cff00ccffv") + COA_BOTS_VERSION +
-                    "|r |cffcccccchttps://github.com/Zyth45/mod-playerbots|r");
+                    "|r (|cff00ccffmod-playerbots|r) |cffcccccchttps://github.com/Zyth45/mod-playerbots|r");
             }
 
             if (sPlayerbotAIConfig.enabled || sPlayerbotAIConfig.randomBotAutologin)
