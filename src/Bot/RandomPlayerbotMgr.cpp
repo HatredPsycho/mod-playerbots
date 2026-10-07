@@ -1554,6 +1554,28 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
         LOG_INFO("playerbots", "Bot {} remove from group since leader is random bot.", bot->GetName().c_str());
     }
 
+    // CoA: on a new install every new bot starts at level 1 in the same few starting areas, and those waiting on
+    // the respawn of a "kill 8" quest mob stood by the quest giver for good (Blood Elves at Deathknell, 07/10). A
+    // low level bot on its own that earns no experience for 10 minutes goes to another grinding spot of its level.
+    if (bot->GetLevel() <= 10 && !bot->GetGroup() && !bot->IsInCombat())
+    {
+        uint32 const progress = bot->GetLevel() * 1000000 + bot->GetUInt32Value(PLAYER_XP) + 1;
+        uint32 const now = uint32(time(nullptr));
+        if (GetEventValue(botId, "coaXp") != progress)
+        {
+            SetEventValue(botId, "coaXp", progress, 30 * DAY);
+            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+        }
+        else if (now - GetEventValue(botId, "coaXpAt") >= 10 * MINUTE)
+        {
+            LOG_INFO("playerbots", "coa: {} (level {}) earned no experience for 10 minutes, new grinding spot",
+                     bot->GetName(), bot->GetLevel());
+            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+            RandomTeleportGrindForLevel(bot);
+            return true;
+        }
+    }
+
     // only randomize and teleport idle bots
     bool idleBot = false;
     if (TravelTarget* target = botAI->GetAiObjectContext()->GetValue<TravelTarget*>("travel target")->Get())
