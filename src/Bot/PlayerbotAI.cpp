@@ -1724,10 +1724,16 @@ void PlayerbotAI::DoNextAction(bool min)
         CoaRestoreAncestralCombat(bot);
     }
 
-    if (sPlayerbotAIConfig.coaGearByContent && !bot->IsInCombat() && GetMSTimeDiffToNow(coaGearCheckedAt) >= 10000)
+    if (!bot->IsInCombat() && GetMSTimeDiffToNow(coaGearCheckedAt) >= 10000)
     {
         coaGearCheckedAt = getMSTime();
-        sRandomPlayerbotMgr.CoaUpdateGear(bot);
+        if (sPlayerbotAIConfig.coaGearByContent)
+            sRandomPlayerbotMgr.CoaUpdateGear(bot);
+
+        // A bot standing still indoors gets off its mount: one stayed mounted in the Scarlet Raven Tavern
+        // (jealous-sound/azerothcore-wotlk-coa#6802).
+        if (bot->IsMounted() && !bot->isMoving() && !bot->IsInFlight() && !bot->GetTransport() && !bot->IsOutdoors())
+            bot->RemoveAurasByType(SPELL_AURA_MOUNTED);
     }
 
     bool minimal = !this->AllowActivity();
