@@ -3085,6 +3085,18 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
     RandomPlayerbotFactory::AssignBotToArenaTeam(bot);
     CoaApplyRuleset(bot);
 
+    // CoA starts Blood Elves in Deathknell and Draenei in Shadowglen (jealous-sound/azerothcore-wotlk-coa#6397). Bots
+    // made before stayed at Sunstrider Isle or Ammen Vale, where no CoA quest awaits them, and stood there (Discord
+    // 07/10): a low level random bot in Outland's map goes to its race's start.
+    if (bot->GetMapId() == 530 && bot->GetLevel() <= 20 && IsRandomBot(bot) && !bot->IsInCombat() && !bot->GetGroup())
+        if (PlayerInfo const* info = sObjectMgr->GetPlayerInfo(bot->getRace(), bot->getClass()))
+            if (info->mapId != 530)
+            {
+                LOG_INFO("playerbots", "coa: {} (level {}) leaves map 530 for its race's start", bot->GetName(),
+                         bot->GetLevel());
+                bot->TeleportTo(info->mapId, info->positionX, info->positionY, info->positionZ, info->orientation);
+            }
+
     // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
     PlayerbotFactory::DressNakedCoaStarter(bot);
     // And those brought down in level before 1.5.1 still carry the spell ranks of their old level.
