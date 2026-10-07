@@ -7,6 +7,8 @@
 #include "RandomPlayerbotMgr.h"
 #include "BattlegroundUtils.h"
 #include "AiFactory.h"
+#include "ArenaTeam.h"
+#include "ArenaTeamMgr.h"
 #include "Battleground.h"
 #include "BattlegroundMgr.h"
 #include "Cell.h"
@@ -2473,6 +2475,8 @@ CachedEvent* RandomPlayerbotMgr::FindEvent(uint32 bot, std::string const& event)
 
 bool RandomPlayerbotMgr::IsSpecPvp(uint32 bot, uint8 cls)
 {
+    if (sPlayerbotAIConfig.coaGearByContent && GetValue(bot, "coaGearPvp"))
+        return true;
     uint32 stored = GetValue(bot, "specNo");
     if (!stored)
         return false;
@@ -2949,6 +2953,73 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
         bot->RemovePlayerFlag(PLAYER_FLAGS_IN_PVP);
     if (pvp && !bot->IsPvP())
         bot->UpdatePvP(true, true);
+}
+
+void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
+{
+    if (!bot || !bot->IsInWorld() || !bot->IsAlive() || bot->IsInCombat() || bot->IsInFlight() || bot->GetLevel() < 10 ||
+        !IsRandomBot(bot))
+        return;
+    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+    if (!botAI)
+        return;
+
+    // The player who groups the bot sets its item level; a High Risk bot stays in PvP gear with them.
+    Player* master = botAI->GetMaster();
+    if (!master || master == bot || GET_PLAYERBOT_AI(master) || !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
+        master = nullptr;
+
+    bool const pvp = bot->HasAura(COA_RULESET_HIGH_RISK) || bot->InBattleground() || bot->InArena() ||
+                     bot->InBattlegroundQueue();
+    uint32 quality = 0;
+    uint32 gearScore = 0;
+    if (master)
+    {
+        quality = ITEM_QUALITY_EPIC;
+        // By steps of 10, so that a player changing one piece does not regear the whole group.
+        gearScore = PlayerbotAI::GetMixedGearScore(master, false, false) / 10 * 10;
+        if (!gearScore)
+            return;
+    }
+    else if (pvp && bot->GetLevel() >= 60)
+    {
+        // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
+        // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts. The tier follows the
+        // bot's best arena rating; without a team it is drawn once from the guid.
+        static std::array<std::pair<uint32, uint32>, 5> const tiers = {{
+            { ITEM_QUALITY_RARE, 66 }, { ITEM_QUALITY_RARE, 68 }, { ITEM_QUALITY_RARE, 71 },
+            { ITEM_QUALITY_EPIC, 71 }, { ITEM_QUALITY_EPIC, 74 } }};
+        uint32 rating = 0;
+        for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
+            if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(bot->GetArenaTeamId(slot)))
+                rating = std::max<uint32>(rating, team->GetRating());
+        uint32 const tier = rating ? (rating < 1300 ? 0 : rating < 1500 ? 1 : rating < 1700 ? 2 : rating < 1900 ? 3 : 4)
+                                   : (bot->GetGUID().GetCounter() * 2654435761u) % 4;
+        quality = tiers[tier].first;
+        gearScore = PlayerbotFactory::CalcMixedGearScore(tiers[tier].second, quality);
+    }
+
+    uint32 const botId = bot->GetGUID().GetCounter();
+    if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == gearScore)
+        return;
+
+    // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
+    static std::atomic<uint32> lastRegear{0};
+    uint32 last = lastRegear.load();
+    if (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime()))
+        return;
+
+    SetValue(botId, "coaGearPvp", pvp);
+    SetValue(botId, "coaGearScore", gearScore);
+    PlayerbotFactory::DestroyEquippedGear(bot);
+    PlayerbotFactory factory(bot, bot->GetLevel(), quality, gearScore);
+    factory.InitEquipment(false, false);
+    factory.InitAmmo();
+    if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
+        factory.ApplyEnchantAndGemsNew();
+    bot->DurabilityRepairAll(false, 1.0f, false);
+    LOG_DEBUG("playerbots", "coa: {} {} gear, gear score limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", gearScore,
+              master ? " (grouped)" : "");
 }
 
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)

@@ -201,6 +201,8 @@ protected:
     void OnBotLoginInternal(Player* const bot) override;
     // AiPlayerbot.CoaRulesetForBots: puts a random bot in its High Risk / War Mode / PvE ruleset (see the .dist).
     void CoaApplyRuleset(Player* bot);
+    // AiPlayerbot.CoaGearByContent: PvP or PvE gear for what the random bot does, at its grouping player's item level.
+    void CoaUpdateGear(Player* bot);
 
 private:
     RandomPlayerbotMgr() : PlayerbotHolder()

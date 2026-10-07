@@ -1724,6 +1724,12 @@ void PlayerbotAI::DoNextAction(bool min)
         CoaRestoreAncestralCombat(bot);
     }
 
+    if (sPlayerbotAIConfig.coaGearByContent && !bot->IsInCombat() && GetMSTimeDiffToNow(coaGearCheckedAt) >= 10000)
+    {
+        coaGearCheckedAt = getMSTime();
+        sRandomPlayerbotMgr.CoaUpdateGear(bot);
+    }
+
     bool minimal = !this->AllowActivity();
 
     currentEngine->DoNextAction(nullptr, 0, (minimal || min));

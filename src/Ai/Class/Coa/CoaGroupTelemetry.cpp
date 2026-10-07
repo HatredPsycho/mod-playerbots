@@ -659,6 +659,7 @@ public:
         sPlayerbotAIConfig.coaRulesetForBots = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRulesetForBots", false);
         sPlayerbotAIConfig.coaRulesetHighRiskPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetHighRiskPct", 30);
         sPlayerbotAIConfig.coaRulesetWarModePct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetWarModePct", 0);
+        sPlayerbotAIConfig.coaGearByContent = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearByContent", true);
         sPlayerbotAIConfig.coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
         sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", true);
         sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", true);
