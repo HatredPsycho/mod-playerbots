@@ -3014,15 +3014,25 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
             if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
                 if (Item* item = master->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 {
-                    // Authored item levels, as the honor tiers and the factory's limit are.
+                    // A piece that scales with its wearer (heirlooms, CoA leveling legendaries) has a tiny base item
+                    // level: it counts as a piece of the player's level, or the bots of a player in them stood naked.
                     ItemTemplate const* proto = item->GetTemplate();
-                    sum += LocalLevelScaling::GetAuthoredItemLevel(proto->ItemId, proto->ItemLevel);
+                    // Test items far above any level (ilvl 435, 65535) are held to twice the player's level.
+                    bool const scales = proto->ScalingStatDistribution || proto->Quality == ITEM_QUALITY_HEIRLOOM ||
+                                        (proto->Quality >= ITEM_QUALITY_LEGENDARY && proto->ItemLevel < master->GetLevel());
+                    uint32 const level = scales ? std::max<uint32>(proto->ItemLevel, master->GetLevel() + 5) : proto->ItemLevel;
+                    // Both limits are the player's level, so they apply to the item level the realm gives the piece;
+                    // the sum is authored, as the honor tiers and the factory's limit are.
+                    sum += LocalLevelScaling::GetAuthoredItemLevel(proto->ItemId,
+                                                                   std::min<uint32>(level, master->GetLevel() * 2 + 20));
                     ++count;
                 }
         if (!count)
             return;
         quality = ITEM_QUALITY_EPIC;
-        itemLevel = sum / count;
+        // Never under the item level of the bot's own level: items carry about five more than their required level,
+        // and a player at item level 22 left level 22 bots with nothing to wear (PTR, 07/10).
+        itemLevel = std::max<uint32>(sum / count, bot->GetLevel() + 5);
         if (pvp && bot->GetLevel() >= 60)
             itemLevel = std::max(itemLevel, tiers[0].second);
     }
@@ -3057,6 +3067,16 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     factory.maxItemLevel = itemLevel;
     factory.preferResilience = pvp;
     factory.InitEquipment(false, false);
+    // A slot nothing filled under the limit is filled without it: a bot is never left without gear.
+    uint32 empty = 0;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+        if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD && !bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+            ++empty;
+    if (empty > 3)
+    {
+        factory.maxItemLevel = 0;
+        factory.InitEquipment(true, false);
+    }
     factory.InitAmmo();
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
         factory.ApplyEnchantAndGemsNew();
