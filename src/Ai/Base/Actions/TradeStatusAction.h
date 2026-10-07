@@ -9,8 +9,22 @@
 
 #include "QueryItemUsageAction.h"
 
+#include <atomic>
+
 class Player;
 class PlayerbotAI;
+
+// A module that trades for a bot itself - the hand-to-hand deals of mod-playerbots-auctions - installs this; the
+// trade actions stand back for every bot it answers true for. Nothing is installed by default, so without such a
+// module the bots trade by their own rules as always.
+using TradeHandoffResolver = bool (*)(Player*);
+extern std::atomic<TradeHandoffResolver> TradeHandoffOwner;
+
+inline bool IsTradeHandedOff(Player* bot)
+{
+    TradeHandoffResolver const owner = TradeHandoffOwner.load(std::memory_order_relaxed);
+    return owner && owner(bot);
+}
 
 class TradeStatusAction : public QueryItemUsageAction
 {
