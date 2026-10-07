@@ -3019,7 +3019,8 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
     static std::atomic<uint32> lastRegear{0};
     uint32 last = lastRegear.load();
-    if (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime()))
+    // A bot grouped with a player goes first: it waited behind the High Risk bots regeared after a restart.
+    if (!master && (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime())))
         return;
 
     SetValue(botId, "coaGearPvp", pvp);
