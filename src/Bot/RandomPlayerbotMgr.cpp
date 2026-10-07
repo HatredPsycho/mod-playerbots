@@ -3027,6 +3027,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     PlayerbotFactory::DestroyEquippedGear(bot);
     PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
     factory.maxItemLevel = itemLevel;
+    factory.preferResilience = pvp;
     factory.InitEquipment(false, false);
     factory.InitAmmo();
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)

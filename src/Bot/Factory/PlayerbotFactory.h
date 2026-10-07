@@ -122,6 +122,8 @@ public:
 
     // Highest item level InitEquipment takes, whatever the quality (0 = no limit).
     uint32 maxItemLevel = 0;
+    // PvP gear: an item with resilience is preferred over any without (CoaUpdateGear).
+    bool preferResilience = false;
 
 private:
     enum class ProfessionSpecializationSpell : uint32

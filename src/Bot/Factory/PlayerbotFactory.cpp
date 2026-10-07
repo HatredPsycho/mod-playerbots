@@ -2851,6 +2851,16 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
                     cur_score *= 3.0f;  // 3x multiplier for preferred armor type
             }
 
+            // CoA PvP gear: the resilience weight alone let higher PvE pieces win most slots, and bots went to
+            // battlegrounds in a mix of both.
+            if (cur_score > 0.0f && proto && preferResilience)
+                for (uint32 i = 0; i < proto->StatsCount && i < MAX_ITEM_PROTO_STATS; ++i)
+                    if (proto->ItemStat[i].ItemStatType == ITEM_MOD_RESILIENCE_RATING)
+                    {
+                        cur_score *= 10.0f;
+                        break;
+                    }
+
             if (cur_score > bestScoreForSlot)
             {
                 // delay heavy check to here
