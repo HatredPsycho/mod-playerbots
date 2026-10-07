@@ -3447,6 +3447,7 @@ bool BGTactics::Unstuck(Battleground* bg)
         stuckSince = 0;
         if (GraveyardStruct const* graveyard = bg->GetClosestGraveyard(bot))
         {
+            LOG_INFO("playerbots", "BG unstuck: {} sent to the graveyard (map {})", bot->GetName(), bot->GetMapId());
             bot->CastStop();
             bot->TeleportTo(graveyard->Map, graveyard->x, graveyard->y, graveyard->z, bot->GetOrientation());
             return true;
@@ -3455,6 +3456,7 @@ bool BGTactics::Unstuck(Battleground* bg)
     }
     if (state != 1)
         return false;
+    LOG_INFO("playerbots", "BG unstuck: {} steps aside (map {})", bot->GetName(), bot->GetMapId());
     lastStep = getMSTime();
     bot->CastStop();
     float x = bot->GetPositionX(), y = bot->GetPositionY(), z = bot->GetPositionZ();

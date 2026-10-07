@@ -1830,6 +1830,8 @@ void RandomPlayerbotMgr::Init()
 
 // CoA: a bot team queues only when its captain is online, and every restart or rotation logs in other bots, so
 // the teams stopped playing. Their captains are kept in the world here; they log in their team when they queue.
+// They are logged in at once, above the bot count, like the team members the captain calls: a captain only made
+// a random bot would wait for a free place, more than an hour on a full world.
 void RandomPlayerbotMgr::KeepArenaCaptainsOnline()
 {
     ArenaCaptainCheckTimer = time(nullptr);
@@ -1852,13 +1854,18 @@ void RandomPlayerbotMgr::KeepArenaCaptainsOnline()
         for (ObjectGuid const& captain : captains)
         {
             uint32 const bot = captain.GetCounter();
-            if (logins >= 10 || ObjectAccessor::FindConnectedPlayer(captain) || currentBots.contains(bot) ||
+            if (logins >= 10 || ObjectAccessor::FindConnectedPlayer(captain) ||
                 !sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(captain)))
                 continue;
 
-            SetEventValue(bot, "add", 1, sPlayerbotAIConfig.permanentlyInWorldTime);
-            SetEventValue(bot, "logout", 0, 0);
-            currentBots.insert(bot);
+            if (!currentBots.contains(bot))
+            {
+                SetEventValue(bot, "add", 1, sPlayerbotAIConfig.permanentlyInWorldTime);
+                SetEventValue(bot, "logout", 0, 0);
+                currentBots.insert(bot);
+            }
+
+            AddPlayerBot(captain, 0);
             ++logins;
         }
     }
