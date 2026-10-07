@@ -2844,7 +2844,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
                         if (proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR)
                             continue;
 
-                        if (maxItemLevel && proto->ItemLevel > maxItemLevel)
+                        // The limit is an authored item level (the honor tiers, a player's gear read the same way):
+                        // on a realm whose content scaling rewrote the templates, compare the item's own.
+                        if (maxItemLevel &&
+                            LocalLevelScaling::GetAuthoredItemLevel(proto->ItemId, proto->ItemLevel) > maxItemLevel)
                             continue;
 
                         if (proto->Quality != uint32(desiredQuality))

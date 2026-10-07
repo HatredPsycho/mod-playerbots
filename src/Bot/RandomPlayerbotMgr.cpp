@@ -3014,7 +3014,9 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
             if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
                 if (Item* item = master->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 {
-                    sum += item->GetTemplate()->ItemLevel;
+                    // Authored item levels, as the honor tiers and the factory's limit are.
+                    ItemTemplate const* proto = item->GetTemplate();
+                    sum += LocalLevelScaling::GetAuthoredItemLevel(proto->ItemId, proto->ItemLevel);
                     ++count;
                 }
         if (!count)
