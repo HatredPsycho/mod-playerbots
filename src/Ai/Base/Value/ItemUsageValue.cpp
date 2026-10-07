@@ -8,6 +8,7 @@
 #include "AiFactory.h"
 #include "ChatHelper.h"
 #include "CoaSpecLookup.h"
+#include "CoaSpecStatWeights.h"
 #include "GuildTaskMgr.h"
 #include "Item.h"
 #include "LootObjectStack.h"
@@ -19,6 +20,7 @@
 #include "StatsWeightCalculator.h"
 
 #include <algorithm>
+#include <string_view>
 #include <vector>
 
 ItemUsage ItemUsageValue::Calculate()
@@ -293,6 +295,18 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
             possibleSlots = 2;
         }
     }
+
+    // A CoA specialization that fights with a shield keeps it: a Defiance tank took Archaic Defender, a
+    // two-handed weapon compared to its one-handed one alone (jealous-sound/azerothcore-wotlk-coa#6704).
+    if (dstSlot == EQUIPMENT_SLOT_MAINHAND && itemProto->InventoryType == INVTYPE_2HWEAPON)
+        if (CoaSpecStrategy const* coa = GetCoaSpecStrategyFor(bot))
+        {
+            CoaSpecStats const* stats = GetCoaSpecStats(coa->classId, coa->specId);
+            if (!stats)
+                stats = GetCoaDefaultSpecStats(coa->classId);
+            if (stats && std::string_view(stats->weapon) == "shield")
+                return ITEM_USAGE_NONE;
+        }
 
     // An off-hand item is no upgrade while a two-handed weapon holds both hands: the empty off-hand
     // slot made it look like one (a Felsworn with a staff rolled for an Aboriginal Rod, jealous-sound #5081).
