@@ -2796,6 +2796,9 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
                         if (proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR)
                             continue;
 
+                        if (maxItemLevel && proto->ItemLevel > maxItemLevel)
+                            continue;
+
                         if (proto->Quality != uint32(desiredQuality))
                             continue;
 

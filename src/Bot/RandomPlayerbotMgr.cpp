@@ -2971,24 +2971,37 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
 
     bool const pvp = bot->HasAura(COA_RULESET_HIGH_RISK) || bot->InBattleground() || bot->InArena() ||
                      bot->InBattlegroundQueue();
+
+    // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
+    // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts.
+    static std::array<std::pair<uint32, uint32>, 5> const tiers = {{
+        { ITEM_QUALITY_RARE, 66 }, { ITEM_QUALITY_RARE, 68 }, { ITEM_QUALITY_RARE, 71 },
+        { ITEM_QUALITY_EPIC, 71 }, { ITEM_QUALITY_EPIC, 74 } }};
     uint32 quality = 0;
-    uint32 gearScore = 0;
+    uint32 itemLevel = 0;
     if (master)
     {
-        quality = ITEM_QUALITY_EPIC;
-        // By steps of 10, so that a player changing one piece does not regear the whole group.
-        gearScore = PlayerbotAI::GetMixedGearScore(master, false, false) / 10 * 10;
-        if (!gearScore)
+        // The player's average item level, compared item by item: a gear score weighed by quality let green
+        // items far above it in (a bot at 88 for a player at 72). In PvP, never under the first honor tier.
+        uint32 sum = 0;
+        uint32 count = 0;
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+            if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
+                if (Item* item = master->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                {
+                    sum += item->GetTemplate()->ItemLevel;
+                    ++count;
+                }
+        if (!count)
             return;
+        quality = ITEM_QUALITY_EPIC;
+        itemLevel = sum / count;
+        if (pvp && bot->GetLevel() >= 60)
+            itemLevel = std::max(itemLevel, tiers[0].second);
     }
     else if (pvp && bot->GetLevel() >= 60)
     {
-        // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
-        // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts. The tier follows the
-        // bot's best arena rating; without a team it is drawn once from the guid.
-        static std::array<std::pair<uint32, uint32>, 5> const tiers = {{
-            { ITEM_QUALITY_RARE, 66 }, { ITEM_QUALITY_RARE, 68 }, { ITEM_QUALITY_RARE, 71 },
-            { ITEM_QUALITY_EPIC, 71 }, { ITEM_QUALITY_EPIC, 74 } }};
+        // The tier follows the bot's best arena rating; without a team it is drawn once from the guid.
         uint32 rating = 0;
         for (uint8 slot = 0; slot < MAX_ARENA_SLOT; ++slot)
             if (ArenaTeam* team = sArenaTeamMgr->GetArenaTeamById(bot->GetArenaTeamId(slot)))
@@ -2996,11 +3009,11 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         uint32 const tier = rating ? (rating < 1300 ? 0 : rating < 1500 ? 1 : rating < 1700 ? 2 : rating < 1900 ? 3 : 4)
                                    : (bot->GetGUID().GetCounter() * 2654435761u) % 4;
         quality = tiers[tier].first;
-        gearScore = PlayerbotFactory::CalcMixedGearScore(tiers[tier].second, quality);
+        itemLevel = tiers[tier].second;
     }
 
     uint32 const botId = bot->GetGUID().GetCounter();
-    if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == gearScore)
+    if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == itemLevel)
         return;
 
     // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
@@ -3010,15 +3023,16 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         return;
 
     SetValue(botId, "coaGearPvp", pvp);
-    SetValue(botId, "coaGearScore", gearScore);
+    SetValue(botId, "coaGearScore", itemLevel);
     PlayerbotFactory::DestroyEquippedGear(bot);
-    PlayerbotFactory factory(bot, bot->GetLevel(), quality, gearScore);
+    PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
+    factory.maxItemLevel = itemLevel;
     factory.InitEquipment(false, false);
     factory.InitAmmo();
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
         factory.ApplyEnchantAndGemsNew();
     bot->DurabilityRepairAll(false, 1.0f, false);
-    LOG_DEBUG("playerbots", "coa: {} {} gear, gear score limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", gearScore,
+    LOG_DEBUG("playerbots", "coa: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
               master ? " (grouped)" : "");
 }
 

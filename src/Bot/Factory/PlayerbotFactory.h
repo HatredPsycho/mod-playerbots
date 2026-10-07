@@ -120,6 +120,9 @@ public:
     void InitAttunementQuests();
     void InitGuild();
 
+    // Highest item level InitEquipment takes, whatever the quality (0 = no limit).
+    uint32 maxItemLevel = 0;
+
 private:
     enum class ProfessionSpecializationSpell : uint32
     {
