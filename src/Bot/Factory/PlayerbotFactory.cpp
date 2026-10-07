@@ -22,6 +22,7 @@
 #include "ItemPackets.h"
 #include "ItemTemplate.h"
 #include "ItemVisitors.h"
+#include "DatabaseEnv.h"
 #include "Log.h"
 #include "LootMgr.h"
 #include "ObjectMgr.h"
@@ -2610,6 +2611,29 @@ void PlayerbotFactory::DressNakedCoaStarter(Player* bot)
     StoreCoaStarterItems(bot);
 }
 
+bool PlayerbotFactory::IsCoaPvpItem(ItemTemplate const* proto)
+{
+    static std::unordered_set<uint32> const honorItems = []
+    {
+        std::unordered_set<uint32> items;
+        if (QueryResult result = WorldDatabase.Query(
+                "SELECT DISTINCT v.item FROM npc_vendor v JOIN creature_template c ON c.entry = v.entry WHERE c.subname IN "
+                "('Legacy Armor Quartermaster', 'Legacy Weapon Quartermaster', 'Accessories Quartermaster')"))
+            do
+                items.insert(result->Fetch()[0].Get<uint32>());
+            while (result->NextRow());
+        LOG_INFO("playerbots", "CoA PvP gear: {} items of the honor quartermasters", items.size());
+        return items;
+    }();
+
+    if (honorItems.count(proto->ItemId))
+        return true;
+    for (uint32 i = 0; i < proto->StatsCount && i < MAX_ITEM_PROTO_STATS; ++i)
+        if (proto->ItemStat[i].ItemStatType == ITEM_MOD_RESILIENCE_RATING)
+            return true;
+    return false;
+}
+
 void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32 onlySlot)
 {
     if (level < 5)
@@ -2852,14 +2876,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
             }
 
             // CoA PvP gear: the resilience weight alone let higher PvE pieces win most slots, and bots went to
-            // battlegrounds in a mix of both.
-            if (cur_score > 0.0f && proto && preferResilience)
-                for (uint32 i = 0; i < proto->StatsCount && i < MAX_ITEM_PROTO_STATS; ++i)
-                    if (proto->ItemStat[i].ItemStatType == ITEM_MOD_RESILIENCE_RATING)
-                    {
-                        cur_score *= 10.0f;
-                        break;
-                    }
+            // battlegrounds in a mix of both. The level 60 honor sets carry no resilience: what the honor
+            // quartermasters sell counts as PvP gear too.
+            if (cur_score > 0.0f && proto && preferResilience && IsCoaPvpItem(proto))
+                cur_score *= 10.0f;
 
             if (cur_score > bestScoreForSlot)
             {
