@@ -163,6 +163,8 @@ public:
     void SetValue(uint32 bot, std::string const& type, uint32 value, std::string const& data = "");
     void SetValue(Player* bot, std::string const& type, uint32 value, std::string const& data = "");
     bool IsSpecPvp(uint32 bot, uint8 cls);
+    // AiPlayerbot.CoaGearByContent: PvP or PvE gear for what the random bot does, at its grouping player's item level.
+    void CoaUpdateGear(Player* bot);
     void Remove(Player* bot);
     ObjectGuid GetBattleMasterGUID(Player* bot, BattlegroundTypeId bgTypeId);
     CreatureData const* GetCreatureDataByEntry(uint32 entry);
@@ -201,8 +203,6 @@ protected:
     void OnBotLoginInternal(Player* const bot) override;
     // AiPlayerbot.CoaRulesetForBots: puts a random bot in its High Risk / War Mode / PvE ruleset (see the .dist).
     void CoaApplyRuleset(Player* bot);
-    // AiPlayerbot.CoaGearByContent: PvP or PvE gear for what the random bot does, at its grouping player's item level.
-    void CoaUpdateGear(Player* bot);
 
 private:
     RandomPlayerbotMgr() : PlayerbotHolder()
