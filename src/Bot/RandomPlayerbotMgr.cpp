@@ -3023,8 +3023,8 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (!master && (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime())))
         return;
 
-    SetValue(botId, "coaGearPvp", pvp);
-    SetValue(botId, "coaGearScore", itemLevel);
+    SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
+    SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
     PlayerbotFactory::DestroyEquippedGear(bot);
     PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
     factory.maxItemLevel = itemLevel;
@@ -3034,7 +3034,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
         factory.ApplyEnchantAndGemsNew();
     bot->DurabilityRepairAll(false, 1.0f, false);
-    LOG_DEBUG("playerbots", "coa: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
+    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
               master ? " (grouped)" : "");
 }
 
