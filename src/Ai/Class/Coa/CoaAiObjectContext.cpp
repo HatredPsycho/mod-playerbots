@@ -1158,6 +1158,9 @@ Unit* SmartHealTarget(Player* bot, float below, bool overTime = false)
         float score = health;
         if (PlayerbotAI::IsTank(member))
             score -= 15.0f;
+        // A battleground flag carrier before the tank: the game hangs on it reaching its base alive.
+        if (member->HasAura(23333) || member->HasAura(23335) || member->HasAura(34976))
+            score -= 20.0f;
         if (health < sPlayerbotAIConfig.criticalHealth)
             score -= 40.0f;
 
@@ -2472,7 +2475,8 @@ public:
     {
         // While the group fights, not only while this bot fights: a healer standing back is never
         // in a fight itself, and it is exactly the one that has to be brought back within reach.
-        if (!SmartHeal() || !(bot->IsInCombat() || GroupFighting(bot)))
+        // Never in a battleground: there the bot follows its objective (flag run, base), not a tank.
+        if (!SmartHeal() || bot->InBattleground() || !(bot->IsInCombat() || GroupFighting(bot)))
             return false;
         Player* tank = GroupTank(bot);
         return tank && (bot->GetDistance2d(tank) > StayNearTank + 4.0f || !bot->IsWithinLOSInMap(tank));
@@ -2490,7 +2494,9 @@ public:
 
     bool IsActive() override
     {
-        if (!SmartHeal() || GetCoaRole(bot) != CoaRole::Heal || !(bot->IsInCombat() || GroupFighting(bot)))
+        // Not in a battleground either: at priority 95 it outranked the flag carrier's run home (90).
+        if (!SmartHeal() || GetCoaRole(bot) != CoaRole::Heal || bot->InBattleground() ||
+            !(bot->IsInCombat() || GroupFighting(bot)))
             return false;
         Player* tank = GroupTank(bot);
         return tank && (bot->GetDistance(tank) > sPlayerbotAIConfig.healDistance || !bot->IsWithinLOSInMap(tank));
@@ -3361,8 +3367,9 @@ public:
     {
         time_t& farSince = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->farFromPlayerSince;
         Player* master = botAI->GetMaster();
-        bool const lost = master && !GET_PLAYERBOT_AI(master) && bot->IsAlive() && master->IsAlive() &&
-                         !bot->IsInCombat() && !master->IsInCombat() && !master->IsInFlight() &&
+        // In a battleground the bot plays its objective; teleporting it to the player broke flag runs.
+        bool const lost = master && !GET_PLAYERBOT_AI(master) && !bot->InBattleground() && bot->IsAlive() &&
+                         master->IsAlive() && !bot->IsInCombat() && !master->IsInCombat() && !master->IsInFlight() &&
                          !master->IsBeingTeleported() && OnSameInstance(bot, master) &&
                          bot->GetGroup() && bot->GetDistance(master) > CatchUpDistance;
         if (!lost)

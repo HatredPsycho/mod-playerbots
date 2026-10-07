@@ -198,7 +198,10 @@ std::string ChangeTalentsAction::CoaSpecPick(std::string const& wanted)
             matches.assign(1, &spec);
             break;
         }
-        if (byRole)
+        // A role or a random pick leaves out the specializations bots never play (CoaExcludedSpecializations):
+        // "talents spec tank" made a Bloodmage Eternal, which nothing in the core lets tank. Asked by name, it
+        // is still given.
+        if (byRole && !sPlayerbotAIConfig.coaExcludedSpecializations.count(spec.specId))
             matches.push_back(&spec);
     }
 

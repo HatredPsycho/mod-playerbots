@@ -29,7 +29,7 @@
 #include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "1.8";
+static constexpr char const* COA_BOTS_VERSION = "1.9";
 
 // The login notices reach each account once per worldserver start, not again with every character it logs in.
 static bool FirstLoginSinceStart(uint32 accountId)
@@ -512,6 +512,7 @@ public:
     {
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
+        sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
     }
 
     void OnShutdown() override

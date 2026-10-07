@@ -178,6 +178,9 @@ static bool IsBotSafeForLevelReset(Player* bot)
             if (member && member->IsInWorld() && !GET_PLAYERBOT_AI(member))
                 return false;
         }
+        // Nor while it waits for a player who logged out to come back (AiPlayerbot.CoaOrphanGroupReleaseDelay).
+        if (sPlayerbotAIConfig.coaOrphanGroupReleaseDelay && sRandomPlayerbotMgr.CoaIsOrphanGroup(group))
+            return false;
     }
     return true;
 }
@@ -503,6 +506,9 @@ int RandomBotLevelMgr::GetOrFlagPlayerBracket(Player* player)
                 if (member && member->IsInWorld() && !GET_PLAYERBOT_AI(member))
                     return -1;
             }
+            // Or with one who logged out, while they wait for him (AiPlayerbot.CoaOrphanGroupReleaseDelay).
+            if (sPlayerbotAIConfig.coaOrphanGroupReleaseDelay && sRandomPlayerbotMgr.CoaIsOrphanGroup(group))
+                return -1;
         }
     }
 
@@ -1219,7 +1225,8 @@ public:
 
     void OnUpdate(uint32 diff) override
     {
-        RandomBotLevelMgr::instance().Update(diff);
+        if (sPlayerbotAIConfig.enabled)
+            RandomBotLevelMgr::instance().Update(diff);
     }
 };
 
@@ -1237,21 +1244,22 @@ public:
 
     void OnPlayerLogin(Player* player) override
     {
-        if (!sPlayerbotAIConfig.resetBotLevelEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.resetBotLevelEnabled)
             return;
         RandomBotLevelMgr::instance().OnBotLogin(player);
     }
 
     void OnPlayerLevelChanged(Player* player, uint8 oldLevel) override
     {
-        if (!sPlayerbotAIConfig.resetBotLevelEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.resetBotLevelEnabled)
             return;
         RandomBotLevelMgr::instance().OnBotLevelChanged(player, oldLevel);
     }
 
     void OnPlayerLogout(Player* player) override
     {
-        RandomBotLevelMgr::instance().OnPlayerLogout(player);
+        if (sPlayerbotAIConfig.enabled)
+            RandomBotLevelMgr::instance().OnPlayerLogout(player);
     }
 };
 

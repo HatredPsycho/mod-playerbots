@@ -421,6 +421,12 @@ public:
     bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
     uint32 coaTankOpenerSeconds;
+    uint32 coaOrphanGroupReleaseDelay;
+    bool coaTellEquipUpgrades;
+    bool coaRulesetForBots;
+    uint32 coaRulesetHighRiskPct;
+    uint32 coaRulesetWarModePct;
+    uint32 coaBgLevelBalanceChance;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
     bool coaStatusEnabled;

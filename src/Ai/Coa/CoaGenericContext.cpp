@@ -78,6 +78,12 @@ bool CoaHasNoAuraTrigger::IsActive()
     return !botAI->HasAura(qualifier, GetTarget());
 }
 
+bool CoaAoeHasAuraTrigger::IsActive()
+{
+    return !qualifier.empty() && MediumAoeTrigger::IsActive() &&
+           botAI->HasAura(qualifier, bot, false, false, -1, true);
+}
+
 std::string CoaAuraStacksTrigger::SpellPart() const
 {
     size_t comma = qualifier.rfind(',');
@@ -395,7 +401,20 @@ float CoaMissingAround(Player* bot)
 }
 }  // namespace
 
+// A summon line that stays true does not bring the summon: a Knight of Xoroth stood 170 s in an Arathi Basin
+// on "can cast::Call: Hellfire Imp", recast without end and never in combat (CoA test realm, 06/10). Ten
+// seconds without the summon standing, the line is set aside 30 s, as rotation buff lines are.
 bool CoaCanCastTrigger::IsActive()
+{
+    bool const active = CanCastNow();
+    uint32 const id = AI_VALUE2(uint32, "spell id", spell);
+    SpellInfo const* info = id ? sSpellMgr->GetSpellInfo(id) : nullptr;
+    if (!info || !info->HasEffect(SPELL_EFFECT_SUMMON))
+        return active;
+    return summonBackoff.Allow(active);
+}
+
+bool CoaCanCastTrigger::CanCastNow()
 {
     if (!SpellCanBeCastTrigger::IsActive())
         return false;

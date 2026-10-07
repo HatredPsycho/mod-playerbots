@@ -321,6 +321,8 @@ void AppendBot(std::string& out, Player* bot, PlayerbotAI* botAI, JsonNames& nam
     AppendCoord(out, bot->GetPositionY());
     out += bot->IsInCombat() ? ",\"combat\":true" : ",\"combat\":false";
     out += bot->IsAlive() ? ",\"dead\":false" : ",\"dead\":true";
+    if (bot->IsMounted())
+        out += ",\"mnt\":true";
 
     Group* group = bot->GetGroup();
     out += ",\"grp\":";
@@ -468,7 +470,7 @@ public:
 
     void OnUpdate(uint32 diff) override
     {
-        if (!sPlayerbotAIConfig.coaStatusEnabled)
+        if (!sPlayerbotAIConfig.enabled || !sPlayerbotAIConfig.coaStatusEnabled)
             return;
         elapsed += diff;
         if (elapsed < sPlayerbotAIConfig.coaStatusIntervalSeconds * IN_MILLISECONDS)

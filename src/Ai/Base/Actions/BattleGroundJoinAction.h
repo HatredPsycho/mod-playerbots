@@ -10,6 +10,8 @@
 #include "Action.h"
 #include "DBCEnums.h"
 
+#include <unordered_map>
+
 class PlayerbotAI;
 
 struct CreatureData;
@@ -34,6 +36,10 @@ public:
 
 protected:
     bool JoinQueue(uint32 type);
+    // A bot that would unbalance the average levels of the two sides skips most of its tries
+    // (AiPlayerbot.CoaBgLevelBalanceChance), and stays out of that queue a minute after a refusal.
+    bool LevelUnbalances(BattlegroundQueueTypeId queueTypeId, BattlegroundBracketId bracketId);
+    std::unordered_map<uint32, uint32> levelRefusedAt;  // queue type -> getMSTime() of the last refusal
     std::vector<uint32> bgList;
     std::vector<uint32> ratedList;
 };

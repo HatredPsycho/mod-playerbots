@@ -1052,7 +1052,7 @@ void PlayerbotFactory::Randomize(bool incremental)
     if (pmo)
         pmo->finish();
 
-    if (bot->GetLevel() >= 70)
+    if (bot->GetLevel() >= RandomPlayerbotFactory::ArenaTeamMinLevel())
     {
         pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Arenas");
         RandomPlayerbotFactory::AssignBotToArenaTeam(bot);

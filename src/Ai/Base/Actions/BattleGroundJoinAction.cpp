@@ -14,6 +14,7 @@
 #include "PlayerbotAI.h"
 #include "Playerbots.h"
 #include "PositionValue.h"
+#include "RandomPlayerbotFactory.h"
 
 bool BGJoinAction::Execute(Event /*event*/)
 {
@@ -177,7 +178,7 @@ bool BGJoinAction::gatherArenaTeam(ArenaType type)
         if (!member)
             continue;
 
-        if (member->GetLevel() < 70)
+        if (member->GetLevel() < RandomPlayerbotFactory::ArenaTeamMinLevel())
             continue;
 
         if (!group->AddMember(member))
@@ -309,6 +310,10 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
     if (FactionMissing(queueTypeId))
         return true;
 
+    // Queues a real player waits in are filled above, as before.
+    if (LevelUnbalances(queueTypeId, bracketId))
+        return false;
+
     // Check if bots should join Battleground
     uint32 bgAllianceBotCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount;
     uint32 bgAlliancePlayerCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAlliancePlayerCount;
@@ -329,6 +334,39 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
     }
 
     return false;
+}
+
+// CoA: random bots filled a battleground on a first come, first served basis, whatever their level in the
+// bracket; on a 1,000-bot test realm the two sides started up to 5.5 levels apart and the higher one won 9
+// games out of 10. Bots of every level still join (low ones are part of the game), but one that would take
+// its side's average level more than 2 levels away from the other side's, and further than it is, only joins
+// on CoaBgLevelBalanceChance percent of its tries. A refused bot stays out of that queue for a minute: it tried
+// again about every second, so on a realm of a few hundred bots the chance let it in within seconds anyway and
+// the sides of a Warsong Gulch still started up to 11 levels apart.
+bool BGJoinAction::LevelUnbalances(BattlegroundQueueTypeId queueTypeId, BattlegroundBracketId bracketId)
+{
+    if (sPlayerbotAIConfig.coaBgLevelBalanceChance >= 100)
+        return false;
+    uint32 const now = getMSTime();
+    auto const refused = levelRefusedAt.find(queueTypeId);
+    if (refused != levelRefusedAt.end() && getMSTimeDiff(refused->second, now) < 60 * IN_MILLISECONDS)
+        return true;
+    BattlegroundInfo const& info = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId];
+    bool const alliance = bot->GetTeamId() == TEAM_ALLIANCE;
+    uint32 const mine = alliance ? info.bgAllianceBotCount + info.bgAlliancePlayerCount
+                                 : info.bgHordeBotCount + info.bgHordePlayerCount;
+    uint32 const theirs = alliance ? info.bgHordeBotCount + info.bgHordePlayerCount
+                                   : info.bgAllianceBotCount + info.bgAlliancePlayerCount;
+    if (!theirs)
+        return false;
+    uint32 const mineSum = alliance ? info.bgAllianceLevelSum : info.bgHordeLevelSum;
+    float const target = float(alliance ? info.bgHordeLevelSum : info.bgAllianceLevelSum) / theirs;
+    float const after = std::fabs(float(mineSum + bot->GetLevel()) / (mine + 1) - target);
+    float const before = mine ? std::fabs(float(mineSum) / mine - target) : after;
+    if (after <= 2.0f || after < before || urand(1, 100) <= sPlayerbotAIConfig.coaBgLevelBalanceChance)
+        return false;
+    levelRefusedAt[queueTypeId] = now;
+    return true;
 }
 
 bool BGJoinAction::isUseful()
@@ -546,21 +584,20 @@ bool BGJoinAction::JoinQueue(uint32 type)
             sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].skirmishArenaBotCount++;
         }
     }
-    else if (!joinAsGroup)
-    {
-        if (teamId == TEAM_ALLIANCE)
-            sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount++;
-        else
-            sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgHordeBotCount++;
-    }
     else
     {
+        BattlegroundInfo& info = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId];
+        uint32 const members = joinAsGroup ? bot->GetGroup()->GetMembersCount() : 1;
         if (teamId == TEAM_ALLIANCE)
-            sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount +=
-                bot->GetGroup()->GetMembersCount();
+        {
+            info.bgAllianceBotCount += members;
+            info.bgAllianceLevelSum += members * bot->GetLevel();
+        }
         else
-            sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgHordeBotCount +=
-                bot->GetGroup()->GetMembersCount();
+        {
+            info.bgHordeBotCount += members;
+            info.bgHordeLevelSum += members * bot->GetLevel();
+        }
     }
 
     botAI->GetAiObjectContext()->GetValue<uint32>("bg type")->Set(0);
@@ -647,6 +684,10 @@ bool FreeBGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battleg
 
         return false;
     }
+
+    // Not where a real player waits for the bot's faction: that queue fills as before.
+    if (!FactionMissing(queueTypeId) && LevelUnbalances(queueTypeId, bracketId))
+        return false;
 
     // Check if bots should join Battleground
     uint32 bgAllianceBotCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount;

@@ -10,6 +10,12 @@
 #include "ServerFacade.h"
 #include "Vehicle.h"
 
+// CoA rulesets (core: src/server/coa/AscensionRulesets.cpp): High Risk, or War Mode without the PvE marker.
+static bool CoaPvpRuleset(Unit const* unit)
+{
+    return unit->HasAura(1004019) || (unit->HasAura(1004119) && !unit->HasAura(9931032));
+}
+
 bool NearestEnemyPlayersValue::AcceptUnit(Unit* unit)
 {
     // Apply parent's filtering first (includes level difference checks)
@@ -28,6 +34,14 @@ bool NearestEnemyPlayersValue::AcceptUnit(Unit* unit)
         // If with master, only attack if master is PvP flagged
         Player* master = botAI->GetMaster();
         if (master && !master->IsPvP() && !master->IsFFAPvP())
+            return false;
+
+        // With AiPlayerbot.CoaRulesetForBots, a bot on its own only starts an open world fight with a character of
+        // a PvP ruleset, whatever its own: as on Ascension, High Risk and War Mode characters may be attacked by
+        // anyone, PvE characters by no one. Defending itself and helping its group (below) are not affected.
+        // Bots with a real player keep following the rule above.
+        if (sPlayerbotAIConfig.coaRulesetForBots && !bot->InBattleground() && !bot->InArena() &&
+            !IsRealPlayer(master) && !CoaPvpRuleset(enemy))
             return false;
 
         return true;

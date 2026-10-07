@@ -559,7 +559,7 @@ inline constexpr std::array<Pick, 3594> Picks =
     {15, 11, 32, 0, 34583, 1},
     {15, 11, 33, 1, 6411, 1},
     {15, 11, 34, 0, 34595, 1},
-    {15, 11, 35, 1, 34527, 1},
+    {15, 11, 35, 1, 29161, 1},  // by hand 05/10: Pure Agony (a player's tip, top players) instead of Hail of Gunfire (34527), same tree and gate
     {15, 11, 36, 0, 34558, 1},
     {15, 11, 37, 1, 29984, 1},
     {15, 11, 38, 0, 29952, 1},
@@ -571,9 +571,9 @@ inline constexpr std::array<Pick, 3594> Picks =
     {15, 11, 44, 0, 7588, 1},
     {15, 11, 45, 1, 30185, 1},
     {15, 11, 46, 0, 30736, 1},
-    {15, 11, 47, 1, 34532, 1},
+    {15, 11, 47, 1, 34528, 1},  // by hand 05/10: Darkhunter, 2nd option of Reload (a player's tip, instant Darkslayer) instead of Silver Bullets (34532), same gate
     {15, 11, 48, 0, 34555, 1},
-    {15, 11, 49, 1, 34532, 2},
+    {15, 11, 49, 1, 7418, 1},  // by hand 05/10: Trapper (top players) for rank 2 of Silver Bullets (34532), replaced by Darkhunter (1 rank)
     {15, 11, 50, 0, 34560, 1},
     {15, 11, 51, 1, 34530, 1},
     {15, 11, 52, 0, 34556, 1},
@@ -581,7 +581,7 @@ inline constexpr std::array<Pick, 3594> Picks =
     {15, 11, 54, 0, 34556, 2},
     {15, 11, 55, 1, 34524, 1},
     {15, 11, 56, 0, 11218, 1},
-    {15, 11, 57, 1, 7420, 1},
+    {15, 11, 57, 1, 34531, 1},  // by hand 05/10: Coordinated Killing (a player's tip, top players) instead of Low Dawn (7420), same 23-point gate
     {15, 11, 58, 0, 29986, 1},
     {15, 11, 59, 1, 8005, 1},
     {15, 11, 60, 0, 6325, 1},
@@ -1748,7 +1748,7 @@ inline constexpr std::array<Pick, 3594> Picks =
     {22, 32, 32, 0, 7917, 1},
     {22, 32, 33, 1, 5168, 1},
     {22, 32, 34, 0, 30269, 1},
-    {22, 32, 35, 1, 11170, 1},
+    {22, 32, 35, 1, 11176, 1},  // by hand 04/10: Pure Chaos (a player's tip, top players) instead of Chaos Fusion (11170), same node and gate
     {22, 32, 36, 0, 6162, 1},
     {22, 32, 37, 1, 5367, 1},
     {22, 32, 38, 0, 6162, 2},

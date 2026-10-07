@@ -101,11 +101,31 @@ SETTINGS = [
      'Random bots fill the battleground and arena queues of players.'),
     ('RandomBotAutoJoinBG', 'activities', 'Battlegrounds between bots',
      'Random bots also start battlegrounds and arenas by themselves, without players.'),
+    ('RandomBotAutoJoinBGRatedArena2v2Count', 'activities', 'Rated 2v2 arenas between bots',
+     'How many rated 2v2 arenas the bot teams keep going at once. Bot teams also queue when a player joins a rated queue. 0 = none.'),
+    ('RandomBotAutoJoinBGRatedArena3v3Count', 'activities', 'Rated 3v3 arenas between bots',
+     'How many rated 3v3 arenas the bot teams keep going at once. Bot teams also queue when a player joins a rated queue. 0 = none.'),
+    ('RandomBotAutoJoinBGRatedArena5v5Count', 'activities', 'Rated 5v5 arenas between bots',
+     'How many rated 5v5 arenas the bot teams keep going at once. Bot teams also queue when a player joins a rated queue. 0 = none.'),
+    ('RandomBotArenaTeam2v2Count', 'activities', 'Bot arena teams (2v2)',
+     'Number of 2v2 arena teams of bots, each with a rating from 1000 to 2000 kept between restarts. A bot is in one team at most.'),
+    ('RandomBotArenaTeam3v3Count', 'activities', 'Bot arena teams (3v3)',
+     'Number of 3v3 arena teams of bots, each with a rating from 1000 to 2000 kept between restarts. A bot is in one team at most.'),
+    ('RandomBotArenaTeam5v5Count', 'activities', 'Bot arena teams (5v5)',
+     'Number of 5v5 arena teams of bots, each with a rating from 1000 to 2000 kept between restarts. A bot is in one team at most.'),
+    ('CoaRulesetForBots', 'activities', 'High Risk and War Mode bots',
+     'A share of the random bots plays in High Risk or War Mode (PvP flag on; anyone may attack them, and they attack '
+     'High Risk and War Mode characters). Off: every bot in PvE.'),
+    ('CoaRulesetHighRiskPct', 'activities', 'High Risk bots (%)', 'Share of the random bots in High Risk, when the option above is on.'),
+    ('CoaRulesetWarModePct', 'activities', 'War Mode bots (%)', 'Share of the random bots in War Mode, when the option above is on.'),
     ('CoaLfgBots', 'activities', '"lfg bot" in chat',
      'A player who says "lfg bot heal", "lfg bot tank" or "lfg bot dps" in chat is whispered by free bots of those roles to invite.'),
     ('CoaLfgLevelRange', 'activities', '"lfg bot" level range',
      'A bot within this many levels of the player keeps its level and gear; one further away is rebuilt at the player\'s level.'),
 
+    ('BotTextLocale', 'chat', "Language of the bots' chat",
+     'Language of what the bots say in chat (without AI): Auto follows the client language of the players online, '
+     'or one language for everybody. Nearly all texts exist in French and German; about half in Spanish and Russian.'),
     ('RandomBotTalk', 'chat', 'Bots talk', 'Random bots say things in chat now and then.'),
     ('EnableBroadcasts', 'chat', 'Bot announcements',
      'Random bots announce what they do (loot, quests, levels) in the chat channels.'),
@@ -118,7 +138,11 @@ SETTINGS = [
 ]
 
 # Bounds the code does not enforce but the meaning does (key without "AiPlayerbot.": min, max)
-RANGES = {'RandomGearQualityLimit': (1, 5), 'RandomBotMinLevel': (1, 80), 'RandomBotMaxLevel': (1, 80)}
+RANGES = {'RandomGearQualityLimit': (1, 5), 'RandomBotMinLevel': (1, 80), 'RandomBotMaxLevel': (1, 80),
+          'BotTextLocale': (-1, 8), 'CoaRulesetHighRiskPct': (0, 100), 'CoaRulesetWarModePct': (0, 100)}
+# Settings that take one of a few values: shown as a list (value, label).
+CHOICES = {'BotTextLocale': [(-1, "Auto (players' client language)"), (0, 'English'), (2, 'Français'), (3, 'Deutsch'),
+                             (6, 'Español'), (8, 'Русский')]}
 
 KEY = re.compile(r'^((?:AiPlayerbot|Playerbots|PlayerbotsDatabase)[\w.]*)\s*=\s*(.*?)\s*$')
 OPTION = re.compile(r'(?:std::(min|max)<[\w:]+>\(\s*(-?[\d.]+)f?\s*,\s*)?'
@@ -213,6 +237,8 @@ def main():
             item['max'] = hi
         if kind != 'string' and code_default is not None and value(code_default, kind) != item['default']:
             item['default_if_missing'] = value(code_default, kind)
+        if short in CHOICES:
+            item['choices'] = [{'value': v, 'label': label} for v, label in CHOICES[short]]
         item['coa'] = short.startswith('Coa')
         if before:
             if key not in before:

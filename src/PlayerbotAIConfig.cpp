@@ -754,6 +754,12 @@ bool PlayerbotAIConfig::Initialize()
     coaStealthIsNotStance = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaStealthIsNotStance", false);
     coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
     coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
+    coaOrphanGroupReleaseDelay = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaOrphanGroupReleaseDelay", 300);
+    coaTellEquipUpgrades = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTellEquipUpgrades", false);
+    coaRulesetForBots = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRulesetForBots", false);
+    coaRulesetHighRiskPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetHighRiskPct", 30);
+    coaRulesetWarModePct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetWarModePct", 0);
+    coaBgLevelBalanceChance = std::min<uint32>(100, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBgLevelBalanceChance", 15));
     coaStatusFile = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaStatusFile", "");
     coaStatusIntervalSeconds = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaStatusIntervalSeconds", 5));
     coaStatusEnabled = !coaStatusFile.empty();

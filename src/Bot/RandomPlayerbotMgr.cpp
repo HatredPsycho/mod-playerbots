@@ -35,6 +35,7 @@
 #include "Position.h"
 #include "RaceMgr.h"
 #include "Random.h"
+#include "RandomBotLevelMgr.h"
 #include "RandomPlayerbotFactory.h"
 #include "ServerFacade.h"
 #include "SharedDefines.h"
@@ -384,6 +385,10 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 /*elapsed*/, bool /*minimal*/)
     {
         if (time(nullptr) > (BgCheckTimer + 35))
             sRandomPlayerbotMgr.CheckBgQueue();
+
+        if (time(nullptr) > (ArenaCaptainCheckTimer + 60) &&
+            (!sPlayerbotAIConfig.disabledWithoutRealPlayer || realPlayerIsLogged))
+            KeepArenaCaptainsOnline();
     }
 
     if (sPlayerbotAIConfig.randomBotJoinLfg /* && !players.empty()*/)
@@ -980,9 +985,15 @@ void RandomPlayerbotMgr::CheckBgQueue()
             else
             {
                 if (teamId == TEAM_ALLIANCE)
+                {
                     BattlegroundData[queueTypeId][bracketId].bgAlliancePlayerCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgAllianceLevelSum += player->GetLevel();
+                }
                 else
+                {
                     BattlegroundData[queueTypeId][bracketId].bgHordePlayerCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgHordeLevelSum += player->GetLevel();
+                }
 
                 // If a player has joined the BG, update the instance count in BattlegroundData (for consistency)
                 if (player->InBattleground())
@@ -1097,9 +1108,15 @@ void RandomPlayerbotMgr::CheckBgQueue()
             else
             {
                 if (teamId == TEAM_ALLIANCE)
+                {
                     BattlegroundData[queueTypeId][bracketId].bgAllianceBotCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgAllianceLevelSum += bot->GetLevel();
+                }
                 else
+                {
                     BattlegroundData[queueTypeId][bracketId].bgHordeBotCount++;
+                    BattlegroundData[queueTypeId][bracketId].bgHordeLevelSum += bot->GetLevel();
+                }
             }
 
             if (bot->InBattleground())
@@ -1148,8 +1165,11 @@ void RandomPlayerbotMgr::CheckBgQueue()
         }
     }
 
-    // If enabled, wait for all bots to have logged in before queueing for Arena's / BG's
-    if (sPlayerbotAIConfig.randomBotAutoJoinBG && playerBots.size() >= GetMaxAllowedBotCount())
+    // If enabled, wait for (nearly) all bots to have logged in before queueing for Arena's / BG's.
+    // 95 %, not all: a few bots are always logging out and in again (rotation, a new bot count), and on a
+    // CoA test realm with 1,000 bots no battleground started for 30 to 40 minutes of every hour while the
+    // count sat at 975-999.
+    if (sPlayerbotAIConfig.randomBotAutoJoinBG && playerBots.size() * 100 >= GetMaxAllowedBotCount() * 95)
     {
         uint32 randomBotAutoJoinArenaBracket = sPlayerbotAIConfig.randomBotAutoJoinArenaBracket;
         uint32 randomBotAutoJoinBGRatedArena2v2Count = sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena2v2Count;
@@ -1498,6 +1518,8 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
     if (bot->InBattlegroundQueue())
         return false;
 
+    CoaApplyRuleset(bot);
+
      uint32 botId = bot->GetGUID().GetCounter();
 
     // if death revive
@@ -1805,6 +1827,52 @@ void RandomPlayerbotMgr::Init()
         sRandomPlayerbotMgr.LoadBattleMastersCache();
 
     PlayerbotsDatabase.Execute("DELETE FROM playerbots_random_bots WHERE event = 'add'");
+}
+
+// CoA: a bot team queues only when its captain is online, and every restart or rotation logs in other bots, so
+// the teams stopped playing. Their captains are kept in the world here; they log in their team when they queue.
+// They are logged in at once, above the bot count, like the team members the captain calls: a captain only made
+// a random bot would wait for a free place, more than an hour on a full world.
+void RandomPlayerbotMgr::KeepArenaCaptainsOnline()
+{
+    ArenaCaptainCheckTimer = time(nullptr);
+    if (sPlayerbotAIConfig.deleteRandomBotArenaTeams)
+        return;
+
+    std::pair<ArenaType, uint32> const formats[] = {
+        {ARENA_TYPE_2v2, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena2v2Count},
+        {ARENA_TYPE_3v3, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena3v3Count},
+        {ARENA_TYPE_5v5, sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena5v5Count}};
+
+    uint32 logins = 0;
+    for (auto const& [type, count] : formats)
+    {
+        if (!count)
+            continue;
+
+        std::vector<ObjectGuid> captains;
+        RandomPlayerbotFactory::GetBotArenaTeamCaptains(type, captains);
+        for (ObjectGuid const& captain : captains)
+        {
+            uint32 const bot = captain.GetCounter();
+            if (logins >= 10 || ObjectAccessor::FindConnectedPlayer(captain) ||
+                !sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(captain)))
+                continue;
+
+            if (!currentBots.contains(bot))
+            {
+                SetEventValue(bot, "add", 1, sPlayerbotAIConfig.permanentlyInWorldTime);
+                SetEventValue(bot, "logout", 0, 0);
+                currentBots.insert(bot);
+            }
+
+            AddPlayerBot(captain, 0);
+            ++logins;
+        }
+    }
+
+    if (logins)
+        LOG_INFO("playerbots", "Arena captains brought back online: {}", logins);
 }
 
 void RandomPlayerbotMgr::InitArenaTeams()
@@ -2727,6 +2795,163 @@ void RandomPlayerbotMgr::OnPlayerLogout(Player* player)
         players.erase(i);
 }
 
+bool RandomPlayerbotMgr::CoaIsOrphanGroup(Group const* group)
+{
+    if (!group || group->isBGGroup() || group->isBFGroup() || group->isLFGGroup())
+        return false;
+
+    bool character = false;
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+    {
+        // FindConnectedPlayer also finds a player in a battleground (another group) or on a loading screen.
+        if (Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid))
+        {
+            // A player, a selfbot, or an alt or addclass bot, which is only online with its owner.
+            if (!GET_PLAYERBOT_AI(member) || !IsRandomBot(member))
+                return false;
+        }
+        else if (!sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(slot.guid)))
+            character = true;
+    }
+    return character;
+}
+
+// The core keeps a player who logs out in his raid, and the bots he left there had no master and stood still
+// until he came back. One look per group, never per bot, so that the whole group goes at once.
+void RandomPlayerbotMgr::CoaReleaseOrphanGroups()
+{
+    uint32 const delay = sPlayerbotAIConfig.coaOrphanGroupReleaseDelay;
+    if (!delay)
+    {
+        coaOrphanGroups.clear();
+        return;
+    }
+
+    time_t const now = time(nullptr);
+    if (now < coaOrphanCheckAt)
+        return;
+    coaOrphanCheckAt = now + 10;
+
+    // Groups of bots only, groups with a player connected and groups gone since the last pass drop out of the map.
+    std::unordered_set<ObjectGuid::LowType> seen;
+    std::unordered_map<ObjectGuid::LowType, time_t> orphans;
+    std::vector<std::pair<Group*, time_t>> due;
+    for (auto const& [guid, bot] : playerBots)
+    {
+        Group* group = bot ? bot->GetGroup() : nullptr;
+        if (!group || !seen.insert(group->GetGUID().GetCounter()).second)
+            continue;
+
+        if (!CoaIsOrphanGroup(group) || sLFGMgr->GetState(group->GetGUID()) != lfg::LFG_STATE_NONE)
+            continue;
+
+        auto const known = coaOrphanGroups.find(group->GetGUID().GetCounter());
+        time_t const since = known != coaOrphanGroups.end() ? known->second : now;
+        orphans.emplace(group->GetGUID().GetCounter(), since);
+        if (now - since >= time_t(delay))
+            due.emplace_back(group, since);
+    }
+    coaOrphanGroups.swap(orphans);
+
+    uint32 released = 0;
+    for (auto const& [group, since] : due)
+    {
+        if (released >= 1)  // one group per pass: each removal costs database queries of mod-coa-challenges
+            break;
+
+        // A member in a battleground is linked here through its original group only; a bot on its way
+        // somewhere or held by a test bench goes on a later pass.
+        ObjectGuid const groupGuid = group->GetGUID();
+        std::vector<Player*> leaving;
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (member && member->GetGroup() == group && IsRandomBot(member) && GetPlayerBot(member->GetGUID()) &&
+                member->IsInWorld() && !member->IsBeingTeleported() && !RandomBotLevelMgr::IsHeld(member->GetGUID()))
+                leaving.push_back(member);
+        }
+        if (leaving.empty())
+            continue;
+        ++released;
+
+        // A leave as on /leave; the last ones disband the group, so it is never touched after the first one.
+        for (Player* member : leaving)
+            if (Group* current = member->GetGroup(); current && current->GetGUID() == groupGuid)
+                member->RemoveFromGroup(GROUP_REMOVEMETHOD_LEAVE);
+
+        uint32 left = 0;
+        for (Player* member : leaving)
+        {
+            if (member->GetGroup())
+                continue;
+
+            ++left;
+            // Back to the life of a random bot, as UpdateAIGroupMaster does for a bot out of its group.
+            if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(member))
+            {
+                botAI->SetMaster(nullptr);
+                botAI->Reset(true);
+                botAI->ResetStrategies();
+            }
+        }
+        LOG_INFO("playerbots", "coa: released {} bots of a group whose players are offline for {}s", left,
+                 uint32(now - since));
+    }
+}
+
+// Spells and auras of the CoA rulesets (core: src/server/coa/AscensionRulesets.cpp, ApplyRuleset).
+namespace
+{
+constexpr uint32 COA_RULESET_HIGH_RISK = 1004019;
+constexpr uint32 COA_RULESET_WAR_MODE = 1004119;
+constexpr uint32 COA_RULESET_PVE = 9931032;
+constexpr uint32 COA_RULESET_MERCENARY = 9930874;
+}
+
+// The core puts every character without a ruleset in PvE at login, bots included. With
+// AiPlayerbot.CoaRulesetForBots, a share of the random bots is put in High Risk or War Mode instead: the bucket
+// comes from the guid, so a bot keeps its ruleset from one login to the next, and changing the shares moves
+// only the bots whose bucket changed side. Not in a battleground, in combat or dead.
+void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
+{
+    if (!sPlayerbotAIConfig.coaRulesetForBots || !bot || !bot->IsInWorld() || !IsRandomBot(bot))
+        return;
+    if (bot->InBattleground() || bot->InArena() || bot->IsInCombat() || !bot->IsAlive())
+        return;
+
+    uint32 const highRisk = std::min<uint32>(sPlayerbotAIConfig.coaRulesetHighRiskPct, 100);
+    uint32 const warMode = std::min<uint32>(sPlayerbotAIConfig.coaRulesetWarModePct, 100 - highRisk);
+    uint32 const bucket = (bot->GetGUID().GetCounter() * 2654435761u) % 100;
+    uint32 const wanted = bucket < highRisk ? COA_RULESET_HIGH_RISK
+                        : bucket < highRisk + warMode ? COA_RULESET_WAR_MODE
+                        : COA_RULESET_PVE;
+
+    bool const hasHighRisk = bot->HasAura(COA_RULESET_HIGH_RISK);
+    bool const hasPve = bot->HasAura(COA_RULESET_PVE);
+    bool const hasWarMode = bot->HasAura(COA_RULESET_WAR_MODE);
+    bool const ok = wanted == COA_RULESET_HIGH_RISK ? hasHighRisk && !hasPve && !hasWarMode
+                  : wanted == COA_RULESET_WAR_MODE ? hasWarMode && !hasPve && !hasHighRisk
+                  : hasPve && !hasHighRisk;
+    if (!ok)
+    {
+        for (uint32 spell : {COA_RULESET_HIGH_RISK, COA_RULESET_WAR_MODE, COA_RULESET_PVE, COA_RULESET_MERCENARY})
+            bot->RemoveAurasDueToSpell(spell);
+        bot->CastSpell(bot, wanted, true);
+        LOG_DEBUG("playerbots", "coa: {} ruleset {}", bot->GetName(),
+                  wanted == COA_RULESET_HIGH_RISK ? "High Risk" : wanted == COA_RULESET_WAR_MODE ? "War Mode" : "PvE");
+    }
+
+    // The core only puts the aura: on a PvE realm a High Risk or War Mode character was never flagged for PvP.
+    // These bots keep the PvP flag on, as the rulesets mean on Ascension; PvE bots let it run out.
+    bool const pvp = wanted != COA_RULESET_PVE;
+    if (pvp && !bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
+        bot->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
+    else if (!pvp && bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
+        bot->RemovePlayerFlag(PLAYER_FLAGS_IN_PVP);
+    if (pvp && !bot->IsPvP())
+        bot->UpdatePvP(true, true);
+}
+
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
 {
     if (_isBotLogging)
@@ -2748,6 +2973,7 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
     }
 
     RandomPlayerbotFactory::AssignBotToArenaTeam(bot);
+    CoaApplyRuleset(bot);
 
     // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
     PlayerbotFactory::DressNakedCoaStarter(bot);
