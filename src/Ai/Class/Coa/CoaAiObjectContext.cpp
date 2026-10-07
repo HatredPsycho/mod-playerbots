@@ -206,6 +206,25 @@ bool DamageEndsControl(SpellInfo const* info, uint8 depth = 0)
     return false;
 }
 
+// Whether the spell makes an enemy immune to damage or banishes it, looking into the spells it triggers.
+bool ShieldsEnemy(SpellInfo const* info, uint8 depth = 0)
+{
+    if (info->Mechanic == MECHANIC_BANISH)
+        return true;
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (IsAuraEffect(effect) && effect.TargetA.GetTarget() != TARGET_UNIT_CASTER &&
+            (effect.Mechanic == MECHANIC_BANISH || effect.ApplyAuraName == SPELL_AURA_SCHOOL_IMMUNITY ||
+             effect.ApplyAuraName == SPELL_AURA_DAMAGE_IMMUNITY))
+            return true;
+        if (effect.TriggerSpell && effect.TriggerSpell != info->Id && depth < 2)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (ShieldsEnemy(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 // Whether the spell would charm or possess a dungeon, raid or world boss: Enslave Elemental (Felsworn)
 // charmed Noxxion in Maraudon and broke the encounter (jealous-sound/azerothcore-wotlk-coa#4835).
 bool TakesOverBoss(SpellInfo const* info, Unit* target)
@@ -678,6 +697,11 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
     // also regenerates its health (jealous-sound/azerothcore-wotlk-coa#6287). It stays a control, out of
     // the attack and area attack kits.
     if (!depth && (ability.kind & KIND_CONTROL) && !(ability.kind & KIND_DAMAGE) && DamageEndsControl(info))
+        ability.kind &= ~KIND_HOSTILE;
+
+    // Nor one that makes the enemy immune or banishes it: a Templar Oathkeeper's attack kit cast Shackle the
+    // Unrepentant on the enemy the group was hitting (jealous-sound/azerothcore-wotlk-coa#6724).
+    if (!depth && !(ability.kind & KIND_DAMAGE) && ShieldsEnemy(info))
         ability.kind &= ~KIND_HOSTILE;
 }
 
