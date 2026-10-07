@@ -3013,7 +3013,11 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
             if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD)
                 if (Item* item = master->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 {
-                    sum += item->GetTemplate()->ItemLevel;
+                    // A piece that scales with its wearer (heirlooms, CoA leveling legendaries) has a tiny base item
+                    // level: it counts as a piece of the player's level, or the bots of a player in them stood naked.
+                    ItemTemplate const* proto = item->GetTemplate();
+                    bool const scales = proto->ScalingStatDistribution || proto->Quality == ITEM_QUALITY_HEIRLOOM;
+                    sum += scales ? std::max<uint32>(proto->ItemLevel, master->GetLevel() + 5) : proto->ItemLevel;
                     ++count;
                 }
         if (!count)
