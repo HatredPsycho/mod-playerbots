@@ -140,6 +140,13 @@ RollVote LootRollAction::CalculateRollVote(ItemTemplate const* proto, ItemUsage 
             break;
     }
 
+    // CoA leveling legendaries are scored on their base template (low stats, a required level scaled for the
+    // player): bots passed on those of their own class (Xorothian Bloodseal #6707, a level 24 one at 21 #6725).
+    // They greed on them, so a player who needs one still wins it.
+    if (needVote == PASS && proto->Quality == ITEM_QUALITY_LEGENDARY && (proto->AllowableClass & bot->getClassMask()) &&
+        proto->RequiredLevel <= bot->GetLevel() + 3)
+        needVote = GREED;
+
     return StoreLootAction::IsLootAllowed(proto->ItemId, GET_PLAYERBOT_AI(bot)) ? needVote : PASS;
 }
 
