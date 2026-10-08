@@ -2989,12 +2989,16 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         return;
 
     // The player who groups the bot sets its item level; a High Risk bot stays in PvP gear with them.
+    // AiPlayerbot.CoaGearMatchGroup = 0: a grouped bot keeps the gear it has, as on its own.
     Player* master = botAI->GetMaster();
-    if (!master || master == bot || GET_PLAYERBOT_AI(master) || !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
+    if (!sPlayerbotAIConfig.coaGearMatchGroup || !master || master == bot || GET_PLAYERBOT_AI(master) ||
+        !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
         master = nullptr;
 
-    bool const pvp = bot->HasAura(COA_RULESET_HIGH_RISK) || bot->InBattleground() || bot->InArena() ||
-                     bot->InBattlegroundQueue();
+    // AiPlayerbot.CoaGearHighRiskPvp = 0: a High Risk bot wears PvP gear only in a battleground or an arena, as the
+    // others (the test servers' boss bench measures every bot in PvE gear).
+    bool const pvp = (sPlayerbotAIConfig.coaGearHighRiskPvp && bot->HasAura(COA_RULESET_HIGH_RISK)) ||
+                     bot->InBattleground() || bot->InArena() || bot->InBattlegroundQueue();
 
     // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
     // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts.

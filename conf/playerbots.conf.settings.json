@@ -425,6 +425,26 @@
    "new_in": "1.9.1"
   },
   {
+   "key": "AiPlayerbot.CoaGearMatchGroup",
+   "group": "activities",
+   "title": "Grouped bots match your item level",
+   "description": "With gear by activity on: a bot you group is geared at your item level. Off: it keeps the gear it has (it still switches to PvP gear for battlegrounds and arenas).",
+   "type": "bool",
+   "default": true,
+   "coa": true,
+   "new_in": "2.0"
+  },
+  {
+   "key": "AiPlayerbot.CoaGearHighRiskPvp",
+   "group": "activities",
+   "title": "High Risk bots always in PvP gear",
+   "description": "With gear by activity on: High Risk bots wear PvP gear all the time. Off: only in battlegrounds and arenas, like the other bots.",
+   "type": "bool",
+   "default": true,
+   "coa": true,
+   "new_in": "2.0"
+  },
+  {
    "key": "AiPlayerbot.CoaRulesetWarModePct",
    "group": "activities",
    "title": "War Mode bots (%)",

@@ -640,6 +640,8 @@ private:
         return player && player->GetSession() && player->IsInWorld() && !player->IsDuringRemoveFromWorld() &&
                !player->IsBeingTeleported();
     }
+    // AiPlayerbot.CoaGearByContent: look at the bot's gear within the next two seconds (it just queued).
+    void CoaCheckGearSoon() { coaGearCheckedAt = getMSTime() - 8000; }
 protected:
     Player* bot;
     Player* master;
