@@ -547,6 +547,19 @@ bool RotationKeepsSibling(PlayerbotAI* botAI, SpellInfo const* spell)
     return kept && kept != spell->GetFirstRankSpell()->Id;
 }
 
+// Whether a "buff missing::<name>" line of the bot's rotation asks for this spell.
+bool RotationAsksBuff(PlayerbotAI* botAI, SpellInfo const* spell)
+{
+    std::string const name = spell->SpellName[LOCALE_enUS];
+    std::string const line = "buff missing::" + name;
+    for (BotState state : { BOT_STATE_COMBAT, BOT_STATE_NON_COMBAT })
+        if (Engine* engine = botAI->GetEngine(state))
+            for (TriggerNode* node : engine->GetTriggerNodes())
+                if (node->getName() == line)
+                    return true;
+    return false;
+}
+
 // Whether the bot wears a stance of its own that raises its threat.
 bool WearsThreatStance(Player* bot)
 {
@@ -2823,6 +2836,16 @@ public:
         // buff 803999, and the second one made a tank believe it stood in its stance.
         bool const inTankStance = WearsThreatStance(bot);
 
+        // A tank none of whose stances raises its threat (Guardian Vanguard, Venomancer Fortitude) takes only the
+        // stance its rotation asks for: the first one known was Assault Formation or Spider Form, damage stances that
+        // left it with little threat (jealous-sound/azerothcore-wotlk-coa#6877). One it wears besides comes off.
+        bool const tankWithoutThreatStance = tank && !knowsTankStance;
+        if (tankWithoutThreatStance)
+            for (Usable const& spell : spells)
+                if ((spell.kind & KIND_STANCE) && !IsTravelForm(spell.info) && bot->HasAura(spell.info->Id, bot->GetGUID()) &&
+                    !RotationAsksBuff(botAI, spell.info))
+                    bot->RemoveAurasDueToSpell(spell.info->Id, bot->GetGUID());
+
         // A damage dealer or a healer standing in a tank stance or wearing a buff of its own that raises its
         // threat (its rotation used to put them on) takes it off.
         if (!tank)
@@ -2866,7 +2889,7 @@ public:
                 {
                     bool const threat = RaisesThreat(spell.info);
                     // A travel form (Sea Serpent Form: swim speed, water breathing) is no stance to fight in.
-                    if (member != bot || (threat && !tank) || IsTravelForm(spell.info))
+                    if (member != bot || (threat && !tank) || IsTravelForm(spell.info) || tankWithoutThreatStance)
                         continue;
                     if (knowsTankStance ? (!threat || inTankStance) : inStance)
                         continue;
