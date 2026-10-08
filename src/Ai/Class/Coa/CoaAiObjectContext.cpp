@@ -3234,7 +3234,9 @@ Unit* NextPull(PlayerbotAI* botAI, Player* bot, Player* master)
         if (!creature->IsHostileTo(master) || creature->HasNpcFlag(NPCFlags(UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER)))
             continue;
 
-        float const distance = bot->GetDistance(creature);
+        // From the tank or the player, whichever is nearer: a tank that stays put while the player stands (#6505)
+        // was often behind the player, and the next pack lay out of its own 30 yards.
+        float const distance = std::min(bot->GetDistance(creature), master->GetDistance(creature));
         if (distance > bestDistance || master->GetDistance(creature) > AutoPullLeash ||
             std::fabs(creature->GetPositionZ() - bot->GetPositionZ()) > AutoPullFloor ||
             !bot->IsWithinLOSInMap(creature))
