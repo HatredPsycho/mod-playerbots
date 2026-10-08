@@ -3262,8 +3262,20 @@ public:
         Player* master = GroupPlayer(botAI, bot);
         if (!master || !OnSameInstance(bot, master))
             return false;
-        time_t const last = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->lastAutoPull;
-        return time(nullptr) - last >= AutoPullPause && GroupReadyToPull(bot) && NextPull(botAI, bot, master);
+        CoaAiObjectContext* context = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext());
+        time_t const now = time(nullptr);
+        if (now - context->lastAutoPull < AutoPullPause)
+            return false;
+        bool const ready = GroupReadyToPull(bot);
+        bool const target = ready && NextPull(botAI, bot, master);
+        // Why the tank waits, once every 30 seconds at most: the group (someone dead, fighting, sitting, under 70%
+        // health, a healer under 70% mana) or no target (nothing hostile within 30 yards, 40 from the player, in sight).
+        if (!target && now - context->autoPullWaitLogged >= 30)
+        {
+            context->autoPullWaitLogged = now;
+            LOG_INFO("playerbots", "coa auto pull: {} waits: {}", bot->GetName(), ready ? "no target in reach" : "group not ready");
+        }
+        return target;
     }
 };
 

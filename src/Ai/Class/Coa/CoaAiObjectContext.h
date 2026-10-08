@@ -71,6 +71,7 @@ public:
 
     // When this tank last pulled on its own (strategy "coa auto pull").
     time_t lastAutoPull = 0;
+    time_t autoPullWaitLogged = 0;
 
     // getMSTime() of this bot's last kick in a group: the duty to interrupt goes to the bot that
     // kicked longest ago (AiPlayerbot.CoaInterruptCoordination).
