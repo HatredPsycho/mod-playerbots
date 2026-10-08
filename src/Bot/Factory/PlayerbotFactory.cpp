@@ -2617,8 +2617,10 @@ bool PlayerbotFactory::IsCoaPvpItem(ItemTemplate const* proto)
     {
         std::unordered_set<uint32> items;
         if (QueryResult result = WorldDatabase.Query(
-                "SELECT DISTINCT v.item FROM npc_vendor v JOIN creature_template c ON c.entry = v.entry WHERE c.subname IN "
-                "('Legacy Armor Quartermaster', 'Legacy Weapon Quartermaster', 'Accessories Quartermaster')"))
+                "SELECT DISTINCT v.item FROM npc_vendor v LEFT JOIN creature_template c ON c.entry = v.entry WHERE c.subname IN "
+                "('Legacy Armor Quartermaster', 'Legacy Weapon Quartermaster', 'Accessories Quartermaster', "
+                "'Honor Quartermaster', 'Arena Equipment') OR v.entry BETWEEN 9480531 AND 9480535 OR v.entry BETWEEN "
+                "9480661 AND 9480664 OR v.entry BETWEEN 9490531 AND 9490535 OR v.entry BETWEEN 9490661 AND 9490664"))
             do
                 items.insert(result->Fetch()[0].Get<uint32>());
             while (result->NextRow());
