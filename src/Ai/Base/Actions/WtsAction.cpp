@@ -6,6 +6,7 @@
 
 #include "WtsAction.h"
 #include "AiFactory.h"
+#include "Config.h"
 #include "Event.h"
 #include "ItemUsageValue.h"
 #include "ItemVisitors.h"
@@ -15,6 +16,13 @@ bool WtsAction::Execute(Event event)
 {
     Player* owner = event.getOwner();
     if (!owner)
+        return false;
+
+    // With mod-playerbots-auctions the bots answer a "WTS" line themselves: one or two of them, with an
+    // offer they stand by. This line - a price nobody means, from every bot that hears it - stays away.
+    // A realm built without that module has neither setting and keeps the stock answer.
+    if (sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Enable", false, false) &&
+        sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Chat.Enable", true, false))
         return false;
 
     std::ostringstream out;

@@ -645,7 +645,7 @@ std::string const ChatHelper::FormatClass(Player* player, int8 spec)
 
     // A CoA class has no Blizzard talent tabs and no entry in the tables below: this used to say
     // " (0/0/0) " - empty spec, empty class - straight into the zone channel ("Anyone is looking
-    // for (0/0/0)?"). Its specialization is held by mod-ascension-compat, its name by the client's
+    // for (0/0/0)?"). Its specialization is held by the CoA core, its name by the client's
     // ChrClasses.
     if (IsCoaClass(player))
     {

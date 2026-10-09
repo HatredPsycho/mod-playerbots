@@ -17,8 +17,13 @@
 #include "RandomPlayerbotMgr.h"
 #include "SetCraftAction.h"
 
+std::atomic<TradeHandoffResolver> TradeHandoffOwner{nullptr};
+
 bool TradeStatusAction::Execute(Event event)
 {
+    if (IsTradeHandedOff(bot))
+        return false;
+
     if (IsSelfBot(bot))
         return false;
 

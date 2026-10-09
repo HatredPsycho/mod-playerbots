@@ -75,7 +75,7 @@ enum AbilityKind : uint16
 /*
  * Class abilities, indexed by class id, ordered by required level.
  *
- * Most CoA abilities are scripted (dummy or script effects), so what mod-ascension-compat says
+ * Most CoA abilities are scripted (dummy or script effects), so what the CoA core says
  * a class can learn is the only reliable list of what it can cast.
  */
 struct CoaAbility
@@ -770,7 +770,7 @@ std::unordered_map<uint8, ClassKit> const& ClassAbilities()
             }
         }
 
-        LOG_INFO("playerbots", "coa: {} abilities ({} higher ranks) from mod-ascension-compat, {} classes",
+        LOG_INFO("playerbots", "coa: {} abilities ({} higher ranks) from the CoA core, {} classes",
                  count, ranks, byClass.size());
         LOG_INFO("playerbots", "coa: {} heals, {} area attacks, {} buffs, {} defensives, {} dispels, {} interrupts",
                  heals, aoe, buffs, defensives, dispels, interrupts);
@@ -3646,7 +3646,7 @@ bool CoaHealerAvoidsForm(Player* bot, SpellInfo const* info)
 
 /*
  * Spells of which only one may be active at a time: casting one removes the others. The rule lives in
- * mod-ascension-compat's aura scripts (AscensionPyromancerAuras.cpp, AscensionCultistAuras.cpp) and
+ * the CoA aura scripts (AscensionPyromancerAuras.cpp, AscensionCultistAuras.cpp) and
  * not in the spell data, so the families are mirrored here. Keep them in step with those files.
  */
 std::vector<std::vector<uint32>> const ExclusiveFamilies =

@@ -45,8 +45,12 @@ SETTINGS = [
     ('RandomBotMaxLevel', 'population', 'Highest bot level', 'Highest level of the random bots (60 is the Conquest of Azeroth level cap).'),
     ('CoaClassesOnly', 'population', 'Conquest of Azeroth classes only',
      'Random bots are created only in the 21 Conquest of Azeroth classes, never in the nine WotLK classes.'),
-    ('CoaBotSurname', 'population', '"Bot" surname',
-     'Random bots carry the surname "Bot", so players tell them from real players at a glance.'),
+    ('CoaBotSurname', 'population', 'Bot surnames',
+     '0 none; 1 the fixed surname below ("Kegarink Bot"), so players tell bots from real players at a glance; '
+     '2 a lore-style family name of the bot\'s race ("Kegarink Bloodfang"). '
+     'Applied to existing bots at the next start.'),
+    ('CoaBotSurnameText', 'population', 'Fixed bot surname',
+     'The surname of setting 1: one word of 2 to 12 letters; anything else falls back to "Bot".'),
     ('RandomGearQualityLimit', 'population', 'Best gear quality',
      'Highest item quality random bots get: 2 uncommon, 3 rare, 4 epic.'),
     ('RandomGearScoreLimit', 'population', 'Item level cap',

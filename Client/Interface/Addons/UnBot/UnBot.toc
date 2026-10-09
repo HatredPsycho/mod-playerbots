@@ -1,0 +1,32 @@
+## Interface: 30300
+## Title: UnBot CoA
+## Title-frFR: UnBot CoA
+## Title-zhTW: UnBot CoA
+## Notes: mod-playerbots control bar, adapted to Conquest of Azeroth
+## Notes-frFR: mod-playerbots control bar, adapted to Conquest of Azeroth
+## Notes-zhTW: UnBot CoA
+## Version: 0.6-coa1
+## Author: GPD
+## SavedVariables: UnBotCommandBarConfig, UnBotLogInfo
+Bindings.lua
+UnBotTemplate.xml
+UnBotBagsTemplate.xml
+UnBot.xml
+ExecuteCommand.lua
+UnBot.lua
+UnBotBags.lua
+Tooltips.lua
+CoaCommands.lua
+IconsFilename.lua
+Online.lua
+OnlineFrame.xml
+NPCFrame.lua
+NPCFrame.xml
+QuestReward.lua
+QuestRewardFrame.xml
+Strategy.lua
+StrategyFrame.xml
+StrategyTips.lua
+ImplantInspectFrame.lua
+EquipInventory.xml
+Locale.lua

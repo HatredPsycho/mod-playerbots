@@ -136,6 +136,7 @@ public:
     uint32 openGoSpell;
     bool randomBotAutologin;
     bool botAutologin;
+    int32 botAutologinCount;
     std::string randomBotMapsAsString;
     float probTeleToBankers;
     bool enableWeightTeleToCityBankers;
@@ -351,7 +352,8 @@ public:
 
     std::vector<worldBuff> worldBuffs;
 
-    uint32 commandServerPort;
+    uint16 commandServerPort;
+    std::string commandServerBind;
     bool perfMonEnabled;
     bool summonWhenGroup;
     ShowHideCosmetic randomBotShowHelmet;
@@ -405,7 +407,8 @@ public:
     bool coaSmartTank;
     bool coaBossKnowledge;
     bool coaRecruitSameFaction;
-    bool coaBotSurname;
+    uint32 coaBotSurname;
+    std::string coaBotSurnameText;
     uint32 coaThreatHold;
     bool coaAttackLoop;
     bool coaKeepChannels;

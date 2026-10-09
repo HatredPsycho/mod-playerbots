@@ -9,10 +9,14 @@
 #include "Player.h"
 #include "PlayerbotAI.h"
 #include "TradeData.h"
+#include "TradeStatusAction.h"
 #include "WorldPacket.h"
 
 bool TradeStatusExtendedAction::Execute(Event event)
 {
+    if (IsTradeHandedOff(bot))
+        return false;
+
     Player* trader = bot->GetTrader();
     if (!trader)
         return false;

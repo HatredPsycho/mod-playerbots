@@ -95,10 +95,21 @@
   {
    "key": "AiPlayerbot.CoaBotSurname",
    "group": "population",
-   "title": "\"Bot\" surname",
-   "description": "Random bots carry the surname \"Bot\", so players tell them from real players at a glance.",
-   "type": "bool",
-   "default": true,
+   "title": "Bot surnames",
+   "description": "0 none; 1 the fixed surname below (\"Kegarink Bot\"), so players tell bots from real players at a glance; 2 a lore-style family name of the bot's race (\"Kegarink Bloodfang\"). Applied to existing bots at the next start.",
+   "type": "int",
+   "default": 1,
+   "min": 0,
+   "max": 2,
+   "coa": true
+  },
+  {
+   "key": "AiPlayerbot.CoaBotSurnameText",
+   "group": "population",
+   "title": "Fixed bot surname",
+   "description": "The surname of setting 1: one word of 2 to 12 letters; anything else falls back to \"Bot\".",
+   "type": "string",
+   "default": "Bot",
    "coa": true
   },
   {

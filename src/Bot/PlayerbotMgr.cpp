@@ -1763,26 +1763,55 @@ void PlayerbotMgr::OnPlayerLogin(Player* player)
         return;
 
     uint32 accountId = session->GetAccountId();
-    QueryResult results = CharacterDatabase.Query("SELECT name FROM characters WHERE account = {}", accountId);
-    if (results)
+    std::vector<std::string> names;
+
+    // The group the player left is already restored here: Player::_LoadGroup runs inside
+    // LoadFromDB, before this hook. Bringing back exactly its alts keeps the party a party and a
+    // raid a raid, instead of forming a raid out of every character the account owns.
+    if (Group* group = player->GetGroup())
     {
-        std::ostringstream out;
-        out << "add ";
-        bool first = true;
-        do
+        for (Group::MemberSlot const& slot : group->GetMemberSlots())
         {
-            Field* fields = results->Fetch();
+            if (slot.guid == player->GetGUID() || slot.name.empty())
+                continue;
 
-            if (first)
-                first = false;
-            else
-                out << ",";
-
-            out << fields[0].Get<std::string>();
-        } while (results->NextRow());
-
-        HandlePlayerbotCommand(out.str().c_str(), player);
+            if (sCharacterCache->GetCharacterAccountIdByGuid(slot.guid) == accountId)
+                names.push_back(slot.name);
+        }
     }
+
+    // No saved group to go by. BotAutologinCount says how many of the account's characters to bring
+    // in, the most recently played first; 0 keeps all of them, as before.
+    if (names.empty())
+    {
+        std::string query = "SELECT name FROM characters WHERE account = " + std::to_string(accountId) +
+                            " AND guid <> " + std::to_string(player->GetGUID().GetCounter()) +
+                            " ORDER BY logout_time DESC";
+        if (sPlayerbotAIConfig.botAutologinCount > 0)
+            query += " LIMIT " + std::to_string(sPlayerbotAIConfig.botAutologinCount);
+
+        if (QueryResult results = CharacterDatabase.Query(query))
+        {
+            do
+            {
+                names.push_back(results->Fetch()[0].Get<std::string>());
+            } while (results->NextRow());
+        }
+    }
+
+    if (names.empty())
+        return;
+
+    std::ostringstream out;
+    out << "add ";
+    for (size_t i = 0; i < names.size(); ++i)
+    {
+        if (i)
+            out << ",";
+        out << names[i];
+    }
+
+    HandlePlayerbotCommand(out.str().c_str(), player);
 }
 
 void PlayerbotMgr::TellError(std::string const botName, std::string const text)
