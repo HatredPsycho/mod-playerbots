@@ -4743,6 +4743,13 @@ bool IsSelfBot(Player* player)
     return botAI && botAI->GetMaster() == player;
 }
 
+ChatCommandHolder::ChatCommandHolder(std::string const command, Player* owner, uint32 type, time_t time)
+    : command(command), ownerGuid(owner ? owner->GetGUID() : ObjectGuid::Empty), type(type), time(time)
+{
+}
+
+Player* ChatCommandHolder::GetOwner() { return ownerGuid ? ObjectAccessor::FindConnectedPlayer(ownerGuid) : nullptr; }
+
 bool IsAlliance(uint8 race)
 {
     if (race == RACE_HUMAN || race == RACE_DWARF || race == RACE_NIGHTELF || race == RACE_GNOME || race == RACE_DRAENEI)

@@ -363,24 +363,23 @@ private:
 class ChatCommandHolder
 {
 public:
+    // The sender is kept by guid and looked up when the command runs: a raw Player* outlived a player who logged
+    // out in between and crashed the server (PTR, 09/10, LfgAction reading the level of a deleted player).
     ChatCommandHolder(std::string const command, Player* owner = nullptr, uint32 type = CHAT_MSG_WHISPER,
-                      time_t time = 0)
-        : command(command), owner(owner), type(type), time(time)
-    {
-    }
+                      time_t time = 0);
     ChatCommandHolder(ChatCommandHolder const& other)
-        : command(other.command), owner(other.owner), type(other.type), time(other.time)
+        : command(other.command), ownerGuid(other.ownerGuid), type(other.type), time(other.time)
     {
     }
 
     std::string const& GetCommand() { return command; }
-    Player* GetOwner() { return owner; }
+    Player* GetOwner();
     uint32& GetType() { return type; }
     time_t& GetTime() { return time; }
 
 private:
     std::string const command;
-    Player* owner;
+    ObjectGuid ownerGuid;
     uint32 type;
     time_t time;
 };
