@@ -1731,6 +1731,8 @@ void PlayerbotAI::DoNextAction(bool min)
         if (sPlayerbotAIConfig.coaGearByContent)
             sRandomPlayerbotMgr.CoaUpdateGear(bot);
 
+        CoaTankThreatBuffs(this, bot);
+
         // In a dungeon, the pet of a bot that is no tank leaves its taunt (Growl, Torment) to the tank; out of one it
         // casts it again, to hold the mobs off its master.
         if (Pet* pet = bot->GetPet(); pet && GetCoaRole(bot) != CoaRole::Tank)

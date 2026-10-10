@@ -316,12 +316,23 @@ bool HidesCaster(SpellInfo const* info)
     return false;
 }
 
-// A stance that raises the threat its bearer causes: a tank's.
-bool RaisesThreat(SpellInfo const* info)
+// A stance or buff that raises the threat its bearer causes: a tank's. Read in every form CoA uses (a threat
+// percent, a modifier of the threat of its spells, a flat threat) and in the spells it triggers, where CoA
+// abilities often carry their aura.
+bool RaisesThreat(SpellInfo const* info, uint8 depth = 0)
 {
     for (SpellEffectInfo const& effect : info->Effects)
-        if (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_THREAT && effect.CalcValue() > 0)
+    {
+        if (effect.IsAura() && effect.CalcValue() > 0 &&
+            (effect.ApplyAuraName == SPELL_AURA_MOD_THREAT || effect.ApplyAuraName == SPELL_AURA_MOD_TOTAL_THREAT ||
+             ((effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER || effect.ApplyAuraName == SPELL_AURA_ADD_FLAT_MODIFIER) &&
+              effect.MiscValue == SPELLMOD_THREAT)))
             return true;
+        if (depth < 2 && effect.TriggerSpell && effect.Effect == SPELL_EFFECT_TRIGGER_SPELL)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (triggered != info && RaisesThreat(triggered, depth + 1))
+                    return true;
+    }
     return false;
 }
 
@@ -3781,6 +3792,49 @@ bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
                      taunt ? "taunt" : "threat buff", info->SpellName[LOCALE_enUS], info->Id);
     }
     return taunt || threat;
+}
+
+void CoaTankThreatBuffs(PlayerbotAI* botAI, Player* bot)
+{
+    if (!botAI || !bot || GetCoaRole(bot) != CoaRole::Tank || bot->IsInCombat() || bot->IsMounted())
+        return;
+
+    // The tank's own threat buffs that its class kit does not list (learned from a talent, an upgrade, swapped in):
+    // the buff action knew only the kit, and tanks were seen holding little aggro. Stances stay with the buff action,
+    // which knows which of them is the tank's; a buff of a family the tank already wears is left alone.
+    static std::mutex logged;
+    static std::unordered_set<uint64> seen;
+    bool wears = WearsThreatStance(bot);
+    for (auto const& [spellId, playerSpell] : bot->GetSpellMap())
+    {
+        if (playerSpell->State == PLAYERSPELL_REMOVED || !playerSpell->Active)
+            continue;
+        SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+        if (!info || info->IsPassive() || !info->IsPositive() || info->HasAura(SPELL_AURA_MOD_SHAPESHIFT) ||
+            info->RecoveryTime > 10 * IN_MILLISECONDS || (info->GetDuration() > 0 && info->GetDuration() < 10 * MINUTE * IN_MILLISECONDS) ||
+            !RaisesThreat(info))
+            continue;
+        if (SpellInfo const* next = info->GetNextRankSpell(); next && bot->HasSpell(next->Id))
+            continue;
+        if (bot->HasAura(spellId) || StandsIn(bot, info) || !botAI->CanCastSpell(spellId, bot))
+            continue;
+        if (botAI->CastSpell(spellId, bot))
+        {
+            wears = true;
+            std::lock_guard<std::mutex> guard(logged);
+            if (seen.insert((uint64(bot->getClass()) << 32) | spellId).second)
+                LOG_INFO("playerbots", "coa tank threat: {} (class {}) puts on {} ({})", bot->GetName(), bot->getClass(),
+                         info->SpellName[LOCALE_enUS], spellId);
+            return;
+        }
+    }
+    if (!wears)
+    {
+        std::lock_guard<std::mutex> guard(logged);
+        if (seen.insert((uint64(1) << 63) | bot->GetGUID().GetCounter()).second)
+            LOG_INFO("playerbots", "coa tank threat: {} (class {}, level {}) wears no threat aura", bot->GetName(),
+                     bot->getClass(), bot->GetLevel());
+    }
 }
 
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)
