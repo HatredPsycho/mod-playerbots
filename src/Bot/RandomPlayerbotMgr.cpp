@@ -3053,6 +3053,13 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == itemLevel)
         return;
 
+    // A bot on its own keeps its PvP gear for 10 minutes out of a battleground and its queue: most queue again at
+    // once, and each battleground cost two changes of some seventeen items (18,000 changes a night on the NUC).
+    if (pvp)
+        botAI->coaGearPvpSeenAt = getMSTime();
+    else if (!master && botAI->coaGearPvpSeenAt && GetMSTimeDiffToNow(botAI->coaGearPvpSeenAt) < 10 * MINUTE * IN_MILLISECONDS)
+        return;
+
     // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
     static std::atomic<uint32> lastRegear{0};
     uint32 last = lastRegear.load();
@@ -3060,6 +3067,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (!master && (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime())))
         return;
 
+    uint32 const startedAt = getMSTime();
     SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
     SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
     PlayerbotFactory::DestroyEquippedGear(bot);
@@ -3081,8 +3089,8 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
         factory.ApplyEnchantAndGemsNew();
     bot->DurabilityRepairAll(false, 1.0f, false);
-    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
-              master ? " (grouped)" : "");
+    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}, {} ms", bot->GetName(), pvp ? "PvP" : "PvE",
+             itemLevel, master ? " (grouped)" : "", GetMSTimeDiffToNow(startedAt));
 }
 
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
