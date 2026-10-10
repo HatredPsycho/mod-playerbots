@@ -1546,11 +1546,14 @@ AiPlayerbot.CoaTankOpenerSeconds = 2
 
 #    AiPlayerbot.CoaThreatHold
 #        Description: With CoaSmartTank, a CoA damage dealer also holds its attacks on a target where
-#                     its threat reaches this percent of the tank's (aggro passes at 110% in melee,
-#                     130% at range). Off by default: holding aggro is the tank's job.
-#        Default:     0 - off
+#                     its threat reaches this percent of the tank's, 20 points more at range (aggro
+#                     passes at 110% in melee, 130% at range), while the tank holds that target; an
+#                     area attack also waits for the mobs the tank holds around it. Players tanking for
+#                     bots in dungeons lost their mobs to damage dealers (jealous-sound #7080).
+#        Default:     90
+#                     0 - off: holding aggro is the tank's job
 
-AiPlayerbot.CoaThreatHold = 0
+AiPlayerbot.CoaThreatHold = 90
 
 #    AiPlayerbot.CoaAttackLoop
 #        Description: 1 - a CoA bot attacks through the same cast path as its heals: a spell refused for

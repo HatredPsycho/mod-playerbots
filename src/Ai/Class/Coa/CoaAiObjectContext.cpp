@@ -3058,7 +3058,25 @@ public:
         }
 
         uint32 const hold = sPlayerbotAIConfig.coaThreatHold;
-        return hold && share * 100.0f >= float(hold) ? 0.0f : 1.0f;
+        if (!hold)
+            return 1.0f;
+        // Aggro passes at 110% of the tank's threat in melee and 130% at range: a ranged bot holds 20 points later.
+        float const limit = float(hold + (botAI->IsRanged(bot) ? 20 : 0)) / 100.0f;
+        // A mob that already left the tank has nothing left to hold: the tank taunts it back.
+        auto const heldByTank = [](Unit* unit)
+        {
+            Unit* victim = unit->GetVictim();
+            return victim && victim->IsPlayer() && PlayerbotAI::IsTank(victim->ToPlayer());
+        };
+        if (heldByTank(target) && share >= limit)
+            return 0.0f;
+        // An area attack hits the whole pack: it also waits for the mobs around the target that the tank holds.
+        if (action->getThreatType() == Action::ActionThreatType::Aoe)
+            for (ObjectGuid const guid : AI_VALUE(GuidVector, "attackers"))
+                if (Unit* unit = botAI->GetUnit(guid); unit && unit != target && unit->IsWithinDist(target, 10.0f) &&
+                                                       heldByTank(unit) && ThreatShare(bot, unit) >= limit)
+                    return 0.0f;
+        return 1.0f;
     }
 
 private:
