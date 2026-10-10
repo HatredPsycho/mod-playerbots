@@ -3710,37 +3710,59 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info)
     return false;
 }
 
+// Whether the spell, or a spell it casts, forces its target to attack the caster.
+static bool Taunts(SpellInfo const* info, uint8 depth)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (effect.Effect == SPELL_EFFECT_ATTACK_ME || (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_TAUNT))
+            return true;
+        if (depth < 2 && effect.TriggerSpell &&
+            (effect.Effect == SPELL_EFFECT_TRIGGER_SPELL || effect.Effect == SPELL_EFFECT_TRIGGER_MISSILE ||
+             effect.Effect == SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE))
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (triggered != info && Taunts(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
 {
-    // Per class, the taunts and the buffs raising their bearer's threat, by id and by first rank.
-    static std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> const tankOnly = []
+    // Every taunt of the spell store, read from its effects: the class kits knew 28 of them, and a taunt cast
+    // by a damage spell, swapped in at run time or learned outside the kit went through (Dogsmeller, 10/10:
+    // damage dealers taunting in mythic+).
+    static std::unordered_set<uint32> const taunts = []
     {
-        std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> byClass;
+        std::unordered_set<uint32> ids;
+        for (uint32 id = 1; id < sSpellMgr->GetSpellInfoStoreSize(); ++id)
+            if (SpellInfo const* spell = sSpellMgr->GetSpellInfo(id))
+                if (Taunts(spell, 0))
+                    ids.insert(id);
         for (auto const& [classId, kit] : ClassAbilities())
             for (CoaAbility const& ability : kit.abilities)
-            {
-                SpellInfo const* spell = sSpellMgr->GetSpellInfo(ability.spellId);
-                bool const taunt = ability.kind & KIND_TAUNT;
-                bool const threat = spell && (ability.kind & (KIND_BUFF | KIND_STANCE)) && RaisesThreat(spell);
-                if (taunt)
-                    byClass[classId].first.insert({ ability.spellId, ability.firstSpellId });
-                if (threat)
-                    byClass[classId].second.insert({ ability.spellId, ability.firstSpellId });
-                if (spell && (taunt || threat))
-                    LOG_INFO("playerbots", "CoA tank only: class {} {} {} ({})", classId, taunt ? "taunt" : "threat buff",
-                             spell->SpellName[LOCALE_enUS], ability.spellId);
-            }
-        return byClass;
+                if (ability.kind & KIND_TAUNT)
+                    ids.insert({ ability.spellId, ability.firstSpellId });
+        LOG_INFO("playerbots", "CoA tank only: {} taunts in the spell store", ids.size());
+        return ids;
     }();
 
     if (!info || !bot || GetCoaRole(bot) == CoaRole::Tank)
         return false;
-    auto const found = tankOnly.find(bot->getClass());
-    if (found == tankOnly.end())
-        return false;
     uint32 const first = info->GetFirstRankSpell()->Id;
-    auto const in = [&](std::unordered_set<uint32> const& ids) { return ids.count(info->Id) || ids.count(first); };
-    return in(found->second.first) || ((!target || target == bot) && in(found->second.second));
+    bool const taunt = taunts.count(info->Id) || taunts.count(first);
+    // A spell of the bot's own raising its threat (a tank stance, Righteous Fury), kit or not.
+    bool const threat = !taunt && (!target || target == bot) && RaisesThreat(info);
+    if (taunt || threat)
+    {
+        static std::mutex logged;
+        static std::unordered_set<uint32> seen;
+        std::lock_guard<std::mutex> guard(logged);
+        if (seen.insert(info->Id).second)
+            LOG_INFO("playerbots", "coa tank only: {} (class {}) kept from {} {} ({})", bot->GetName(), bot->getClass(),
+                     taunt ? "taunt" : "threat buff", info->SpellName[LOCALE_enUS], info->Id);
+    }
+    return taunt || threat;
 }
 
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)

@@ -1731,6 +1731,18 @@ void PlayerbotAI::DoNextAction(bool min)
         if (sPlayerbotAIConfig.coaGearByContent)
             sRandomPlayerbotMgr.CoaUpdateGear(bot);
 
+        // In a dungeon, the pet of a bot that is no tank leaves its taunt (Growl, Torment) to the tank; out of one it
+        // casts it again, to hold the mobs off its master.
+        if (Pet* pet = bot->GetPet(); pet && GetCoaRole(bot) != CoaRole::Tank)
+        {
+            bool const instance = bot->GetMap()->IsDungeon();
+            for (auto const& [spellId, petSpell] : pet->m_spells)
+                if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+                    petSpell.state != PETSPELL_REMOVED && info && info->IsAutocastable() && CoaTankOnlySpell(bot, info, pet) &&
+                    (petSpell.active == ACT_ENABLED) == instance)
+                    pet->ToggleAutocast(info, !instance);
+        }
+
         // A bot standing still indoors gets off its mount: one stayed mounted in the Scarlet Raven Tavern
         // (jealous-sound/azerothcore-wotlk-coa#6802).
         if (bot->IsMounted() && !bot->isMoving() && !bot->IsInFlight() && !bot->GetTransport() && !bot->IsOutdoors())
@@ -3835,6 +3847,9 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, float x, float y, float z, bool c
     if (!spellid)
         return false;
 
+    if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellid), nullptr))
+        return false;
+
     Pet* pet = bot->GetPet();
     if (pet && pet->HasSpell(spellid))
         return true;
@@ -3912,6 +3927,10 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
     // cooldown and could then be repeated without end.
     if (uint32 const replacement = bot->GetTemporarySpellReplacement(spellId); replacement && replacement != spellId)
         spellId = replacement;
+
+    // The swapped-in spell may taunt where the one checked did not.
+    if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellId), target ? target : bot))
+        return false;
 
     if (!target)
         target = bot;
@@ -4189,6 +4208,9 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
 bool PlayerbotAI::CastSpell(uint32 spellId, float x, float y, float z, Item* itemTarget)
 {
     if (!spellId)
+        return false;
+
+    if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellId), nullptr))
         return false;
 
     Pet* pet = bot->GetPet();
