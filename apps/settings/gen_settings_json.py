@@ -114,6 +114,8 @@ SETTINGS = [
      'High Risk and War Mode characters). Off: every bot in PvE.'),
     ('CoaRulesetHighRiskPct', 'activities', 'High Risk bots (%)', 'Share of the random bots in High Risk, when the option above is on.'),
     ('CoaRulesetWarModePct', 'activities', 'War Mode bots (%)', 'Share of the random bots in War Mode, when the option above is on.'),
+    ('CoaGearByContent', 'activities', 'Gear by activity',
+     'Random bots wear PvP gear in battlegrounds, arenas and High Risk, PvE gear otherwise, and the item level of the player who groups them.'),
     ('CoaLfgBots', 'activities', '"lfg bot" in chat',
      'A player who says "lfg bot heal", "lfg bot tank" or "lfg bot dps" in chat is whispered by free bots of those roles to invite.'),
     ('CoaLfgLevelRange', 'activities', '"lfg bot" level range',
