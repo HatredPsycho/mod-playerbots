@@ -742,7 +742,8 @@ bool PlayerbotAIConfig::Initialize()
     coaRecruitSameFaction = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRecruitSameFaction", true);
     coaBotSurname = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBotSurname", 1);
     coaBotSurnameText = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaBotSurnameText", "Bot");
-    coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
+    coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 90);
+    coaTankThreatBonus = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankThreatBonus", 0);
     coaAttackLoop = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackLoop", true);
     coaKeepChannels = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepChannels", true);
     coaExclusiveFamilies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusiveFamilies", true);
@@ -753,6 +754,7 @@ bool PlayerbotAIConfig::Initialize()
     coaAttackCheckBench = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackCheckBench", false);
     coaStealthIsNotStance = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaStealthIsNotStance", false);
     coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
+    coaDungeonPriorities = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaDungeonPriorities", true);
     coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
     coaOrphanGroupReleaseDelay = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaOrphanGroupReleaseDelay", 300);
     coaTellEquipUpgrades = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTellEquipUpgrades", false);
@@ -760,6 +762,8 @@ bool PlayerbotAIConfig::Initialize()
     coaRulesetHighRiskPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetHighRiskPct", 30);
     coaRulesetWarModePct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetWarModePct", 0);
     coaGearByContent = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearByContent", true);
+    coaGearMatchGroup = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearMatchGroup", true);
+    coaGearHighRiskPvp = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearHighRiskPvp", true);
     coaBgLevelBalanceChance = std::min<uint32>(100, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBgLevelBalanceChance", 15));
     coaStatusFile = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaStatusFile", "");
     coaStatusIntervalSeconds = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaStatusIntervalSeconds", 5));

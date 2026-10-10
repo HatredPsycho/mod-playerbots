@@ -1485,6 +1485,13 @@ AiPlayerbot.CoaRulesetWarModePct = 0
 # level 60 and on its own, a PvP bot's tier follows its best arena rating (a fixed tier per bot without one).
 # Never the player's own characters. 0 = gear as before.
 AiPlayerbot.CoaGearByContent = 1
+# With CoaGearByContent = 1. A bot grouped with a player is geared at the player's own item level (never left
+# without gear of its level). 0 = a grouped bot keeps the gear it has, as on its own (it still switches to PvP gear
+# for a battleground or an arena).
+AiPlayerbot.CoaGearMatchGroup = 1
+# With CoaGearByContent = 1. High Risk bots wear PvP gear all the time. 0 = only in a battleground or an arena, as
+# the other bots (a test server that measures bots on a boss sets 0).
+AiPlayerbot.CoaGearHighRiskPvp = 1
 
 # Random bots filled a battleground on a first come, first served basis, whatever their level in the
 # bracket: the two sides of a game could start several levels apart, and the higher side won nearly
@@ -1545,11 +1552,24 @@ AiPlayerbot.CoaTankOpenerSeconds = 2
 
 #    AiPlayerbot.CoaThreatHold
 #        Description: With CoaSmartTank, a CoA damage dealer also holds its attacks on a target where
-#                     its threat reaches this percent of the tank's (aggro passes at 110% in melee,
-#                     130% at range). Off by default: holding aggro is the tank's job.
-#        Default:     0 - off
+#                     its threat reaches this percent of the tank's, 20 points more at range (aggro
+#                     passes at 110% in melee, 130% at range), while the tank holds that target; an
+#                     area attack also waits for the mobs the tank holds around it. Players tanking for
+#                     bots in dungeons lost their mobs to damage dealers (jealous-sound #7080).
+#        Default:     90
+#                     0 - off: holding aggro is the tank's job
 
-AiPlayerbot.CoaThreatHold = 0
+AiPlayerbot.CoaThreatHold = 90
+
+#    AiPlayerbot.CoaTankThreatBonus
+#        Description: A CoA tank bot causes this much more threat, in percent, through a hidden passive aura
+#                     (Increased Threat, 35773): a player dealing heavy damage beside a bot tank kept taking
+#                     its mobs. Removed as soon as the bot is no tank any more. Off by default: a tank
+#                     wearing its threat auras and playing its rotation should hold aggro on its own.
+#        Default:     0 - off
+#                     100 - twice the threat
+
+AiPlayerbot.CoaTankThreatBonus = 0
 
 #    AiPlayerbot.CoaAttackLoop
 #        Description: 1 - a CoA bot attacks through the same cast path as its heals: a spell refused for
@@ -1679,6 +1699,19 @@ AiPlayerbot.CoaStealthIsNotStance = 0
 #        Default:     1
 
 AiPlayerbot.CoaInterruptCoordination = 1
+
+#    AiPlayerbot.CoaDungeonPriorities
+#        Description: 1 - bots deal first with what keeps the enemy going, as players do: they kick a heal,
+#                     crowd control or summon before an ordinary cast (and a short list of classic dungeon
+#                     boss casts before anything else); in a dungeon they also take a magic buff or an
+#                     enrage off a boss or elite with their purge or soothe, and damage dealers switch to
+#                     a totem, ward or add that heals or shields its side (tanks keep the boss). The
+#                     "coa dungeon:" lines of Playerbots.log show each kind of decision once a minute.
+#                     0 - none of it, as in 1.9.
+#                     Read again by ".reload config".
+#        Default:     1
+
+AiPlayerbot.CoaDungeonPriorities = 1
 
 # Conquest of Azeroth specializations bots never play, by id, comma separated. A bot holding one
 # switches to another of its role, and ".playerbots coa" never recruits one.

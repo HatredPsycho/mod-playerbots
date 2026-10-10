@@ -8,6 +8,7 @@
 
 #include "Action.h"
 #include "AttackAction.h"
+#include "CoaDungeonPriorities.h"
 #include "CoaSpecialization.h"
 #include "CombatStrategy.h"
 #include "DatabaseEnv.h"
@@ -19,10 +20,12 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "Spell.h"
+#include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "Strategy.h"
+#include "TemporarySummon.h"
 #include "Trigger.h"
 #include "AscensionSpecialization.h"
 
@@ -30,6 +33,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <iterator>
 #include <ctime>
 #include <map>
 #include <mutex>
@@ -85,12 +89,14 @@ struct CoaAbility
     uint16 kind;
     uint32 dispelMask;
     uint32 firstSpellId;  // first rank: ranks of one spell replace each other
+    uint32 purgeMask = 0;  // magic buffs and enrages it takes off an enemy (Purge, Tranquilizing Shot)
 };
 
 struct ClassKit
 {
     std::vector<CoaAbility> abilities;
     uint16 kinds = 0;  // every kind some ability of the class has
+    uint32 purgeMask = 0;  // what some ability of the class takes off an enemy
 };
 
 // Ally targets: pet, party and raid areas, ally or any unit, chain heal, nearby ally, party or raid
@@ -316,13 +322,35 @@ bool HidesCaster(SpellInfo const* info)
     return false;
 }
 
-// A stance that raises the threat its bearer causes: a tank's.
-bool RaisesThreat(SpellInfo const* info)
+// A stance or buff that raises the threat its bearer causes: a tank's. Read in every form CoA uses (a threat
+// percent, a modifier of the threat of its spells, a flat threat) and in the spells it triggers, where CoA
+// abilities often carry their aura.
+bool RaisesThreat(SpellInfo const* info, uint8 depth = 0)
 {
     for (SpellEffectInfo const& effect : info->Effects)
-        if (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_THREAT && effect.CalcValue() > 0)
+    {
+        if (effect.IsAura() && effect.CalcValue() > 0 &&
+            (effect.ApplyAuraName == SPELL_AURA_MOD_THREAT || effect.ApplyAuraName == SPELL_AURA_MOD_TOTAL_THREAT ||
+             ((effect.ApplyAuraName == SPELL_AURA_ADD_PCT_MODIFIER || effect.ApplyAuraName == SPELL_AURA_ADD_FLAT_MODIFIER) &&
+              effect.MiscValue == SPELLMOD_THREAT)))
             return true;
+        if (depth < 2 && effect.TriggerSpell && effect.Effect == SPELL_EFFECT_TRIGGER_SPELL)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (triggered != info && RaisesThreat(triggered, depth + 1))
+                    return true;
+    }
     return false;
+}
+
+// An ability causing more threat than its damage: a flat threat effect (Spiked Reinforcement) or a threat entry of
+// the core. The Guardian and the Venomancer have no threat stance: their aggro comes from these.
+bool BuildsThreat(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.Effect == SPELL_EFFECT_THREAT && effect.CalcValue() > 0)
+            return true;
+    SpellThreatEntry const* entry = sSpellMgr->GetSpellThreatEntry(info->Id);
+    return entry && (entry->flatMod > 0 || entry->pctMod > 1.0f || entry->apPctMod > 0.0f);
 }
 
 // Swimming and breathing under water: a form to travel in, not to stand in.
@@ -547,6 +575,19 @@ bool RotationKeepsSibling(PlayerbotAI* botAI, SpellInfo const* spell)
     return kept && kept != spell->GetFirstRankSpell()->Id;
 }
 
+// Whether a "buff missing::<name>" line of the bot's rotation asks for this spell.
+bool RotationAsksBuff(PlayerbotAI* botAI, SpellInfo const* spell)
+{
+    std::string const name = spell->SpellName[LOCALE_enUS];
+    std::string const line = "buff missing::" + name;
+    for (BotState state : { BOT_STATE_COMBAT, BOT_STATE_NON_COMBAT })
+        if (Engine* engine = botAI->GetEngine(state))
+            for (TriggerNode* node : engine->GetTriggerNodes())
+                if (node->getName() == line)
+                    return true;
+    return false;
+}
+
 // Whether the bot wears a stance of its own that raises its threat.
 bool WearsThreatStance(Player* bot)
 {
@@ -627,6 +668,12 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
             ability.kind |= KIND_DISPEL;
             ability.dispelMask |= SpellInfo::GetDispelMask(DispelType(effect.MiscValue));
         }
+
+        // Purge, Spellsteal, Tranquilizing Shot and their CoA kind take a buff off an enemy: kept
+        // apart from the cleanses, for "coa purge" (only magic and enrages: what a boss casts on itself).
+        if ((effect.Effect == SPELL_EFFECT_DISPEL || effect.Effect == SPELL_EFFECT_STEAL_BENEFICIAL_BUFF) && enemy)
+            ability.purgeMask |= SpellInfo::GetDispelMask(DispelType(effect.MiscValue)) &
+                                 ((1 << DISPEL_MAGIC) | (1 << DISPEL_ENRAGE));
 
         if (effect.Effect == SPELL_EFFECT_INTERRUPT_CAST ||
             (aura && enemy && effect.ApplyAuraName == SPELL_AURA_MOD_SILENCE))
@@ -731,6 +778,7 @@ std::unordered_map<uint8, ClassKit> const& ClassAbilities()
 
             kit.abilities.push_back(ability);
             kit.kinds |= ability.kind;
+            kit.purgeMask |= ability.purgeMask;
             return true;
         };
 
@@ -793,6 +841,7 @@ struct Usable
     SpellInfo const* info;
     uint16 kind;
     uint32 dispelMask;
+    uint32 purgeMask = 0;
 };
 
 // Active abilities the bot has reached and actually knows, for which `wanted(kind)` is true.
@@ -821,9 +870,9 @@ std::vector<Usable> KnownAbilities(Player* bot, Filter wanted)
 
         auto const [itr, inserted] = rankIndex.try_emplace(ability.firstSpellId, usable.size());
         if (inserted)
-            usable.push_back({ info, ability.kind, ability.dispelMask });
+            usable.push_back({ info, ability.kind, ability.dispelMask, ability.purgeMask });
         else
-            usable[itr->second] = { info, ability.kind, ability.dispelMask };
+            usable[itr->second] = { info, ability.kind, ability.dispelMask, ability.purgeMask };
     }
 
     return usable;
@@ -2038,7 +2087,8 @@ bool MayKick(Player* bot, Unit* caster, Spell* cast)
 
     InterruptClaim claim;
     claim.spellId = spellId;
-    claim.danger = IsDangerousCast(cast);
+    claim.danger = IsDangerousCast(cast) ||
+                   (sPlayerbotAIConfig.coaDungeonPriorities && CoaDungeonPriorities::InterruptRank(cast->GetSpellInfo()) == 2);
     claim.until = now + remaining + InterruptLandMarginMs;
     if (!CoordinateInterrupts())
     {
@@ -2100,18 +2150,50 @@ bool WorthKicking(PlayerbotAI* botAI, Player* bot, Unit* unit)
 }
 
 // The enemy to interrupt: the current target when it casts, else an attacker that does.
+// With AiPlayerbot.CoaDungeonPriorities the casts are ranked first: a heal, crowd control or summon
+// before an ordinary cast, a boss cast of the dungeon table before both, the current target first
+// among equals. A kick spent on a Frostbolt was no longer there for the heal cast next to it.
 Unit* FindCaster(PlayerbotAI* botAI, Player* bot)
 {
     Unit* target = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
-    if (WorthKicking(botAI, bot, target))
-        return target;
+    GuidVector const& attackers = botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get();
 
-    for (ObjectGuid const guid : botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get())
+    if (!sPlayerbotAIConfig.coaDungeonPriorities)
+    {
+        if (WorthKicking(botAI, bot, target))
+            return target;
+
+        for (ObjectGuid const guid : attackers)
+        {
+            Unit* attacker = botAI->GetUnit(guid);
+            if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f) && WorthKicking(botAI, bot, attacker))
+                return attacker;
+        }
+
+        return nullptr;
+    }
+
+    // Ranked without side effects; WorthKicking then claims the cast for the group, best first.
+    std::vector<std::pair<uint8, Unit*>> casters;
+    auto consider = [&casters](Unit* unit)
+    {
+        if (!unit || !unit->IsAlive())
+            return;
+        if (Spell* cast = InterruptibleSpell(unit))
+            casters.emplace_back(CoaDungeonPriorities::InterruptRank(cast->GetSpellInfo()), unit);
+    };
+    consider(target);
+    for (ObjectGuid const guid : attackers)
     {
         Unit* attacker = botAI->GetUnit(guid);
-        if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f) && WorthKicking(botAI, bot, attacker))
-            return attacker;
+        if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f))
+            consider(attacker);
     }
+    std::stable_sort(casters.begin(), casters.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+
+    for (auto const& [rank, caster] : casters)
+        if (WorthKicking(botAI, bot, caster))
+            return caster;
 
     return nullptr;
 }
@@ -2150,6 +2232,26 @@ public:
             { return IsAttack(kind, tank) && !(noTaunt && (kind & KIND_TAUNT)); });
         if (usable.empty())
             return false;
+
+        // A tank whose lead shrinks (someone at 70% of its threat on the target, or a target it has not touched yet)
+        // opens with its abilities that build threat, which the rotation through the kit did not put first.
+        if (tank && sPlayerbotAIConfig.coaSmartTank)
+        {
+            float const mine = target->GetThreatMgr().GetThreat(bot);
+            float other = 0.0f;
+            for (ThreatReference const* ref : target->GetThreatMgr().GetUnsortedThreatList())
+                if (ref->GetVictim() != bot)
+                    other = std::max(other, ref->GetThreat());
+            if (other >= mine * 0.7f)
+            {
+                std::vector<Usable> threat;
+                std::copy_if(usable.begin(), usable.end(), std::back_inserter(threat),
+                             [](Usable const& spell) { return BuildsThreat(spell.info); });
+                if (!threat.empty())
+                    if (SpellInfo const* cast = CastFirst(botAI, bot, threat, target, USAGE_ATTACK))
+                        return RecordUsage(USAGE_ATTACK, cast);
+            }
+        }
 
         if (sPlayerbotAIConfig.coaAttackLoop)
             return AttackThroughCastFirst(usable, target, saveMana);
@@ -2741,6 +2843,164 @@ public:
     bool isUseful() override { return ClassHas(bot, KIND_DISPEL) && HasReadyAbility(botAI, bot,IsFriendlyDispel); }
 };
 
+/*
+ * Purge and soothe (AiPlayerbot.CoaDungeonPriorities). In a dungeon, a bot with an ability that
+ * takes a magic buff or an enrage off an enemy uses it on a boss or elite of the fight that carries
+ * one: a Lightning Shield, a Demon Armor or the Enrage at half health stayed on the boss the whole
+ * fight, since nothing aimed these abilities (the attack rotation only cast them by chance). Once a
+ * bot has cast at a buff the others leave that buff alone for a moment, or every purge of the group
+ * went at the same Frost Ward.
+ */
+constexpr uint32 PurgeClaimMs = 2500;
+
+using PurgeKey = std::tuple<uint32, uint32, uint64, uint32>;  // map, instance, enemy guid, buff
+std::mutex PurgeClaimsLock;
+std::map<PurgeKey, uint32> PurgeClaims;  // -> getMSTime() until which the other bots leave it
+
+PurgeKey PurgeKeyOf(Unit* enemy, uint32 buffId)
+{
+    return { enemy->GetMapId(), enemy->GetInstanceId(), enemy->GetGUID().GetRawValue(), buffId };
+}
+
+bool PurgeClaimed(Unit* enemy, uint32 buffId, uint32 now)
+{
+    std::lock_guard<std::mutex> guard(PurgeClaimsLock);
+    auto const found = PurgeClaims.find(PurgeKeyOf(enemy, buffId));
+    return found != PurgeClaims.end() && !Passed(now, found->second);
+}
+
+void ClaimPurge(Unit* enemy, uint32 buffId, uint32 now)
+{
+    std::lock_guard<std::mutex> guard(PurgeClaimsLock);
+    for (auto itr = PurgeClaims.begin(); itr != PurgeClaims.end();)
+        if (Passed(now, itr->second))
+            itr = PurgeClaims.erase(itr);
+        else
+            ++itr;
+    PurgeClaims[PurgeKeyOf(enemy, buffId)] = now + PurgeClaimMs;
+}
+
+// A buff on the enemy of one of the dispel types in `mask` that no other bot is taking off. Passive
+// and permanent auras are left out: they are part of the creature, not something it cast.
+SpellInfo const* PurgeableBuff(Unit* enemy, uint32 mask, uint32 now)
+{
+    for (auto const& applied : enemy->GetAppliedAuras())
+    {
+        AuraApplication const* application = applied.second;
+        if (!application->IsPositive())
+            continue;
+
+        Aura const* aura = application->GetBase();
+        SpellInfo const* info = aura->GetSpellInfo();
+        if (aura->IsPassive() || aura->GetMaxDuration() <= 0 || !info->Dispel || !(mask & (1 << info->Dispel)))
+            continue;
+        if (!PurgeClaimed(enemy, info->Id, now))
+            return info;
+    }
+    return nullptr;
+}
+
+bool ClassPurges(Player* bot)
+{
+    auto const& all = ClassAbilities();
+    auto const found = all.find(bot->getClass());
+    return found != all.end() && found->second.purgeMask;
+}
+
+std::vector<Usable> KnownPurges(Player* bot)
+{
+    std::vector<Usable> purges = KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_HOSTILE) != 0; });
+    purges.erase(std::remove_if(purges.begin(), purges.end(), [](Usable const& spell) { return !spell.purgeMask; }),
+                 purges.end());
+    return purges;
+}
+
+struct PurgeChoice
+{
+    Unit* enemy = nullptr;
+    SpellInfo const* buff = nullptr;
+};
+
+// The boss or elite of the fight within 30 yards to purge, the current target first, with the buff to
+// take off; nothing when no purge of the bot is ready.
+PurgeChoice FindPurge(PlayerbotAI* botAI, Player* bot, std::vector<Usable> const& purges)
+{
+    PurgeChoice choice;
+    if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon())
+        return choice;
+
+    auto const& benched = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->benchedSpells;
+    time_t const now = time(nullptr);
+    uint32 mask = 0;
+    for (Usable const& spell : purges)
+    {
+        SpellInfo const* const info = EffectiveSpell(bot, spell.info);
+        if (!bot->HasSpellCooldown(info->Id) && !IsBenched(benched, spell.info->Id, now) && !IsBenched(benched, info->Id, now))
+            mask |= spell.purgeMask;
+    }
+    if (!mask)
+        return choice;
+
+    uint32 const nowMs = getMSTime();
+    auto consider = [&](Unit* unit)
+    {
+        Creature* creature = unit ? unit->ToCreature() : nullptr;
+        if (!creature || !creature->IsAlive() ||
+            !(creature->IsDungeonBoss() || creature->isWorldBoss() || creature->isElite()) ||
+            !bot->IsWithinDistInMap(creature, 30.0f))
+            return false;
+        if (SpellInfo const* buff = PurgeableBuff(creature, mask, nowMs))
+        {
+            choice.enemy = creature;
+            choice.buff = buff;
+            return true;
+        }
+        return false;
+    };
+
+    Unit* target = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
+    if (consider(target))
+        return choice;
+    for (ObjectGuid const guid : botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get())
+    {
+        Unit* attacker = botAI->GetUnit(guid);
+        if (attacker != target && consider(attacker))
+            return choice;
+    }
+    return choice;
+}
+
+class CoaPurgeAction : public Action
+{
+public:
+    CoaPurgeAction(PlayerbotAI* botAI) : Action(botAI, "coa purge") {}
+
+    bool Execute(Event /*event*/) override
+    {
+        std::vector<Usable> purges = KnownPurges(bot);
+        PurgeChoice const choice = FindPurge(botAI, bot, purges);
+        if (!choice.enemy)
+            return false;
+
+        uint32 const type = 1 << choice.buff->Dispel;
+        purges.erase(std::remove_if(purges.begin(), purges.end(),
+                                    [type](Usable const& spell) { return !(spell.purgeMask & type); }),
+                     purges.end());
+        SpellInfo const* cast = CastFirst(botAI, bot, purges, choice.enemy, USAGE_DISPEL);
+        if (cast)
+        {
+            ClaimPurge(choice.enemy, choice.buff->Id, getMSTime());
+            if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Purge))
+                LOG_INFO("playerbots", "coa dungeon: {} cast {} ({}) to take {} ({}) off {}", bot->GetName(),
+                         cast->SpellName[LOCALE_enUS], cast->Id, choice.buff->SpellName[LOCALE_enUS], choice.buff->Id,
+                         choice.enemy->GetName());
+        }
+        return RecordUsage(USAGE_DISPEL, cast);
+    }
+
+    bool isUseful() override { return sPlayerbotAIConfig.coaDungeonPriorities && ClassPurges(bot); }
+};
+
 // Kicks the cast of the current target or of an attacker.
 class CoaInterruptAction : public Action
 {
@@ -2754,10 +3014,17 @@ public:
             return false;
 
         // Read before the kick, which ends the cast.
-        uint32 const enemySpellId = InterruptibleSpell(caster)->GetSpellInfo()->Id;
+        SpellInfo const* const enemySpell = InterruptibleSpell(caster)->GetSpellInfo();
+        uint32 const enemySpellId = enemySpell->Id;
         SpellInfo const* kick =
             CastFirst(botAI, bot, KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_INTERRUPT) != 0; }), caster,
                       LoopUsage(USAGE_INTERRUPT));
+        if (kick && sPlayerbotAIConfig.coaDungeonPriorities)
+            if (uint8 const rank = CoaDungeonPriorities::InterruptRank(enemySpell))
+                if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Kick))
+                    LOG_INFO("playerbots", "coa dungeon: {} kicked {} ({}) of {}, priority {} ({})", bot->GetName(),
+                             enemySpell->SpellName[LOCALE_enUS], enemySpellId, caster->GetName(), rank,
+                             rank == 2 ? "dungeon table" : "heal, control or summon");
         if (kick && bot->GetGroup())
         {
             static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->lastInterrupt = getMSTime();
@@ -2823,6 +3090,16 @@ public:
         // buff 803999, and the second one made a tank believe it stood in its stance.
         bool const inTankStance = WearsThreatStance(bot);
 
+        // A tank none of whose stances raises its threat (Guardian Vanguard, Venomancer Fortitude) takes only the
+        // stance its rotation asks for: the first one known was Assault Formation or Spider Form, damage stances that
+        // left it with little threat (jealous-sound/azerothcore-wotlk-coa#6877). One it wears besides comes off.
+        bool const tankWithoutThreatStance = tank && !knowsTankStance;
+        if (tankWithoutThreatStance)
+            for (Usable const& spell : spells)
+                if ((spell.kind & KIND_STANCE) && !IsTravelForm(spell.info) && bot->HasAura(spell.info->Id, bot->GetGUID()) &&
+                    !RotationAsksBuff(botAI, spell.info))
+                    bot->RemoveAurasDueToSpell(spell.info->Id, bot->GetGUID());
+
         // A damage dealer or a healer standing in a tank stance or wearing a buff of its own that raises its
         // threat (its rotation used to put them on) takes it off.
         if (!tank)
@@ -2866,7 +3143,7 @@ public:
                 {
                     bool const threat = RaisesThreat(spell.info);
                     // A travel form (Sea Serpent Form: swim speed, water breathing) is no stance to fight in.
-                    if (member != bot || (threat && !tank) || IsTravelForm(spell.info))
+                    if (member != bot || (threat && !tank) || IsTravelForm(spell.info) || tankWithoutThreatStance)
                         continue;
                     if (knowsTankStance ? (!threat || inTankStance) : inStance)
                         continue;
@@ -2949,6 +3226,139 @@ public:
                     return true;
 
         return false;
+    }
+};
+
+/*
+ * Adds first (AiPlayerbot.CoaDungeonPriorities). In a dungeon fight a damage dealer switches to a
+ * totem, ward or add that heals or shields its side (see CoaDungeonPriorities::HealsOrProtects)
+ * within 30 yards: bots kept hitting the boss while a Healing Ward healed it back, and an
+ * Earthgrab Totem rooted the group the whole fight. Tanks keep the boss, healers keep healing.
+ *
+ * The switch goes through the target choice of mod-playerbots: the add is put in "prioritized
+ * targets", which brings it among the attackers (a totem has no threat list, so it never was one)
+ * and makes it the "dps target", so "dps assist" keeps it instead of switching back. A list the
+ * player set ("attack my target", a raid icon) is left alone while its target lives.
+ */
+constexpr float PriorityAddReach = 30.0f;
+
+// Whether the bot may put its own add in "prioritized targets": the list is empty, holds the add it
+// set itself, or only targets that are gone.
+bool OwnsPrioritizedTargets(PlayerbotAI* botAI)
+{
+    auto const* context = static_cast<CoaAiObjectContext const*>(botAI->GetAiObjectContext());
+    GuidVector const list = botAI->GetAiObjectContext()->GetValue<GuidVector>("prioritized targets")->Get();
+    if (list.empty() || (list.size() == 1 && list.front() == context->priorityAdd))
+        return true;
+    return std::none_of(list.begin(), list.end(), [botAI](ObjectGuid guid)
+    {
+        Unit* unit = botAI->GetUnit(guid);
+        return unit && unit->IsAlive();
+    });
+}
+
+// The add to kill first: the bot's current target if it is one, else the nearest within reach. Only
+// creatures in the group's fight count: on a group member's threat list, or summoned by one that is.
+Unit* PriorityAdd(PlayerbotAI* botAI, Player* bot)
+{
+    if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon() ||
+        GetCoaRole(bot) != CoaRole::Dps || !bot->GetGroup())
+        return nullptr;
+
+    AiObjectContext* const context = botAI->GetAiObjectContext();
+    GuidVector const attackerList = context->GetValue<GuidVector>("attackers")->Get();
+    if (attackerList.empty())
+        return nullptr;
+    std::unordered_set<ObjectGuid> const attackers(attackerList.begin(), attackerList.end());
+
+    Unit* const current = context->GetValue<Unit*>("current target")->Get();
+    Unit* best = nullptr;
+    float bestDistance = PriorityAddReach;
+    for (ObjectGuid const guid : context->GetValue<GuidVector>("possible targets")->Get())
+    {
+        Unit* unit = botAI->GetUnit(guid);
+        Creature* creature = unit ? unit->ToCreature() : nullptr;
+        if (!creature || !creature->IsAlive() || !bot->IsWithinDistInMap(creature, PriorityAddReach))
+            continue;
+
+        bool fighting = attackers.count(creature->GetGUID()) != 0;
+        if (!fighting)
+        {
+            ObjectGuid summoner = creature->GetOwnerGUID();
+            if (summoner.IsEmpty())
+                summoner = creature->GetCreatorGUID();
+            if (summoner.IsEmpty())
+                if (TempSummon const* summon = creature->ToTempSummon())
+                    summoner = summon->GetSummonerGUID();
+            fighting = !summoner.IsEmpty() && attackers.count(summoner) != 0;
+        }
+        if (!fighting || !CoaDungeonPriorities::HealsOrProtects(creature))
+            continue;
+
+        if (creature == current)
+            return creature;
+        float const distance = bot->GetDistance(creature);
+        if (distance < bestDistance)
+        {
+            best = creature;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+class CoaPriorityAddTrigger : public Trigger
+{
+public:
+    CoaPriorityAddTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa priority add", 500) {}
+
+    bool IsActive() override
+    {
+        if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon())
+            return false;
+        Unit* add = PriorityAdd(botAI, bot);
+        return add && add != AI_VALUE(Unit*, "current target") && OwnsPrioritizedTargets(botAI);
+    }
+};
+
+class CoaPriorityAddAction : public AttackAction
+{
+public:
+    CoaPriorityAddAction(PlayerbotAI* botAI) : AttackAction(botAI, "coa priority add") {}
+
+    bool Execute(Event /*event*/) override
+    {
+        Unit* add = PriorityAdd(botAI, bot);
+        if (!add || !OwnsPrioritizedTargets(botAI))
+            return false;
+
+        Unit* const previous = AI_VALUE(Unit*, "current target");
+        context->GetValue<GuidVector>("prioritized targets")->Set({ add->GetGUID() });
+        static_cast<CoaAiObjectContext*>(context)->priorityAdd = add->GetGUID();
+        if (!Attack(add))
+            return false;
+
+        if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Add))
+            LOG_INFO("playerbots", "coa dungeon: {} switched from {} to {} ({}{})", bot->GetName(),
+                     previous ? previous->GetName() : "nothing", add->GetName(), add->GetEntry(),
+                     add->IsTotem() ? ", totem" : "");
+        return true;
+    }
+};
+
+// In a dungeon fight, a boss or elite near the bot carries a buff or an enrage one of its ready
+// purges takes off. Checked once a second: the scan reads the bot's abilities.
+class CoaEnemyBuffTrigger : public Trigger
+{
+public:
+    CoaEnemyBuffTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa enemy buff", 1000) {}
+
+    bool IsActive() override
+    {
+        if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon() ||
+            !ClassPurges(bot))
+            return false;
+        return FindPurge(botAI, bot, KnownPurges(bot)).enemy != nullptr;
     }
 };
 
@@ -3035,7 +3445,25 @@ public:
         }
 
         uint32 const hold = sPlayerbotAIConfig.coaThreatHold;
-        return hold && share * 100.0f >= float(hold) ? 0.0f : 1.0f;
+        if (!hold)
+            return 1.0f;
+        // Aggro passes at 110% of the tank's threat in melee and 130% at range: a ranged bot holds 20 points later.
+        float const limit = float(hold + (botAI->IsRanged(bot) ? 20 : 0)) / 100.0f;
+        // A mob that already left the tank has nothing left to hold: the tank taunts it back.
+        auto const heldByTank = [](Unit* unit)
+        {
+            Unit* victim = unit->GetVictim();
+            return victim && victim->IsPlayer() && PlayerbotAI::IsTank(victim->ToPlayer());
+        };
+        if (heldByTank(target) && share >= limit)
+            return 0.0f;
+        // An area attack hits the whole pack: it also waits for the mobs around the target that the tank holds.
+        if (action->getThreatType() == Action::ActionThreatType::Aoe)
+            for (ObjectGuid const guid : AI_VALUE(GuidVector, "attackers"))
+                if (Unit* unit = botAI->GetUnit(guid); unit && unit != target && unit->IsWithinDist(target, 10.0f) &&
+                                                       heldByTank(unit) && ThreatShare(bot, unit) >= limit)
+                    return 0.0f;
+        return 1.0f;
     }
 
 private:
@@ -3078,6 +3506,9 @@ public:
 
         triggers.push_back(new TriggerNode("coa enemy casting", { NextAction("coa interrupt", InterruptPriority()) }));
         triggers.push_back(new TriggerNode("coa dispel", { NextAction("coa dispel", DispelPriority()) }));
+        triggers.push_back(new TriggerNode("coa enemy buff", { NextAction("coa purge", PurgePriority()) }));
+        // Just above "dps assist" (50), which would otherwise turn the bot back to the boss first.
+        triggers.push_back(new TriggerNode("coa priority add", { NextAction("coa priority add", ACTION_DISPEL + 1) }));
         triggers.push_back(new TriggerNode("medium aoe", { NextAction("coa aoe", ACTION_HIGH + 2) }));
         triggers.push_back(new TriggerNode("low health", { NextAction("coa defensive", ACTION_HIGH + 8) }));
     }
@@ -3085,6 +3516,8 @@ public:
 protected:
     virtual float InterruptPriority() { return ACTION_INTERRUPT; }
     virtual float DispelPriority() { return ACTION_NORMAL + 5; }
+    // Just below the interrupt: an enrage or a shield left on the boss costs more than one attack.
+    virtual float PurgePriority() { return ACTION_INTERRUPT - 1; }
 
     bool ranged;
 };
@@ -3160,6 +3593,7 @@ public:
 protected:
     float InterruptPriority() override { return ACTION_MEDIUM_HEAL + 7; }
     float DispelPriority() override { return ACTION_MEDIUM_HEAL + 6; }
+    float PurgePriority() override { return ACTION_MEDIUM_HEAL + 5; }
 };
 
 /*
@@ -3239,8 +3673,20 @@ public:
         Player* master = GroupPlayer(botAI, bot);
         if (!master || !OnSameInstance(bot, master))
             return false;
-        time_t const last = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->lastAutoPull;
-        return time(nullptr) - last >= AutoPullPause && GroupReadyToPull(bot) && NextPull(botAI, bot, master);
+        CoaAiObjectContext* context = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext());
+        time_t const now = time(nullptr);
+        if (now - context->lastAutoPull < AutoPullPause)
+            return false;
+        bool const ready = GroupReadyToPull(bot);
+        bool const target = ready && NextPull(botAI, bot, master);
+        // Why the tank waits, once every 30 seconds at most: the group (someone dead, fighting, sitting, under 70%
+        // health, a healer under 70% mana) or no target (nothing hostile within 30 yards, 40 from the player, in sight).
+        if (!target && now - context->autoPullWaitLogged >= 30)
+        {
+            context->autoPullWaitLogged = now;
+            LOG_INFO("playerbots", "coa auto pull: {} waits: {}", bot->GetName(), ready ? "no target in reach" : "group not ready");
+        }
+        return target;
     }
 };
 
@@ -3523,6 +3969,8 @@ public:
         creators["coa taunt"] = &CoaActionFactoryInternal::coa_taunt;
         creators["coa defensive"] = &CoaActionFactoryInternal::coa_defensive;
         creators["coa dispel"] = &CoaActionFactoryInternal::coa_dispel;
+        creators["coa purge"] = &CoaActionFactoryInternal::coa_purge;
+        creators["coa priority add"] = &CoaActionFactoryInternal::coa_priority_add;
         creators["coa interrupt"] = &CoaActionFactoryInternal::coa_interrupt;
         creators["coa buff"] = &CoaActionFactoryInternal::coa_buff;
         creators["coa stay near tank"] = &CoaActionFactoryInternal::coa_stay_near_tank;
@@ -3549,6 +3997,8 @@ private:
     static Action* coa_taunt(PlayerbotAI* botAI) { return new CoaTauntAction(botAI); }
     static Action* coa_defensive(PlayerbotAI* botAI) { return new CoaDefensiveAction(botAI); }
     static Action* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelAction(botAI); }
+    static Action* coa_purge(PlayerbotAI* botAI) { return new CoaPurgeAction(botAI); }
+    static Action* coa_priority_add(PlayerbotAI* botAI) { return new CoaPriorityAddAction(botAI); }
     static Action* coa_interrupt(PlayerbotAI* botAI) { return new CoaInterruptAction(botAI); }
     static Action* coa_buff(PlayerbotAI* botAI) { return new CoaBuffAction(botAI); }
     static Action* coa_stay_near_tank(PlayerbotAI* botAI) { return new CoaStayNearTankAction(botAI); }
@@ -3566,6 +4016,8 @@ public:
     {
         creators["coa dispel"] = &CoaTriggerFactoryInternal::coa_dispel;
         creators["coa enemy casting"] = &CoaTriggerFactoryInternal::coa_enemy_casting;
+        creators["coa enemy buff"] = &CoaTriggerFactoryInternal::coa_enemy_buff;
+        creators["coa priority add"] = &CoaTriggerFactoryInternal::coa_priority_add;
         creators["coa tank needs hot"] = &CoaTriggerFactoryInternal::coa_tank_needs_hot;
         creators["coa group member dropping"] = &CoaTriggerFactoryInternal::coa_group_member_dropping;
         creators["coa ready to pull"] = &CoaTriggerFactoryInternal::coa_ready_to_pull;
@@ -3581,6 +4033,8 @@ public:
 private:
     static Trigger* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelTrigger(botAI); }
     static Trigger* coa_enemy_casting(PlayerbotAI* botAI) { return new CoaEnemyCastingTrigger(botAI); }
+    static Trigger* coa_enemy_buff(PlayerbotAI* botAI) { return new CoaEnemyBuffTrigger(botAI); }
+    static Trigger* coa_priority_add(PlayerbotAI* botAI) { return new CoaPriorityAddTrigger(botAI); }
     static Trigger* coa_tank_needs_hot(PlayerbotAI* botAI) { return new CoaTankNeedsHotTrigger(botAI); }
     static Trigger* coa_group_member_dropping(PlayerbotAI* botAI) { return new CoaGroupMemberDroppingTrigger(botAI); }
     static Trigger* coa_ready_to_pull(PlayerbotAI* botAI) { return new CoaReadyToPullTrigger(botAI); }
@@ -3675,37 +4129,122 @@ bool CoaHoldsExclusiveSibling(Player* bot, SpellInfo const* info)
     return false;
 }
 
+// Whether the spell, or a spell it casts, forces its target to attack the caster.
+static bool Taunts(SpellInfo const* info, uint8 depth)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (effect.Effect == SPELL_EFFECT_ATTACK_ME || (effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_TAUNT))
+            return true;
+        if (depth < 2 && effect.TriggerSpell &&
+            (effect.Effect == SPELL_EFFECT_TRIGGER_SPELL || effect.Effect == SPELL_EFFECT_TRIGGER_MISSILE ||
+             effect.Effect == SPELL_EFFECT_TRIGGER_SPELL_WITH_VALUE))
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (triggered != info && Taunts(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
 {
-    // Per class, the taunts and the buffs raising their bearer's threat, by id and by first rank.
-    static std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> const tankOnly = []
+    // Every taunt of the spell store, read from its effects: the class kits knew 28 of them, and a taunt cast
+    // by a damage spell, swapped in at run time or learned outside the kit went through (Dogsmeller, 10/10:
+    // damage dealers taunting in mythic+).
+    static std::unordered_set<uint32> const taunts = []
     {
-        std::unordered_map<uint8, std::pair<std::unordered_set<uint32>, std::unordered_set<uint32>>> byClass;
+        std::unordered_set<uint32> ids;
+        for (uint32 id = 1; id < sSpellMgr->GetSpellInfoStoreSize(); ++id)
+            if (SpellInfo const* spell = sSpellMgr->GetSpellInfo(id))
+                if (Taunts(spell, 0))
+                    ids.insert(id);
         for (auto const& [classId, kit] : ClassAbilities())
             for (CoaAbility const& ability : kit.abilities)
-            {
-                SpellInfo const* spell = sSpellMgr->GetSpellInfo(ability.spellId);
-                bool const taunt = ability.kind & KIND_TAUNT;
-                bool const threat = spell && (ability.kind & (KIND_BUFF | KIND_STANCE)) && RaisesThreat(spell);
-                if (taunt)
-                    byClass[classId].first.insert({ ability.spellId, ability.firstSpellId });
-                if (threat)
-                    byClass[classId].second.insert({ ability.spellId, ability.firstSpellId });
-                if (spell && (taunt || threat))
-                    LOG_INFO("playerbots", "CoA tank only: class {} {} {} ({})", classId, taunt ? "taunt" : "threat buff",
-                             spell->SpellName[LOCALE_enUS], ability.spellId);
-            }
-        return byClass;
+                if (ability.kind & KIND_TAUNT)
+                    ids.insert({ ability.spellId, ability.firstSpellId });
+        LOG_INFO("playerbots", "CoA tank only: {} taunts in the spell store", ids.size());
+        return ids;
     }();
 
     if (!info || !bot || GetCoaRole(bot) == CoaRole::Tank)
         return false;
-    auto const found = tankOnly.find(bot->getClass());
-    if (found == tankOnly.end())
-        return false;
     uint32 const first = info->GetFirstRankSpell()->Id;
-    auto const in = [&](std::unordered_set<uint32> const& ids) { return ids.count(info->Id) || ids.count(first); };
-    return in(found->second.first) || ((!target || target == bot) && in(found->second.second));
+    bool const taunt = taunts.count(info->Id) || taunts.count(first);
+    // A spell of the bot's own raising its threat (a tank stance, Righteous Fury), kit or not.
+    bool const threat = !taunt && (!target || target == bot) && RaisesThreat(info);
+    if (taunt || threat)
+    {
+        static std::mutex logged;
+        static std::unordered_set<uint32> seen;
+        std::lock_guard<std::mutex> guard(logged);
+        if (seen.insert(info->Id).second)
+            LOG_INFO("playerbots", "coa tank only: {} (class {}) kept from {} {} ({})", bot->GetName(), bot->getClass(),
+                     taunt ? "taunt" : "threat buff", info->SpellName[LOCALE_enUS], info->Id);
+    }
+    return taunt || threat;
+}
+
+void CoaTankThreatBonus(Player* bot)
+{
+    // Increased Threat: passive, hidden, permanent, threat of every school raised. Its amount is the option's, set
+    // again when the option changes; a bot that is no tank any more loses it.
+    static uint32 constexpr increasedThreat = 35773;
+    uint32 const bonus = sPlayerbotAIConfig.coaTankThreatBonus;
+    bool const wanted = bonus && GetCoaRole(bot) == CoaRole::Tank;
+    Aura* aura = bot->GetAura(increasedThreat, bot->GetGUID());
+    if (!wanted)
+    {
+        if (aura)
+            bot->RemoveAura(aura);
+        return;
+    }
+    if (!aura)
+        aura = bot->AddAura(increasedThreat, bot);
+    if (AuraEffect* effect = aura ? aura->GetEffect(EFFECT_0) : nullptr; effect && effect->GetAmount() != int32(bonus))
+        effect->ChangeAmount(int32(bonus));
+}
+
+void CoaTankThreatBuffs(PlayerbotAI* botAI, Player* bot)
+{
+    if (!botAI || !bot || GetCoaRole(bot) != CoaRole::Tank || bot->IsInCombat() || bot->IsMounted())
+        return;
+
+    // The tank's own threat buffs that its class kit does not list (learned from a talent, an upgrade, swapped in):
+    // the buff action knew only the kit, and tanks were seen holding little aggro. Stances stay with the buff action,
+    // which knows which of them is the tank's; a buff of a family the tank already wears is left alone.
+    static std::mutex logged;
+    static std::unordered_set<uint64> seen;
+    bool wears = WearsThreatStance(bot);
+    for (auto const& [spellId, playerSpell] : bot->GetSpellMap())
+    {
+        if (playerSpell->State == PLAYERSPELL_REMOVED || !playerSpell->Active)
+            continue;
+        SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+        if (!info || info->IsPassive() || !info->IsPositive() || info->HasAura(SPELL_AURA_MOD_SHAPESHIFT) ||
+            info->RecoveryTime > 10 * IN_MILLISECONDS || (info->GetDuration() > 0 && info->GetDuration() < 10 * MINUTE * IN_MILLISECONDS) ||
+            !RaisesThreat(info))
+            continue;
+        if (SpellInfo const* next = info->GetNextRankSpell(); next && bot->HasSpell(next->Id))
+            continue;
+        if (bot->HasAura(spellId) || StandsIn(bot, info) || !botAI->CanCastSpell(spellId, bot))
+            continue;
+        if (botAI->CastSpell(spellId, bot))
+        {
+            wears = true;
+            std::lock_guard<std::mutex> guard(logged);
+            if (seen.insert((uint64(bot->getClass()) << 32) | spellId).second)
+                LOG_INFO("playerbots", "coa tank threat: {} (class {}) puts on {} ({})", bot->GetName(), bot->getClass(),
+                         info->SpellName[LOCALE_enUS], spellId);
+            return;
+        }
+    }
+    if (!wears)
+    {
+        std::lock_guard<std::mutex> guard(logged);
+        if (seen.insert((uint64(1) << 63) | bot->GetGUID().GetCounter()).second)
+            LOG_INFO("playerbots", "coa tank threat: {} (class {}, level {}) wears no threat aura", bot->GetName(),
+                     bot->getClass(), bot->GetLevel());
+    }
 }
 
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)

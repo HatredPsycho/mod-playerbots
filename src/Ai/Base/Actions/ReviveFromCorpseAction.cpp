@@ -6,14 +6,40 @@
 
 #include "ReviveFromCorpseAction.h"
 #include "Corpse.h"
+#include "DBCStores.h"
 #include "Event.h"
 #include "FleeManager.h"
 #include "GameGraveyard.h"
 #include "MapMgr.h"
+#include "ObjectMgr.h"
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "RandomPlayerbotMgr.h"
 #include "ServerFacade.h"
+
+// A ghost released in a dungeon stands at a graveyard outside, on another map than its corpse: GetCorpse() only
+// looks on the bot's own map, so no dead action ran and the ghost stood at the graveyard for good
+// (jealous-sound/azerothcore-wotlk-coa#6090). It goes in by the dungeon's entrance, the way a player walks in, and
+// entering the instance of its corpse brings it back to life there.
+static bool EnterCorpseDungeon(Player* bot)
+{
+    if (!bot->HasPlayerFlag(PLAYER_FLAGS_GHOST) || bot->InBattleground())
+        return false;
+
+    uint32 const corpseMapId = bot->GetCorpseLocation().GetMapId();
+    MapEntry const* corpseMap = sMapStore.LookupEntry(corpseMapId);
+    if (corpseMapId == bot->GetMapId() || !corpseMap || !corpseMap->IsDungeon())
+        return false;
+
+    AreaTriggerTeleport const* entrance = sObjectMgr->GetMapEntranceTrigger(corpseMapId);
+    if (!entrance)
+        return false;
+
+    bot->GetMotionMaster()->Clear();
+    bot->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TELEPORTED | AURA_INTERRUPT_FLAG_CHANGE_MAP);
+    return bot->TeleportTo(entrance->target_mapId, entrance->target_X, entrance->target_Y, entrance->target_Z,
+                           entrance->target_Orientation);
+}
 
 bool ReviveFromCorpseAction::Execute(Event event)
 {
@@ -84,7 +110,7 @@ bool FindCorpseAction::Execute(Event /*event*/)
     Player* groupLeader = botAI->GetGroupLeader();
     Corpse* corpse = bot->GetCorpse();
     if (!corpse)
-        return false;
+        return EnterCorpseDungeon(bot);
 
     // if (groupLeader)
     // {
@@ -204,7 +230,8 @@ bool FindCorpseAction::isUseful()
     if (bot->InBattleground())
         return false;
 
-    return bot->GetCorpse();
+    return bot->GetCorpse() || (bot->HasPlayerFlag(PLAYER_FLAGS_GHOST) &&
+                                bot->GetCorpseLocation().GetMapId() != bot->GetMapId());
 }
 
 GraveyardStruct const* SpiritHealerAction::GetGrave(bool startZone)

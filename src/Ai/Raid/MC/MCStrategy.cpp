@@ -122,7 +122,9 @@ void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExcl
         if (!unit)
             continue;
 
-        if ((golemaggAlive && unit->GetEntry() == NPC_CORE_RAGER) || unit->GetEntry() == NPC_MAJORDOMO_EXECUTUS)
+        // CoA: Majordomo Executus is fought down to 20% (he then yields and turns friendly, which ends the
+        // attack by itself); stock AzerothCore's "never attack him" stalled the encounter (raid report, 08/10).
+        if (golemaggAlive && unit->GetEntry() == NPC_CORE_RAGER)
             exclusions.insert(guid);
     }
 }

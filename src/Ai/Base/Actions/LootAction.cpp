@@ -519,6 +519,12 @@ bool StoreLootAction::IsLootAllowed(uint32 itemid, PlayerbotAI* botAI)
     //     proto->Class == ITEM_CLASS_QUEST)
     //{
 
+    // CoA: trinkets of no use to a bot (fireworks, toys: "other" consumables of common quality or below) stay for the
+    // players; bots filled their bags with Red Fireworks Rockets in the Scarlet Monastery Armory (#5757).
+    if (proto->Class == ITEM_CLASS_CONSUMABLE && proto->SubClass == ITEM_SUBCLASS_CONSUMABLE_OTHER &&
+        proto->Quality <= ITEM_QUALITY_NORMAL)
+        return false;
+
     bool canLoot = lootStrategy->CanLoot(proto, context);
     // if (canLoot && proto->Bonding == BIND_WHEN_PICKED_UP && IsRealPlayer(botAI->GetMaster()))
     // canLoot = sPlayerbotAIConfig.IsInRandomAccountList(botAI->GetBot()->GetSession()->GetAccountId());

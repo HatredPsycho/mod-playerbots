@@ -652,7 +652,8 @@ public:
         sPlayerbotAIConfig.coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", false);
         sPlayerbotAIConfig.coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
         sPlayerbotAIConfig.coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
-        sPlayerbotAIConfig.coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 0);
+        sPlayerbotAIConfig.coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 90);
+        sPlayerbotAIConfig.coaTankThreatBonus = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankThreatBonus", 0);
         sPlayerbotAIConfig.coaTankOpenerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankOpenerSeconds", 2);
         sPlayerbotAIConfig.coaOrphanGroupReleaseDelay = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaOrphanGroupReleaseDelay", 300);
         sPlayerbotAIConfig.coaTellEquipUpgrades = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTellEquipUpgrades", false);
@@ -660,7 +661,10 @@ public:
         sPlayerbotAIConfig.coaRulesetHighRiskPct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetHighRiskPct", 30);
         sPlayerbotAIConfig.coaRulesetWarModePct = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRulesetWarModePct", 0);
         sPlayerbotAIConfig.coaGearByContent = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearByContent", true);
+        sPlayerbotAIConfig.coaGearMatchGroup = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearMatchGroup", true);
+        sPlayerbotAIConfig.coaGearHighRiskPvp = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGearHighRiskPvp", true);
         sPlayerbotAIConfig.coaInterruptCoordination = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaInterruptCoordination", true);
+        sPlayerbotAIConfig.coaDungeonPriorities = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaDungeonPriorities", true);
         sPlayerbotAIConfig.coaAncestralCombatFix = sConfigMgr->GetOption<bool>("AiPlayerbot.Coa.AncestralCombatFix", true);
         sPlayerbotAIConfig.coaKeepPassiveAuras = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepPassiveAuras", true);
         sPlayerbotAIConfig.coaShortLivedDebuffs = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaShortLivedDebuffs", 0);

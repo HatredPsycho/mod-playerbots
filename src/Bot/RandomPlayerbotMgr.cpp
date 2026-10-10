@@ -2989,12 +2989,16 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         return;
 
     // The player who groups the bot sets its item level; a High Risk bot stays in PvP gear with them.
+    // AiPlayerbot.CoaGearMatchGroup = 0: a grouped bot keeps the gear it has, as on its own.
     Player* master = botAI->GetMaster();
-    if (!master || master == bot || GET_PLAYERBOT_AI(master) || !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
+    if (!sPlayerbotAIConfig.coaGearMatchGroup || !master || master == bot || GET_PLAYERBOT_AI(master) ||
+        !bot->GetGroup() || master->GetGroup() != bot->GetGroup())
         master = nullptr;
 
-    bool const pvp = bot->HasAura(COA_RULESET_HIGH_RISK) || bot->InBattleground() || bot->InArena() ||
-                     bot->InBattlegroundQueue();
+    // AiPlayerbot.CoaGearHighRiskPvp = 0: a High Risk bot wears PvP gear only in a battleground or an arena, as the
+    // others (the test servers' boss bench measures every bot in PvE gear).
+    bool const pvp = (sPlayerbotAIConfig.coaGearHighRiskPvp && bot->HasAura(COA_RULESET_HIGH_RISK)) ||
+                     bot->InBattleground() || bot->InArena() || bot->InBattlegroundQueue();
 
     // The level 60 honor sets: Knight-Lieutenant's (rare 66), Knight-Captain's (rare 68), Lieutenant Commander's
     // (rare 71), Marshal's (epic 71), Field Marshal's (epic 74) and their Horde counterparts.
@@ -3049,6 +3053,13 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (GetValue(botId, "coaGearPvp") == uint32(pvp) && GetValue(botId, "coaGearScore") == itemLevel)
         return;
 
+    // A bot on its own keeps its PvP gear for 10 minutes out of a battleground and its queue: most queue again at
+    // once, and each battleground cost two changes of some seventeen items (18,000 changes a night on the NUC).
+    if (pvp)
+        botAI->coaGearPvpSeenAt = getMSTime();
+    else if (!master && botAI->coaGearPvpSeenAt && GetMSTimeDiffToNow(botAI->coaGearPvpSeenAt) < 10 * MINUTE * IN_MILLISECONDS)
+        return;
+
     // Each change destroys and creates some seventeen items: one bot at a time on the whole server.
     static std::atomic<uint32> lastRegear{0};
     uint32 last = lastRegear.load();
@@ -3056,6 +3067,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (!master && (getMSTimeDiff(last, getMSTime()) < 1000 || !lastRegear.compare_exchange_strong(last, getMSTime())))
         return;
 
+    uint32 const startedAt = getMSTime();
     SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
     SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
     PlayerbotFactory::DestroyEquippedGear(bot);
@@ -3077,8 +3089,8 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     if (bot->GetLevel() >= sPlayerbotAIConfig.minEnchantingBotLevel)
         factory.ApplyEnchantAndGemsNew();
     bot->DurabilityRepairAll(false, 1.0f, false);
-    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}", bot->GetName(), pvp ? "PvP" : "PvE", itemLevel,
-              master ? " (grouped)" : "");
+    LOG_INFO("playerbots", "coa gear: {} {} gear, item level limit {}{}, {} ms", bot->GetName(), pvp ? "PvP" : "PvE",
+             itemLevel, master ? " (grouped)" : "", GetMSTimeDiffToNow(startedAt));
 }
 
 void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)

@@ -410,6 +410,7 @@ public:
     uint32 coaBotSurname;
     std::string coaBotSurnameText;
     uint32 coaThreatHold;
+    uint32 coaTankThreatBonus;
     bool coaAttackLoop;
     bool coaKeepChannels;
     bool coaExclusiveFamilies;
@@ -420,6 +421,7 @@ public:
     bool coaAttackCheckBench;
     bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
+    bool coaDungeonPriorities;
     uint32 coaTankOpenerSeconds;
     uint32 coaOrphanGroupReleaseDelay;
     bool coaTellEquipUpgrades;
@@ -427,6 +429,8 @@ public:
     uint32 coaRulesetHighRiskPct;
     uint32 coaRulesetWarModePct;
     bool coaGearByContent;
+    bool coaGearMatchGroup;
+    bool coaGearHighRiskPvp;
     uint32 coaBgLevelBalanceChance;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;

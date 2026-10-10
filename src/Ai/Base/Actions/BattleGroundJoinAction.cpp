@@ -614,6 +614,8 @@ bool BGJoinAction::JoinQueue(uint32 type)
         *packet << unit->GetGUID() << arenaslot << asGroup << uint8(isRated);
     }
     bot->GetSession()->QueuePacket(packet);
+    // Its PvP gear goes on in the queue, not in the arena's preparation (CoaGearByContent).
+    botAI->CoaCheckGearSoon();
     return true;
 }
 
