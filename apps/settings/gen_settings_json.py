@@ -76,6 +76,8 @@ SETTINGS = [
      'Healers heal whoever is under 25% health first and the tank before the others, and pick the heal for how urgent it is.'),
     ('CoaSmartTank', 'combat', 'Smart tanking',
      'Tanks take first the enemy on the healer, then the one on whoever is lowest, rather than the nearest.'),
+    ('CoaThreatHold', 'combat', 'Damage dealers keep under the tank (%)',
+     'Damage dealer bots hold their attacks at this share of the tank threat (20 more at range). 0 = no hold.'),
     ('CoaInterruptCoordination', 'combat', 'Coordinated interrupts',
      'In a group, one bot kicks each enemy cast and the others keep their interrupt for the next one.'),
     ('CoaBossKnowledge', 'combat', 'Boss mechanics',
