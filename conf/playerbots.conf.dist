@@ -1558,11 +1558,12 @@ AiPlayerbot.CoaThreatHold = 90
 #    AiPlayerbot.CoaTankThreatBonus
 #        Description: A CoA tank bot causes this much more threat, in percent, through a hidden passive aura
 #                     (Increased Threat, 35773): a player dealing heavy damage beside a bot tank kept taking
-#                     its mobs. Removed as soon as the bot is no tank any more.
-#        Default:     100
-#                     0 - off
+#                     its mobs. Removed as soon as the bot is no tank any more. Off by default: a tank
+#                     wearing its threat auras and playing its rotation should hold aggro on its own.
+#        Default:     0 - off
+#                     100 - twice the threat
 
-AiPlayerbot.CoaTankThreatBonus = 100
+AiPlayerbot.CoaTankThreatBonus = 0
 
 #    AiPlayerbot.CoaAttackLoop
 #        Description: 1 - a CoA bot attacks through the same cast path as its heals: a spell refused for
