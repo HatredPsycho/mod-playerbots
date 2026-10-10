@@ -1681,6 +1681,19 @@ AiPlayerbot.CoaStealthIsNotStance = 0
 
 AiPlayerbot.CoaInterruptCoordination = 1
 
+#    AiPlayerbot.CoaDungeonPriorities
+#        Description: 1 - bots deal first with what keeps the enemy going, as players do: they kick a heal,
+#                     crowd control or summon before an ordinary cast (and a short list of classic dungeon
+#                     boss casts before anything else); in a dungeon they also take a magic buff or an
+#                     enrage off a boss or elite with their purge or soothe, and damage dealers switch to
+#                     a totem, ward or add that heals or shields its side (tanks keep the boss). The
+#                     "coa dungeon:" lines of Playerbots.log show each kind of decision once a minute.
+#                     0 - none of it, as in 1.9.
+#                     Read again by ".reload config".
+#        Default:     1
+
+AiPlayerbot.CoaDungeonPriorities = 1
+
 # Conquest of Azeroth specializations bots never play, by id, comma separated. A bot holding one
 # switches to another of its role, and ".playerbots coa" never recruits one.
 # Empty by default: no specialization is worth setting aside as things stand. The two that used to be

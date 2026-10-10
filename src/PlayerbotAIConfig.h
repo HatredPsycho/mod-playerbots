@@ -417,6 +417,7 @@ public:
     bool coaAttackCheckBench;
     bool coaStealthIsNotStance;
     bool coaInterruptCoordination;
+    bool coaDungeonPriorities;
     uint32 coaTankOpenerSeconds;
     uint32 coaOrphanGroupReleaseDelay;
     bool coaTellEquipUpgrades;
