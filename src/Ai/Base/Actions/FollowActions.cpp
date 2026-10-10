@@ -25,6 +25,7 @@ namespace
 // (jealous-sound/azerothcore-wotlk-coa#5753). False, and the usual follow, when that point is not
 // reachable in a straight line (a wall, a ledge, a stair).
 constexpr float TankLeadDistance = 6.0f;
+constexpr float TankHoldDistance = 25.0f;
 
 bool TankLeadPoint(PlayerbotAI* botAI, Player* bot, Unit* leader, float& x, float& y, float& z)
 {
@@ -33,12 +34,24 @@ bool TankLeadPoint(PlayerbotAI* botAI, Player* bot, Unit* leader, float& x, floa
         botAI->IsTank(leader->ToPlayer(), true) || leader->GetMapId() != bot->GetMapId())
         return false;
 
+    // A tank already ahead of the player, where its last fight left it, stays there: it ran back to the player,
+    // who heals from the room's entrance, after each kill and hung at the back of the group (Deadmines,
+    // jealous-sound/azerothcore-wotlk-coa#5753). The player walking up to it brings it back into the lead below.
+    float const holdDistance = bot->GetExactDist2d(leader);
+    if (holdDistance > TankLeadDistance && holdDistance < TankHoldDistance &&
+        leader->HasInArc(static_cast<float>(M_PI) / 2.0f, bot) &&
+        std::fabs(bot->GetPositionZ() - leader->GetPositionZ()) < 4.0f && leader->IsWithinLOSInMap(bot))
+    {
+        bot->GetPosition(x, y, z);
+        return true;
+    }
+
     // Only while the player walks forward: turning on the spot, strafing or stopping swung the point round them, and
     // the tank went back and forth (Ragefire Chasm, jealous-sound/azerothcore-wotlk-coa#6505, #6493). A stopped
     // player keeps the tank where it stands, if it stands close and in sight.
     if (!leader->HasUnitMovementFlag(MOVEMENTFLAG_FORWARD) || leader->HasUnitMovementFlag(MOVEMENTFLAG_BACKWARD))
     {
-        if (bot->GetExactDist2d(leader) > TankLeadDistance * 2.0f || !leader->IsWithinLOSInMap(bot))
+        if (bot->GetExactDist2d(leader) > TankHoldDistance || !leader->IsWithinLOSInMap(bot))
             return false;
         bot->GetPosition(x, y, z);
         return true;
