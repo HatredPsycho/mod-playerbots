@@ -86,12 +86,14 @@ struct CoaAbility
     uint16 kind;
     uint32 dispelMask;
     uint32 firstSpellId;  // first rank: ranks of one spell replace each other
+    uint32 purgeMask = 0;  // magic buffs and enrages it takes off an enemy (Purge, Tranquilizing Shot)
 };
 
 struct ClassKit
 {
     std::vector<CoaAbility> abilities;
     uint16 kinds = 0;  // every kind some ability of the class has
+    uint32 purgeMask = 0;  // what some ability of the class takes off an enemy
 };
 
 // Ally targets: pet, party and raid areas, ally or any unit, chain heal, nearby ally, party or raid
@@ -642,6 +644,12 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
             ability.dispelMask |= SpellInfo::GetDispelMask(DispelType(effect.MiscValue));
         }
 
+        // Purge, Spellsteal, Tranquilizing Shot and their CoA kind take a buff off an enemy: kept
+        // apart from the cleanses, for "coa purge" (only magic and enrages: what a boss casts on itself).
+        if ((effect.Effect == SPELL_EFFECT_DISPEL || effect.Effect == SPELL_EFFECT_STEAL_BENEFICIAL_BUFF) && enemy)
+            ability.purgeMask |= SpellInfo::GetDispelMask(DispelType(effect.MiscValue)) &
+                                 ((1 << DISPEL_MAGIC) | (1 << DISPEL_ENRAGE));
+
         if (effect.Effect == SPELL_EFFECT_INTERRUPT_CAST ||
             (aura && enemy && effect.ApplyAuraName == SPELL_AURA_MOD_SILENCE))
             ability.kind |= KIND_INTERRUPT;
@@ -745,6 +753,7 @@ std::unordered_map<uint8, ClassKit> const& ClassAbilities()
 
             kit.abilities.push_back(ability);
             kit.kinds |= ability.kind;
+            kit.purgeMask |= ability.purgeMask;
             return true;
         };
 
@@ -807,6 +816,7 @@ struct Usable
     SpellInfo const* info;
     uint16 kind;
     uint32 dispelMask;
+    uint32 purgeMask = 0;
 };
 
 // Active abilities the bot has reached and actually knows, for which `wanted(kind)` is true.
@@ -835,9 +845,9 @@ std::vector<Usable> KnownAbilities(Player* bot, Filter wanted)
 
         auto const [itr, inserted] = rankIndex.try_emplace(ability.firstSpellId, usable.size());
         if (inserted)
-            usable.push_back({ info, ability.kind, ability.dispelMask });
+            usable.push_back({ info, ability.kind, ability.dispelMask, ability.purgeMask });
         else
-            usable[itr->second] = { info, ability.kind, ability.dispelMask };
+            usable[itr->second] = { info, ability.kind, ability.dispelMask, ability.purgeMask };
     }
 
     return usable;
@@ -2788,6 +2798,164 @@ public:
     bool isUseful() override { return ClassHas(bot, KIND_DISPEL) && HasReadyAbility(botAI, bot,IsFriendlyDispel); }
 };
 
+/*
+ * Purge and soothe (AiPlayerbot.CoaDungeonPriorities). In a dungeon, a bot with an ability that
+ * takes a magic buff or an enrage off an enemy uses it on a boss or elite of the fight that carries
+ * one: a Lightning Shield, a Demon Armor or the Enrage at half health stayed on the boss the whole
+ * fight, since nothing aimed these abilities (the attack rotation only cast them by chance). Once a
+ * bot has cast at a buff the others leave that buff alone for a moment, or every purge of the group
+ * went at the same Frost Ward.
+ */
+constexpr uint32 PurgeClaimMs = 2500;
+
+using PurgeKey = std::tuple<uint32, uint32, uint64, uint32>;  // map, instance, enemy guid, buff
+std::mutex PurgeClaimsLock;
+std::map<PurgeKey, uint32> PurgeClaims;  // -> getMSTime() until which the other bots leave it
+
+PurgeKey PurgeKeyOf(Unit* enemy, uint32 buffId)
+{
+    return { enemy->GetMapId(), enemy->GetInstanceId(), enemy->GetGUID().GetRawValue(), buffId };
+}
+
+bool PurgeClaimed(Unit* enemy, uint32 buffId, uint32 now)
+{
+    std::lock_guard<std::mutex> guard(PurgeClaimsLock);
+    auto const found = PurgeClaims.find(PurgeKeyOf(enemy, buffId));
+    return found != PurgeClaims.end() && !Passed(now, found->second);
+}
+
+void ClaimPurge(Unit* enemy, uint32 buffId, uint32 now)
+{
+    std::lock_guard<std::mutex> guard(PurgeClaimsLock);
+    for (auto itr = PurgeClaims.begin(); itr != PurgeClaims.end();)
+        if (Passed(now, itr->second))
+            itr = PurgeClaims.erase(itr);
+        else
+            ++itr;
+    PurgeClaims[PurgeKeyOf(enemy, buffId)] = now + PurgeClaimMs;
+}
+
+// A buff on the enemy of one of the dispel types in `mask` that no other bot is taking off. Passive
+// and permanent auras are left out: they are part of the creature, not something it cast.
+SpellInfo const* PurgeableBuff(Unit* enemy, uint32 mask, uint32 now)
+{
+    for (auto const& applied : enemy->GetAppliedAuras())
+    {
+        AuraApplication const* application = applied.second;
+        if (!application->IsPositive())
+            continue;
+
+        Aura const* aura = application->GetBase();
+        SpellInfo const* info = aura->GetSpellInfo();
+        if (aura->IsPassive() || aura->GetMaxDuration() <= 0 || !info->Dispel || !(mask & (1 << info->Dispel)))
+            continue;
+        if (!PurgeClaimed(enemy, info->Id, now))
+            return info;
+    }
+    return nullptr;
+}
+
+bool ClassPurges(Player* bot)
+{
+    auto const& all = ClassAbilities();
+    auto const found = all.find(bot->getClass());
+    return found != all.end() && found->second.purgeMask;
+}
+
+std::vector<Usable> KnownPurges(Player* bot)
+{
+    std::vector<Usable> purges = KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_HOSTILE) != 0; });
+    purges.erase(std::remove_if(purges.begin(), purges.end(), [](Usable const& spell) { return !spell.purgeMask; }),
+                 purges.end());
+    return purges;
+}
+
+struct PurgeChoice
+{
+    Unit* enemy = nullptr;
+    SpellInfo const* buff = nullptr;
+};
+
+// The boss or elite of the fight within 30 yards to purge, the current target first, with the buff to
+// take off; nothing when no purge of the bot is ready.
+PurgeChoice FindPurge(PlayerbotAI* botAI, Player* bot, std::vector<Usable> const& purges)
+{
+    PurgeChoice choice;
+    if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon())
+        return choice;
+
+    auto const& benched = static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->benchedSpells;
+    time_t const now = time(nullptr);
+    uint32 mask = 0;
+    for (Usable const& spell : purges)
+    {
+        SpellInfo const* const info = EffectiveSpell(bot, spell.info);
+        if (!bot->HasSpellCooldown(info->Id) && !IsBenched(benched, spell.info->Id, now) && !IsBenched(benched, info->Id, now))
+            mask |= spell.purgeMask;
+    }
+    if (!mask)
+        return choice;
+
+    uint32 const nowMs = getMSTime();
+    auto consider = [&](Unit* unit)
+    {
+        Creature* creature = unit ? unit->ToCreature() : nullptr;
+        if (!creature || !creature->IsAlive() ||
+            !(creature->IsDungeonBoss() || creature->isWorldBoss() || creature->isElite()) ||
+            !bot->IsWithinDistInMap(creature, 30.0f))
+            return false;
+        if (SpellInfo const* buff = PurgeableBuff(creature, mask, nowMs))
+        {
+            choice.enemy = creature;
+            choice.buff = buff;
+            return true;
+        }
+        return false;
+    };
+
+    Unit* target = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
+    if (consider(target))
+        return choice;
+    for (ObjectGuid const guid : botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get())
+    {
+        Unit* attacker = botAI->GetUnit(guid);
+        if (attacker != target && consider(attacker))
+            return choice;
+    }
+    return choice;
+}
+
+class CoaPurgeAction : public Action
+{
+public:
+    CoaPurgeAction(PlayerbotAI* botAI) : Action(botAI, "coa purge") {}
+
+    bool Execute(Event /*event*/) override
+    {
+        std::vector<Usable> purges = KnownPurges(bot);
+        PurgeChoice const choice = FindPurge(botAI, bot, purges);
+        if (!choice.enemy)
+            return false;
+
+        uint32 const type = 1 << choice.buff->Dispel;
+        purges.erase(std::remove_if(purges.begin(), purges.end(),
+                                    [type](Usable const& spell) { return !(spell.purgeMask & type); }),
+                     purges.end());
+        SpellInfo const* cast = CastFirst(botAI, bot, purges, choice.enemy, USAGE_DISPEL);
+        if (cast)
+        {
+            ClaimPurge(choice.enemy, choice.buff->Id, getMSTime());
+            if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Purge))
+                LOG_INFO("playerbots", "coa dungeon: {} cast {} ({}) to take {} ({}) off {}", bot->GetName(),
+                         cast->SpellName[LOCALE_enUS], cast->Id, choice.buff->SpellName[LOCALE_enUS], choice.buff->Id,
+                         choice.enemy->GetName());
+        }
+        return RecordUsage(USAGE_DISPEL, cast);
+    }
+
+    bool isUseful() override { return sPlayerbotAIConfig.coaDungeonPriorities && ClassPurges(bot); }
+};
+
 // Kicks the cast of the current target or of an attacker.
 class CoaInterruptAction : public Action
 {
@@ -3016,6 +3184,22 @@ public:
     }
 };
 
+// In a dungeon fight, a boss or elite near the bot carries a buff or an enrage one of its ready
+// purges takes off. Checked once a second: the scan reads the bot's abilities.
+class CoaEnemyBuffTrigger : public Trigger
+{
+public:
+    CoaEnemyBuffTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa enemy buff", 1000) {}
+
+    bool IsActive() override
+    {
+        if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon() ||
+            !ClassPurges(bot))
+            return false;
+        return FindPurge(botAI, bot, KnownPurges(bot)).enemy != nullptr;
+    }
+};
+
 // An enemy near the bot is casting something that can be interrupted.
 class CoaEnemyCastingTrigger : public Trigger
 {
@@ -3142,6 +3326,7 @@ public:
 
         triggers.push_back(new TriggerNode("coa enemy casting", { NextAction("coa interrupt", InterruptPriority()) }));
         triggers.push_back(new TriggerNode("coa dispel", { NextAction("coa dispel", DispelPriority()) }));
+        triggers.push_back(new TriggerNode("coa enemy buff", { NextAction("coa purge", PurgePriority()) }));
         triggers.push_back(new TriggerNode("medium aoe", { NextAction("coa aoe", ACTION_HIGH + 2) }));
         triggers.push_back(new TriggerNode("low health", { NextAction("coa defensive", ACTION_HIGH + 8) }));
     }
@@ -3149,6 +3334,8 @@ public:
 protected:
     virtual float InterruptPriority() { return ACTION_INTERRUPT; }
     virtual float DispelPriority() { return ACTION_NORMAL + 5; }
+    // Just below the interrupt: an enrage or a shield left on the boss costs more than one attack.
+    virtual float PurgePriority() { return ACTION_INTERRUPT - 1; }
 
     bool ranged;
 };
@@ -3224,6 +3411,7 @@ public:
 protected:
     float InterruptPriority() override { return ACTION_MEDIUM_HEAL + 7; }
     float DispelPriority() override { return ACTION_MEDIUM_HEAL + 6; }
+    float PurgePriority() override { return ACTION_MEDIUM_HEAL + 5; }
 };
 
 /*
@@ -3599,6 +3787,7 @@ public:
         creators["coa taunt"] = &CoaActionFactoryInternal::coa_taunt;
         creators["coa defensive"] = &CoaActionFactoryInternal::coa_defensive;
         creators["coa dispel"] = &CoaActionFactoryInternal::coa_dispel;
+        creators["coa purge"] = &CoaActionFactoryInternal::coa_purge;
         creators["coa interrupt"] = &CoaActionFactoryInternal::coa_interrupt;
         creators["coa buff"] = &CoaActionFactoryInternal::coa_buff;
         creators["coa stay near tank"] = &CoaActionFactoryInternal::coa_stay_near_tank;
@@ -3625,6 +3814,7 @@ private:
     static Action* coa_taunt(PlayerbotAI* botAI) { return new CoaTauntAction(botAI); }
     static Action* coa_defensive(PlayerbotAI* botAI) { return new CoaDefensiveAction(botAI); }
     static Action* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelAction(botAI); }
+    static Action* coa_purge(PlayerbotAI* botAI) { return new CoaPurgeAction(botAI); }
     static Action* coa_interrupt(PlayerbotAI* botAI) { return new CoaInterruptAction(botAI); }
     static Action* coa_buff(PlayerbotAI* botAI) { return new CoaBuffAction(botAI); }
     static Action* coa_stay_near_tank(PlayerbotAI* botAI) { return new CoaStayNearTankAction(botAI); }
@@ -3642,6 +3832,7 @@ public:
     {
         creators["coa dispel"] = &CoaTriggerFactoryInternal::coa_dispel;
         creators["coa enemy casting"] = &CoaTriggerFactoryInternal::coa_enemy_casting;
+        creators["coa enemy buff"] = &CoaTriggerFactoryInternal::coa_enemy_buff;
         creators["coa tank needs hot"] = &CoaTriggerFactoryInternal::coa_tank_needs_hot;
         creators["coa group member dropping"] = &CoaTriggerFactoryInternal::coa_group_member_dropping;
         creators["coa ready to pull"] = &CoaTriggerFactoryInternal::coa_ready_to_pull;
@@ -3657,6 +3848,7 @@ public:
 private:
     static Trigger* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelTrigger(botAI); }
     static Trigger* coa_enemy_casting(PlayerbotAI* botAI) { return new CoaEnemyCastingTrigger(botAI); }
+    static Trigger* coa_enemy_buff(PlayerbotAI* botAI) { return new CoaEnemyBuffTrigger(botAI); }
     static Trigger* coa_tank_needs_hot(PlayerbotAI* botAI) { return new CoaTankNeedsHotTrigger(botAI); }
     static Trigger* coa_group_member_dropping(PlayerbotAI* botAI) { return new CoaGroupMemberDroppingTrigger(botAI); }
     static Trigger* coa_ready_to_pull(PlayerbotAI* botAI) { return new CoaReadyToPullTrigger(botAI); }
