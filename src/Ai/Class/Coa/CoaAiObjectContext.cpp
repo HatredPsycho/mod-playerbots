@@ -33,6 +33,7 @@
 #include <array>
 #include <atomic>
 #include <cmath>
+#include <iterator>
 #include <ctime>
 #include <map>
 #include <mutex>
@@ -339,6 +340,17 @@ bool RaisesThreat(SpellInfo const* info, uint8 depth = 0)
                     return true;
     }
     return false;
+}
+
+// An ability causing more threat than its damage: a flat threat effect (Spiked Reinforcement) or a threat entry of
+// the core. The Guardian and the Venomancer have no threat stance: their aggro comes from these.
+bool BuildsThreat(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.Effect == SPELL_EFFECT_THREAT && effect.CalcValue() > 0)
+            return true;
+    SpellThreatEntry const* entry = sSpellMgr->GetSpellThreatEntry(info->Id);
+    return entry && (entry->flatMod > 0 || entry->pctMod > 1.0f || entry->apPctMod > 0.0f);
 }
 
 // Swimming and breathing under water: a form to travel in, not to stand in.
@@ -2220,6 +2232,26 @@ public:
             { return IsAttack(kind, tank) && !(noTaunt && (kind & KIND_TAUNT)); });
         if (usable.empty())
             return false;
+
+        // A tank whose lead shrinks (someone at 70% of its threat on the target, or a target it has not touched yet)
+        // opens with its abilities that build threat, which the rotation through the kit did not put first.
+        if (tank && sPlayerbotAIConfig.coaSmartTank)
+        {
+            float const mine = target->GetThreatMgr().GetThreat(bot);
+            float other = 0.0f;
+            for (ThreatReference const* ref : target->GetThreatMgr().GetUnsortedThreatList())
+                if (ref->GetVictim() != bot)
+                    other = std::max(other, ref->GetThreat());
+            if (other >= mine * 0.7f)
+            {
+                std::vector<Usable> threat;
+                std::copy_if(usable.begin(), usable.end(), std::back_inserter(threat),
+                             [](Usable const& spell) { return BuildsThreat(spell.info); });
+                if (!threat.empty())
+                    if (SpellInfo const* cast = CastFirst(botAI, bot, threat, target, USAGE_ATTACK))
+                        return RecordUsage(USAGE_ATTACK, cast);
+            }
+        }
 
         if (sPlayerbotAIConfig.coaAttackLoop)
             return AttackThroughCastFirst(usable, target, saveMana);
