@@ -80,6 +80,8 @@ SETTINGS = [
      'Damage dealer bots hold their attacks at this share of the tank threat (20 more at range). 0 = no hold.'),
     ('CoaInterruptCoordination', 'combat', 'Coordinated interrupts',
      'In a group, one bot kicks each enemy cast and the others keep their interrupt for the next one.'),
+    ('CoaDungeonPriorities', 'combat', 'Dungeon priorities',
+     'Bots kick heals and crowd control first; in dungeons they purge boss buffs and enrages, and damage dealers kill healing adds and totems before the boss.'),
     ('CoaBossKnowledge', 'combat', 'Boss mechanics',
      'Bots read dungeon and raid casts: they step out of point blank casts, cones and areas while the cast bar runs.'),
     ('CoaKeepPassiveAuras', 'combat', 'Keep passive auras',
