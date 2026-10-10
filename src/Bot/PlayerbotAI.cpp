@@ -1731,6 +1731,7 @@ void PlayerbotAI::DoNextAction(bool min)
         if (sPlayerbotAIConfig.coaGearByContent)
             sRandomPlayerbotMgr.CoaUpdateGear(bot);
 
+        CoaTankThreatBonus(bot);
         CoaTankThreatBuffs(this, bot);
 
         // In a dungeon, the pet of a bot that is no tank leaves its taunt (Growl, Torment) to the tank; out of one it

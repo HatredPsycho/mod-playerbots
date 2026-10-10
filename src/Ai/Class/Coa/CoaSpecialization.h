@@ -92,6 +92,9 @@ bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target);
 // A tank out of combat puts on the threat buffs it knows outside its class kit (every 10 seconds).
 void CoaTankThreatBuffs(PlayerbotAI* botAI, Player* bot);
 
+// A tank bot wears Increased Threat at AiPlayerbot.CoaTankThreatBonus percent; a bot that is no tank loses it.
+void CoaTankThreatBonus(Player* bot);
+
 // The heals a CoA healer considers, for the fight log: "Med Pack (502534), ...".
 std::string CoaHealKit(Player* bot);
 

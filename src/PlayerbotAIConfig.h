@@ -407,6 +407,7 @@ public:
     bool coaRecruitSameFaction;
     bool coaBotSurname;
     uint32 coaThreatHold;
+    uint32 coaTankThreatBonus;
     bool coaAttackLoop;
     bool coaKeepChannels;
     bool coaExclusiveFamilies;

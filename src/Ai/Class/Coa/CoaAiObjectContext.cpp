@@ -20,6 +20,7 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "Spell.h"
+#include "SpellAuraEffects.h"
 #include "SpellAuras.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
@@ -4149,6 +4150,26 @@ bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
                      taunt ? "taunt" : "threat buff", info->SpellName[LOCALE_enUS], info->Id);
     }
     return taunt || threat;
+}
+
+void CoaTankThreatBonus(Player* bot)
+{
+    // Increased Threat: passive, hidden, permanent, threat of every school raised. Its amount is the option's, set
+    // again when the option changes; a bot that is no tank any more loses it.
+    static uint32 constexpr increasedThreat = 35773;
+    uint32 const bonus = sPlayerbotAIConfig.coaTankThreatBonus;
+    bool const wanted = bonus && GetCoaRole(bot) == CoaRole::Tank;
+    Aura* aura = bot->GetAura(increasedThreat, bot->GetGUID());
+    if (!wanted)
+    {
+        if (aura)
+            bot->RemoveAura(aura);
+        return;
+    }
+    if (!aura)
+        aura = bot->AddAura(increasedThreat, bot);
+    if (AuraEffect* effect = aura ? aura->GetEffect(EFFECT_0) : nullptr; effect && effect->GetAmount() != int32(bonus))
+        effect->ChangeAmount(int32(bonus));
 }
 
 void CoaTankThreatBuffs(PlayerbotAI* botAI, Player* bot)
