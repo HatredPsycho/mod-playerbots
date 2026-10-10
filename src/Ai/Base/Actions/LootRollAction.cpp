@@ -83,6 +83,9 @@ bool LootRollAction::Execute(Event /*event*/)
                     break;
             }
         }
+        // A shirt or a tabard only dresses: a player who wants one gets it before a bot (Twilight's Embrace, #6895).
+        if (vote == NEED && (proto->InventoryType == INVTYPE_BODY || proto->InventoryType == INVTYPE_TABARD))
+            vote = GREED;
         if (vote == NEED)
         {
             if (sPlayerbotAIConfig.lootNeedRollLevel == 0 || RollUniqueCheck(proto, bot))
