@@ -8,6 +8,7 @@
 
 #include "Action.h"
 #include "AttackAction.h"
+#include "CoaDungeonPriorities.h"
 #include "CoaSpecialization.h"
 #include "CombatStrategy.h"
 #include "DatabaseEnv.h"
@@ -2051,7 +2052,8 @@ bool MayKick(Player* bot, Unit* caster, Spell* cast)
 
     InterruptClaim claim;
     claim.spellId = spellId;
-    claim.danger = IsDangerousCast(cast);
+    claim.danger = IsDangerousCast(cast) ||
+                   (sPlayerbotAIConfig.coaDungeonPriorities && CoaDungeonPriorities::InterruptRank(cast->GetSpellInfo()) == 2);
     claim.until = now + remaining + InterruptLandMarginMs;
     if (!CoordinateInterrupts())
     {
@@ -2113,18 +2115,50 @@ bool WorthKicking(PlayerbotAI* botAI, Player* bot, Unit* unit)
 }
 
 // The enemy to interrupt: the current target when it casts, else an attacker that does.
+// With AiPlayerbot.CoaDungeonPriorities the casts are ranked first: a heal, crowd control or summon
+// before an ordinary cast, a boss cast of the dungeon table before both, the current target first
+// among equals. A kick spent on a Frostbolt was no longer there for the heal cast next to it.
 Unit* FindCaster(PlayerbotAI* botAI, Player* bot)
 {
     Unit* target = botAI->GetAiObjectContext()->GetValue<Unit*>("current target")->Get();
-    if (WorthKicking(botAI, bot, target))
-        return target;
+    GuidVector const& attackers = botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get();
 
-    for (ObjectGuid const guid : botAI->GetAiObjectContext()->GetValue<GuidVector>("attackers")->Get())
+    if (!sPlayerbotAIConfig.coaDungeonPriorities)
+    {
+        if (WorthKicking(botAI, bot, target))
+            return target;
+
+        for (ObjectGuid const guid : attackers)
+        {
+            Unit* attacker = botAI->GetUnit(guid);
+            if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f) && WorthKicking(botAI, bot, attacker))
+                return attacker;
+        }
+
+        return nullptr;
+    }
+
+    // Ranked without side effects; WorthKicking then claims the cast for the group, best first.
+    std::vector<std::pair<uint8, Unit*>> casters;
+    auto consider = [&casters](Unit* unit)
+    {
+        if (!unit || !unit->IsAlive())
+            return;
+        if (Spell* cast = InterruptibleSpell(unit))
+            casters.emplace_back(CoaDungeonPriorities::InterruptRank(cast->GetSpellInfo()), unit);
+    };
+    consider(target);
+    for (ObjectGuid const guid : attackers)
     {
         Unit* attacker = botAI->GetUnit(guid);
-        if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f) && WorthKicking(botAI, bot, attacker))
-            return attacker;
+        if (attacker && attacker != target && bot->IsWithinDistInMap(attacker, 30.0f))
+            consider(attacker);
     }
+    std::stable_sort(casters.begin(), casters.end(), [](auto const& a, auto const& b) { return a.first > b.first; });
+
+    for (auto const& [rank, caster] : casters)
+        if (WorthKicking(botAI, bot, caster))
+            return caster;
 
     return nullptr;
 }
@@ -2767,10 +2801,17 @@ public:
             return false;
 
         // Read before the kick, which ends the cast.
-        uint32 const enemySpellId = InterruptibleSpell(caster)->GetSpellInfo()->Id;
+        SpellInfo const* const enemySpell = InterruptibleSpell(caster)->GetSpellInfo();
+        uint32 const enemySpellId = enemySpell->Id;
         SpellInfo const* kick =
             CastFirst(botAI, bot, KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_INTERRUPT) != 0; }), caster,
                       LoopUsage(USAGE_INTERRUPT));
+        if (kick && sPlayerbotAIConfig.coaDungeonPriorities)
+            if (uint8 const rank = CoaDungeonPriorities::InterruptRank(enemySpell))
+                if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Kick))
+                    LOG_INFO("playerbots", "coa dungeon: {} kicked {} ({}) of {}, priority {} ({})", bot->GetName(),
+                             enemySpell->SpellName[LOCALE_enUS], enemySpellId, caster->GetName(), rank,
+                             rank == 2 ? "dungeon table" : "heal, control or summon");
         if (kick && bot->GetGroup())
         {
             static_cast<CoaAiObjectContext*>(botAI->GetAiObjectContext())->lastInterrupt = getMSTime();
