@@ -24,6 +24,7 @@
 #include "SpellInfo.h"
 #include "SpellMgr.h"
 #include "Strategy.h"
+#include "TemporarySummon.h"
 #include "Trigger.h"
 #include "AscensionSpecialization.h"
 
@@ -3184,6 +3185,123 @@ public:
     }
 };
 
+/*
+ * Adds first (AiPlayerbot.CoaDungeonPriorities). In a dungeon fight a damage dealer switches to a
+ * totem, ward or add that heals or shields its side (see CoaDungeonPriorities::HealsOrProtects)
+ * within 30 yards: bots kept hitting the boss while a Healing Ward healed it back, and an
+ * Earthgrab Totem rooted the group the whole fight. Tanks keep the boss, healers keep healing.
+ *
+ * The switch goes through the target choice of mod-playerbots: the add is put in "prioritized
+ * targets", which brings it among the attackers (a totem has no threat list, so it never was one)
+ * and makes it the "dps target", so "dps assist" keeps it instead of switching back. A list the
+ * player set ("attack my target", a raid icon) is left alone while its target lives.
+ */
+constexpr float PriorityAddReach = 30.0f;
+
+// Whether the bot may put its own add in "prioritized targets": the list is empty, holds the add it
+// set itself, or only targets that are gone.
+bool OwnsPrioritizedTargets(PlayerbotAI* botAI)
+{
+    auto const* context = static_cast<CoaAiObjectContext const*>(botAI->GetAiObjectContext());
+    GuidVector const list = botAI->GetAiObjectContext()->GetValue<GuidVector>("prioritized targets")->Get();
+    if (list.empty() || (list.size() == 1 && list.front() == context->priorityAdd))
+        return true;
+    return std::none_of(list.begin(), list.end(), [botAI](ObjectGuid guid)
+    {
+        Unit* unit = botAI->GetUnit(guid);
+        return unit && unit->IsAlive();
+    });
+}
+
+// The add to kill first: the bot's current target if it is one, else the nearest within reach. Only
+// creatures in the group's fight count: on a group member's threat list, or summoned by one that is.
+Unit* PriorityAdd(PlayerbotAI* botAI, Player* bot)
+{
+    if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon() ||
+        GetCoaRole(bot) != CoaRole::Dps || !bot->GetGroup())
+        return nullptr;
+
+    AiObjectContext* const context = botAI->GetAiObjectContext();
+    GuidVector const attackerList = context->GetValue<GuidVector>("attackers")->Get();
+    if (attackerList.empty())
+        return nullptr;
+    std::unordered_set<ObjectGuid> const attackers(attackerList.begin(), attackerList.end());
+
+    Unit* const current = context->GetValue<Unit*>("current target")->Get();
+    Unit* best = nullptr;
+    float bestDistance = PriorityAddReach;
+    for (ObjectGuid const guid : context->GetValue<GuidVector>("possible targets")->Get())
+    {
+        Unit* unit = botAI->GetUnit(guid);
+        Creature* creature = unit ? unit->ToCreature() : nullptr;
+        if (!creature || !creature->IsAlive() || !bot->IsWithinDistInMap(creature, PriorityAddReach))
+            continue;
+
+        bool fighting = attackers.count(creature->GetGUID()) != 0;
+        if (!fighting)
+        {
+            ObjectGuid summoner = creature->GetOwnerGUID();
+            if (summoner.IsEmpty())
+                summoner = creature->GetCreatorGUID();
+            if (summoner.IsEmpty())
+                if (TempSummon const* summon = creature->ToTempSummon())
+                    summoner = summon->GetSummonerGUID();
+            fighting = !summoner.IsEmpty() && attackers.count(summoner) != 0;
+        }
+        if (!fighting || !CoaDungeonPriorities::HealsOrProtects(creature))
+            continue;
+
+        if (creature == current)
+            return creature;
+        float const distance = bot->GetDistance(creature);
+        if (distance < bestDistance)
+        {
+            best = creature;
+            bestDistance = distance;
+        }
+    }
+    return best;
+}
+
+class CoaPriorityAddTrigger : public Trigger
+{
+public:
+    CoaPriorityAddTrigger(PlayerbotAI* botAI) : Trigger(botAI, "coa priority add", 500) {}
+
+    bool IsActive() override
+    {
+        if (!sPlayerbotAIConfig.coaDungeonPriorities || !bot->IsInCombat() || !bot->GetMap()->IsDungeon())
+            return false;
+        Unit* add = PriorityAdd(botAI, bot);
+        return add && add != AI_VALUE(Unit*, "current target") && OwnsPrioritizedTargets(botAI);
+    }
+};
+
+class CoaPriorityAddAction : public AttackAction
+{
+public:
+    CoaPriorityAddAction(PlayerbotAI* botAI) : AttackAction(botAI, "coa priority add") {}
+
+    bool Execute(Event /*event*/) override
+    {
+        Unit* add = PriorityAdd(botAI, bot);
+        if (!add || !OwnsPrioritizedTargets(botAI))
+            return false;
+
+        Unit* const previous = AI_VALUE(Unit*, "current target");
+        context->GetValue<GuidVector>("prioritized targets")->Set({ add->GetGUID() });
+        static_cast<CoaAiObjectContext*>(context)->priorityAdd = add->GetGUID();
+        if (!Attack(add))
+            return false;
+
+        if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Add))
+            LOG_INFO("playerbots", "coa dungeon: {} switched from {} to {} ({}{})", bot->GetName(),
+                     previous ? previous->GetName() : "nothing", add->GetName(), add->GetEntry(),
+                     add->IsTotem() ? ", totem" : "");
+        return true;
+    }
+};
+
 // In a dungeon fight, a boss or elite near the bot carries a buff or an enrage one of its ready
 // purges takes off. Checked once a second: the scan reads the bot's abilities.
 class CoaEnemyBuffTrigger : public Trigger
@@ -3327,6 +3445,8 @@ public:
         triggers.push_back(new TriggerNode("coa enemy casting", { NextAction("coa interrupt", InterruptPriority()) }));
         triggers.push_back(new TriggerNode("coa dispel", { NextAction("coa dispel", DispelPriority()) }));
         triggers.push_back(new TriggerNode("coa enemy buff", { NextAction("coa purge", PurgePriority()) }));
+        // Just above "dps assist" (50), which would otherwise turn the bot back to the boss first.
+        triggers.push_back(new TriggerNode("coa priority add", { NextAction("coa priority add", ACTION_DISPEL + 1) }));
         triggers.push_back(new TriggerNode("medium aoe", { NextAction("coa aoe", ACTION_HIGH + 2) }));
         triggers.push_back(new TriggerNode("low health", { NextAction("coa defensive", ACTION_HIGH + 8) }));
     }
@@ -3788,6 +3908,7 @@ public:
         creators["coa defensive"] = &CoaActionFactoryInternal::coa_defensive;
         creators["coa dispel"] = &CoaActionFactoryInternal::coa_dispel;
         creators["coa purge"] = &CoaActionFactoryInternal::coa_purge;
+        creators["coa priority add"] = &CoaActionFactoryInternal::coa_priority_add;
         creators["coa interrupt"] = &CoaActionFactoryInternal::coa_interrupt;
         creators["coa buff"] = &CoaActionFactoryInternal::coa_buff;
         creators["coa stay near tank"] = &CoaActionFactoryInternal::coa_stay_near_tank;
@@ -3815,6 +3936,7 @@ private:
     static Action* coa_defensive(PlayerbotAI* botAI) { return new CoaDefensiveAction(botAI); }
     static Action* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelAction(botAI); }
     static Action* coa_purge(PlayerbotAI* botAI) { return new CoaPurgeAction(botAI); }
+    static Action* coa_priority_add(PlayerbotAI* botAI) { return new CoaPriorityAddAction(botAI); }
     static Action* coa_interrupt(PlayerbotAI* botAI) { return new CoaInterruptAction(botAI); }
     static Action* coa_buff(PlayerbotAI* botAI) { return new CoaBuffAction(botAI); }
     static Action* coa_stay_near_tank(PlayerbotAI* botAI) { return new CoaStayNearTankAction(botAI); }
@@ -3833,6 +3955,7 @@ public:
         creators["coa dispel"] = &CoaTriggerFactoryInternal::coa_dispel;
         creators["coa enemy casting"] = &CoaTriggerFactoryInternal::coa_enemy_casting;
         creators["coa enemy buff"] = &CoaTriggerFactoryInternal::coa_enemy_buff;
+        creators["coa priority add"] = &CoaTriggerFactoryInternal::coa_priority_add;
         creators["coa tank needs hot"] = &CoaTriggerFactoryInternal::coa_tank_needs_hot;
         creators["coa group member dropping"] = &CoaTriggerFactoryInternal::coa_group_member_dropping;
         creators["coa ready to pull"] = &CoaTriggerFactoryInternal::coa_ready_to_pull;
@@ -3849,6 +3972,7 @@ private:
     static Trigger* coa_dispel(PlayerbotAI* botAI) { return new CoaDispelTrigger(botAI); }
     static Trigger* coa_enemy_casting(PlayerbotAI* botAI) { return new CoaEnemyCastingTrigger(botAI); }
     static Trigger* coa_enemy_buff(PlayerbotAI* botAI) { return new CoaEnemyBuffTrigger(botAI); }
+    static Trigger* coa_priority_add(PlayerbotAI* botAI) { return new CoaPriorityAddTrigger(botAI); }
     static Trigger* coa_tank_needs_hot(PlayerbotAI* botAI) { return new CoaTankNeedsHotTrigger(botAI); }
     static Trigger* coa_group_member_dropping(PlayerbotAI* botAI) { return new CoaGroupMemberDroppingTrigger(botAI); }
     static Trigger* coa_ready_to_pull(PlayerbotAI* botAI) { return new CoaReadyToPullTrigger(botAI); }

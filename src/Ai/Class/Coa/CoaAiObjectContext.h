@@ -8,6 +8,7 @@
 #define _PLAYERBOT_COAAIOBJECTCONTEXT_H
 
 #include "AiObjectContext.h"
+#include "ObjectGuid.h"
 
 #include <array>
 #include <ctime>
@@ -76,6 +77,10 @@ public:
     // getMSTime() of this bot's last kick in a group: the duty to interrupt goes to the bot that
     // kicked longest ago (AiPlayerbot.CoaInterruptCoordination).
     uint32 lastInterrupt = 0;
+
+    // The add this bot put in its "prioritized targets" (AiPlayerbot.CoaDungeonPriorities): only that
+    // entry is ever replaced, never a target the player chose.
+    ObjectGuid priorityAdd;
 
     // Since when this bot has been far from the real player it follows, out of a fight.
     time_t farFromPlayerSince = 0;
