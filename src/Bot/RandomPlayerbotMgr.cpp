@@ -31,6 +31,9 @@
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotFactory.h"
+#include "CoaSpecialization.h"
+#include "AscensionSpecialization.h"
+#include "SpellMgr.h"
 #include "PlayerbotTextMgr.h"
 #include "Playerbots.h"
 #include "Position.h"
@@ -3127,6 +3130,91 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
                          bot->GetLevel());
                 bot->TeleportTo(info->mapId, info->positionX, info->positionY, info->positionZ, info->orientation);
             }
+
+    // A bot made before MaxPlayerLevel or RandomBotMaxLevel was lowered kept its level, since Randomize only
+    // rebuilds a bot at the level it has: bring it down to the cap, gear, talents and spells redone.
+    if (IsRandomBot(bot) && !bot->InBattleground() && !bot->InArena() && GET_PLAYERBOT_AI(bot))
+    {
+        uint32 const levelCap = std::min<uint32>(sPlayerbotAIConfig.randomBotMaxLevel,
+                                                 sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
+        if (levelCap && bot->GetLevel() > levelCap)
+        {
+            uint32 const oldLevel = bot->GetLevel();
+            if (bot->IsMounted())
+                bot->Dismount();
+            SetValue(bot, "level", levelCap);
+            PlayerbotFactory factory(bot, levelCap);
+            factory.Randomize(false);
+            RandomTeleportForLevel(bot);
+            LOG_INFO("playerbots", "coa: {} was level {}, above the cap {}: rebuilt at level {}", bot->GetName(),
+                     oldLevel, levelCap, levelCap);
+        }
+    }
+
+    // Once per bot for 2.0, a repair in place of a purge, which would lose the arena teams, ratings, PvP statistics
+    // and achievements: a bot made by older versions loses the mounts and companions it piled up (1,224 on
+    // average before jealous-sound#5107, each reloaded at every login), and one wearing gear above its level is
+    // geared again.
+    if (IsRandomBot(bot) && GetValue(bot, "coaRepaired") < 20)
+    {
+        SetEventValue(bot->GetGUID().GetCounter(), "coaRepaired", 20, 365 * DAY);
+        std::vector<uint32> companions;
+        std::vector<uint32> mounts;
+        for (auto const& [spellId, playerSpell] : bot->GetSpellMap())
+            if (playerSpell->State != PLAYERSPELL_REMOVED)
+            {
+                SkillLineAbilityMapBounds const bounds = sSpellMgr->GetSkillLineAbilityMapBounds(spellId);
+                for (auto itr = bounds.first; itr != bounds.second; ++itr)
+                {
+                    if (itr->second->SkillLine == SKILL_COMPANIONS)
+                        companions.push_back(spellId);
+                    else if (itr->second->SkillLine == SKILL_MOUNTS)
+                        mounts.push_back(spellId);
+                }
+            }
+        // A bot rides one mount: it keeps a few, the companions all go.
+        size_t const keptMounts = 4;
+        if (companions.size() + mounts.size() > 20)
+        {
+            for (uint32 const spellId : companions)
+                bot->removeSpell(spellId, SPEC_MASK_ALL, false);
+            for (size_t i = keptMounts; i < mounts.size(); ++i)
+                bot->removeSpell(mounts[i], SPEC_MASK_ALL, false);
+            LOG_INFO("playerbots", "coa repair: {} drops {} companions and {} mounts", bot->GetName(), companions.size(),
+                     mounts.size() > keptMounts ? mounts.size() - keptMounts : 0);
+        }
+        bool overLevel = false;
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END && !overLevel; ++slot)
+            if (Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                overLevel = item->GetTemplate()->RequiredLevel > bot->GetLevel();
+        if (overLevel)
+        {
+            PlayerbotFactory::DestroyEquippedGear(bot);
+            PlayerbotFactory factory(bot, bot->GetLevel());
+            factory.InitEquipment(false, false);
+            factory.InitAmmo();
+            LOG_INFO("playerbots", "coa repair: {} wore gear above level {}: geared again", bot->GetName(), bot->GetLevel());
+        }
+    }
+
+    // The core resets at login the talents of a character that spent more than its level allows (bots made by older
+    // versions): the bot then stood without talents until its next randomize, up to 14 days later. It picks them now.
+    // A CoA class has no talent tree but Character Advancement entries, set from our level builds: they were set only
+    // on a level up or a change of specialization, so a bot made by an older version kept entries above its level or
+    // missing ones. ApplyCoaTalents brings them to the build of its level, down and up.
+    if (IsAscensionCustomClassId(bot->getClass()))
+    {
+        if (uint32 const changed = ApplyCoaTalents(bot))
+            LOG_INFO("playerbots", "coa repair: {} (level {}) had {} Character Advancement entries off its build",
+                     bot->GetName(), bot->GetLevel(), changed);
+    }
+    else if (IsRandomBot(bot) && bot->GetFreeTalentPoints() >= 5)
+    {
+        uint32 const freePoints = bot->GetFreeTalentPoints();
+        PlayerbotFactory factory(bot, bot->GetLevel());
+        factory.InitTalentsTree(true);
+        LOG_INFO("playerbots", "coa repair: {} had {} free talent points: talents picked again", bot->GetName(), freePoints);
+    }
 
     // Bots rebuilt under level 5 before 1.5 lost their CoA starter kit and still stand naked.
     PlayerbotFactory::DressNakedCoaStarter(bot);

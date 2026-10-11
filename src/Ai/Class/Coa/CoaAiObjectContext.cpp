@@ -256,6 +256,32 @@ bool TeleportsCasterHome(SpellInfo const* info)
     return false;
 }
 
+// A spell that keeps its caster rolling or running forward for its whole duration, unable to stop or to steer
+// (Boulder Dash, Advance, Shooting Star).
+bool ForcesCasterForward(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (IsAuraEffect(effect) && effect.ApplyAuraName == SPELL_AURA_FORCE_MOVE_FORWARD &&
+            effect.TargetA.GetTarget() == TARGET_UNIT_CASTER)
+            return true;
+    return false;
+}
+
+// A spell that sends its caster to a place in front of it (Primal Rush rushes 20 yards on through the enemies).
+bool SendsCasterAhead(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (effect.Effect != SPELL_EFFECT_CHARGE_DEST && effect.Effect != SPELL_EFFECT_LEAP &&
+            effect.Effect != SPELL_EFFECT_JUMP_DEST && effect.Effect != SPELL_EFFECT_TELEPORT_UNITS)
+            continue;
+        for (uint32 const dest : { effect.TargetA.GetTarget(), effect.TargetB.GetTarget() })
+            if (dest == TARGET_DEST_CASTER_FRONT || dest == TARGET_DEST_CASTER_FRONT_LEAP)
+                return true;
+    }
+    return false;
+}
+
 bool IsDefensiveAura(SpellEffectInfo const& effect)
 {
     switch (effect.ApplyAuraName)
@@ -351,6 +377,35 @@ bool BuildsThreat(SpellInfo const* info)
             return true;
     SpellThreatEntry const* entry = sSpellMgr->GetSpellThreatEntry(info->Id);
     return entry && (entry->flatMod > 0 || entry->pctMod > 1.0f || entry->apPctMod > 0.0f);
+}
+
+// Whether the spell deals damage, itself or by a spell it triggers: a weapon strike, a school damage, a damage over time.
+bool DealsDamage(SpellInfo const* info, uint8 depth = 0)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        switch (effect.Effect)
+        {
+            case SPELL_EFFECT_SCHOOL_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL:
+            case SPELL_EFFECT_WEAPON_PERCENT_DAMAGE:
+            case SPELL_EFFECT_WEAPON_DAMAGE:
+            case SPELL_EFFECT_NORMALIZED_WEAPON_DMG:
+            case SPELL_EFFECT_HEALTH_LEECH:
+                return true;
+            default:
+                break;
+        }
+        if (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE ||
+                                effect.ApplyAuraName == SPELL_AURA_PERIODIC_LEECH))
+            return true;
+        if (depth < 2 && effect.TriggerSpell &&
+            (effect.Effect == SPELL_EFFECT_TRIGGER_SPELL || effect.Effect == SPELL_EFFECT_TRIGGER_MISSILE))
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (triggered != info && DealsDamage(triggered, depth + 1))
+                    return true;
+    }
+    return false;
 }
 
 // Swimming and breathing under water: a form to travel in, not to stand in.
@@ -732,6 +787,11 @@ void Classify(SpellInfo const* info, CoaAbility& ability, uint8 depth = 0)
             (effect.ApplyAuraName == SPELL_AURA_MOD_SHAPESHIFT || effect.ApplyAuraName == SPELL_AURA_MOD_STUN ||
              effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY || effect.ApplyAuraName == SPELL_AURA_MOD_PACIFY_SILENCE))
             ability.kind &= ~KIND_BUFF;
+
+    // A roll or run the caster cannot stop is no attack and no buff: Boulder Dash's damage made it one, and
+    // Wildwalker bots rolled 10 s away from the boss, 20 s a fight out of reach (bench, 10/10).
+    if (!depth && ForcesCasterForward(info))
+        ability.kind &= ~(KIND_HOSTILE | KIND_DAMAGE | KIND_AOE | KIND_BUFF);
 
     // Befriend Beast (Ranger, 562301) possesses a beast for 40 s: no bot can steer it, and the beast and
     // the bot stood idle while the beast took hits (jealous-sound/azerothcore-wotlk-coa#6111). No action
@@ -2226,10 +2286,13 @@ public:
         // (and its weapon), keeping the rest for heals.
         bool const saveMana = SavingManaForHeals(bot);
 
-        // Taunts, even those that deal damage, stay out of the rotation on an enemy another tank holds.
+        // Taunts, even those that deal damage, stay out of the rotation on an enemy another tank holds; those that deal
+        // none, on one that already hits the tank: a Felsworn Tyrant spent 9 of its 18 Betrays on a boss already on it,
+        // its taunt then on cooldown when an add ran to a healer (bench, 10/10).
         bool const noTaunt = tank && HeldByOtherTank(bot, target);
-        std::vector<Usable> const usable = KnownAbilities(bot, [tank, noTaunt](uint16 kind)
-            { return IsAttack(kind, tank) && !(noTaunt && (kind & KIND_TAUNT)); });
+        bool const onMe = tank && target->GetVictim() == bot;
+        std::vector<Usable> const usable = KnownAbilities(bot, [tank, noTaunt, onMe](uint16 kind)
+            { return IsAttack(kind, tank) && !((noTaunt || (onMe && !(kind & KIND_DAMAGE))) && (kind & KIND_TAUNT)); });
         if (usable.empty())
             return false;
 
@@ -2250,6 +2313,29 @@ public:
                 if (!threat.empty())
                     if (SpellInfo const* cast = CastFirst(botAI, bot, threat, target, USAGE_ATTACK))
                         return RecordUsage(USAGE_ATTACK, cast);
+            }
+        }
+
+        // A tank's threat is its damage: its abilities that deal none (Cripple, Consume Magic, Manaburn) come after the
+        // others. A Felsworn Tyrant spent a third of its global cooldowns on them and lost the boss (bench, 10/10).
+        // They are tried first, each in turn; the others only when none of them can go.
+        if (tank)
+        {
+            std::vector<Usable> damage;
+            std::copy_if(usable.begin(), usable.end(), std::back_inserter(damage),
+                         [](Usable const& spell) { return DealsDamage(spell.info); });
+            DropChannelBreakers(bot, damage);
+            if (!damage.empty())
+            {
+                size_t const start = nextDamage % damage.size();
+                std::rotate(damage.begin(), damage.begin() + start, damage.end());
+                if (SpellInfo const* cast = CastFirst(botAI, bot, damage, target, USAGE_ATTACK))
+                {
+                    auto const itr = std::find_if(damage.begin(), damage.end(),
+                        [cast](Usable const& spell) { return spell.info == cast; });
+                    nextDamage = start + size_t(std::distance(damage.begin(), itr)) + 1;
+                    return RecordUsage(USAGE_ATTACK, cast);
+                }
             }
         }
 
@@ -2343,6 +2429,7 @@ private:
     };
 
     size_t next = 0;
+    size_t nextDamage = 0;  // a tank's turn through its damaging abilities
     std::unordered_map<uint32, Strikes> failures;
 };
 
@@ -3425,8 +3512,11 @@ public:
 
     float GetValue(Action* action) override
     {
-        if (!sPlayerbotAIConfig.coaSmartTank || !action || action->getThreatType() == Action::ActionThreatType::None ||
-            GetCoaRole(bot) != CoaRole::Dps)
+        // "melee" starts the white swings again at every tick and says it makes no threat: held like an attack, or the
+        // swings stopped past the tank's threat came straight back (a Felsworn Slayer still reached 111%, 10/10).
+        bool const swing = action && action->getName() == "melee";
+        if (!sPlayerbotAIConfig.coaSmartTank || !action ||
+            (action->getThreatType() == Action::ActionThreatType::None && !swing) || GetCoaRole(bot) != CoaRole::Dps)
             return 1.0f;
         Unit* target = AI_VALUE(Unit*, "current target");
         if (!target)
@@ -3448,26 +3538,85 @@ public:
         if (!hold)
             return 1.0f;
         // Aggro passes at 110% of the tank's threat in melee and 130% at range: a ranged bot holds 20 points later.
-        float const limit = float(hold + (botAI->IsRanged(bot) ? 20 : 0)) / 100.0f;
+        float limit = float(hold + (botAI->IsRanged(bot) ? 20 : 0)) / 100.0f;
+        // The tank's first seconds on a target: its threat is still small and the first big blows passed it before the
+        // hold could see them coming (a Venomancer lost the boss at 3, 6 and 14 seconds, bench, 10/10). Players let the
+        // tank settle: 60% of the limit for 3 seconds after its first touch.
+        {
+            uint32 const nowMs = getMSTime();
+            if (settles.size() > 32)
+                settles.clear();
+            auto const touched = settles.emplace(target->GetGUID(), nowMs).first;
+            if (getMSTimeDiff(touched->second, nowMs) < 3 * IN_MILLISECONDS)
+                limit *= 0.6f;
+        }
         // A mob that already left the tank has nothing left to hold: the tank taunts it back.
         auto const heldByTank = [](Unit* unit)
         {
             Unit* victim = unit->GetVictim();
             return victim && victim->IsPlayer() && PlayerbotAI::IsTank(victim->ToPlayer());
         };
-        if (heldByTank(target) && share >= limit)
+        // How fast the share climbs: a melee bot at 4,000 to 7,000 per second went from under the limit to past the
+        // 110% that takes aggro in a few blows (Guardian Gladiator, Templar Zealot, bench, 10/10). It holds as well when
+        // the share would pass 105% in melee, 125% at range, within a second and a half.
+        uint32 const now = getMSTime();
+        if (trends.size() > 32)
+            trends.clear();
+        Trend& trend = trends[target->GetGUID()];
+        uint32 const since = trend.at ? getMSTimeDiff(trend.at, now) : 0;
+        if (since >= 500)
+        {
+            trend.rate = since < 5000 ? (share - trend.share) * 1000.0f / float(since) : 0.0f;
+            trend.share = share;
+            trend.at = now;
+        }
+        else if (!trend.at)
+        {
+            trend.share = share;
+            trend.at = now;
+        }
+        float const predicted = share + std::max(0.0f, trend.rate) * 1.5f;
+        if (heldByTank(target) && (share >= limit || predicted >= limit + 0.15f))
+        {
+            // White swings go on with no action at all: a Knight of Xoroth War held its spells and still took the
+            // boss 7 times in 3 minutes from a Tyrant tank (bench, 10/10). Past the tank's threat a melee bot stops
+            // swinging too; "coa attack" swings again once the tank is ahead.
+            if ((share >= limit + 0.1f || predicted >= limit + 0.15f) && bot->GetVictim() == target && !botAI->IsRanged(bot))
+                bot->AttackStop();
             return 0.0f;
-        // An area attack hits the whole pack: it also waits for the mobs around the target that the tank holds.
-        if (action->getThreatType() == Action::ActionThreatType::Aoe)
+        }
+        // An area attack hits the whole pack: it waits until the tank holds every mob around the target, and holds
+        // them by enough. An add the tank had not picked up yet took the damage dealers' area attacks and left for
+        // them: adds stayed 12 to 27% of the time on a Felsworn Tyrant (bench, 10/10).
+        auto const groupHasTank = [this]()
+        {
+            if (Group* group = bot->GetGroup())
+                for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                    if (Player* member = ref->GetSource(); member && member != bot && member->IsAlive() &&
+                                                            OnSameInstance(bot, member) && PlayerbotAI::IsTank(member))
+                        return true;
+            return false;
+        };
+        if (action->getThreatType() == Action::ActionThreatType::Aoe && groupHasTank())
             for (ObjectGuid const guid : AI_VALUE(GuidVector, "attackers"))
-                if (Unit* unit = botAI->GetUnit(guid); unit && unit != target && unit->IsWithinDist(target, 10.0f) &&
-                                                       heldByTank(unit) && ThreatShare(bot, unit) >= limit)
+                if (Unit* unit = botAI->GetUnit(guid); unit && unit != target && unit->IsAlive() &&
+                                                       unit->IsWithinDist(target, 10.0f) &&
+                                                       (!heldByTank(unit) || ThreatShare(bot, unit) >= limit))
                     return 0.0f;
         return 1.0f;
     }
 
 private:
+    struct Trend
+    {
+        float share = 0.0f;
+        float rate = 0.0f;  // share gained per second
+        uint32 at = 0;
+    };
+
     std::unordered_map<ObjectGuid, uint32> openers;  // target -> first seen untouched by a tank
+    std::unordered_map<ObjectGuid, Trend> trends;    // target -> how fast the bot's share of the tank's threat climbs
+    std::unordered_map<ObjectGuid, uint32> settles;  // target -> first seen touched by a tank
 };
 
 class CoaCombatStrategy : public CombatStrategy
@@ -3511,6 +3660,10 @@ public:
         triggers.push_back(new TriggerNode("coa priority add", { NextAction("coa priority add", ACTION_DISPEL + 1) }));
         triggers.push_back(new TriggerNode("medium aoe", { NextAction("coa aoe", ACTION_HIGH + 2) }));
         triggers.push_back(new TriggerNode("low health", { NextAction("coa defensive", ACTION_HIGH + 8) }));
+        // A pet summoned by a player spell starts passive (CharmInfo) and never assists its owner:
+        // the Stormbringer's Air Elemental did 0 damage and the Barbarian's Honored Ancestor never
+        // swung on the boss bench. Same stance step as the hunter and warlock strategies.
+        triggers.push_back(new TriggerNode("new pet", { NextAction("set pet stance", 60.0f) }));
     }
 
 protected:
@@ -3540,8 +3693,11 @@ public:
         // arenas showed no change in taunts, 29/09). Only the rotation's own "lose aggro" taunt (94) and
         // its buffs (95) come first.
         triggers.push_back(new TriggerNode("coa loose enemy", { NextAction("coa taunt", 93.0f) }));
+        // Area attacks stay under the spec rotation: raised to 86, they took the global cooldowns of the single target
+        // threat abilities, and adds stayed on the tank 24 to 45% of the time instead of 39 to 71% (bench, 10/10).
         triggers.push_back(new TriggerNode("light aoe", { NextAction("coa aoe", ACTION_HIGH + 3) }));
-        triggers.push_back(new TriggerNode("medium health", { NextAction("coa defensive", ACTION_HIGH + 6) }));
+        // Its defensive cooldowns when hurt, before its attacks: at ACTION_HIGH + 6 they lost to the spec rotation too.
+        triggers.push_back(new TriggerNode("medium health", { NextAction("coa defensive", 89.0f) }));
     }
 };
 
@@ -4166,10 +4322,14 @@ bool CoaTankOnlySpell(Player* bot, SpellInfo const* info, Unit* target)
         return ids;
     }();
 
-    if (!info || !bot || GetCoaRole(bot) == CoaRole::Tank)
+    if (!info || !bot)
         return false;
     uint32 const first = info->GetFirstRankSpell()->Id;
     bool const taunt = taunts.count(info->Id) || taunts.count(first);
+    // A tank does not taunt an enemy already hitting it with a taunt that deals no damage, whatever asks for it (its
+    // spec rotation listed Betray among its attacks): the taunt stays ready for the add that runs to a healer.
+    if (GetCoaRole(bot) == CoaRole::Tank)
+        return taunt && target && target != bot && target->GetVictim() == bot && !DealsDamage(info);
     // A spell of the bot's own raising its threat (a tank stance, Righteous Fury), kit or not.
     bool const threat = !taunt && (!target || target == bot) && RaisesThreat(info);
     if (taunt || threat)
@@ -4245,6 +4405,43 @@ void CoaTankThreatBuffs(PlayerbotAI* botAI, Player* bot)
             LOG_INFO("playerbots", "coa tank threat: {} (class {}, level {}) wears no threat aura", bot->GetName(),
                      bot->getClass(), bot->GetLevel());
     }
+}
+
+bool CoaRivalBuffBlocks(Player* bot, SpellInfo const* info, Unit* target)
+{
+    // A caster keeps one of its rival buffs on each target (Greater Devotions of a Sun Cleric, Seals, Adaptations):
+    // a spec rotation asking for all four with "buff missing" put one on, which took the other off, and asked for
+    // that one again: 75 Devotions in a 3 minute fight (bench, 10/10).
+    // On the bot itself, CoaRotationMayCast lets the member its rotation keeps replace a sibling (stances, Tattoos,
+    // permanent): only the buffs that run out are held there. A Knight of Xoroth tank cast its Greater Marks of
+    // Korth'azz, Blaumeux and Zeliek, group buffs of 30 minutes, 42 times in a 3 minute fight (bench, 10/10).
+    if (!bot || !info || !target || !info->IsPositive())
+        return false;
+    if (target == bot && (info->GetMaxDuration() <= 0 || info->HasAura(SPELL_AURA_MOD_SHAPESHIFT)))
+        return false;
+    return WearsRivalBuffFrom(target, bot, info) && !target->GetAura(info->Id, bot->GetGUID());
+}
+
+bool CoaCarriesBotAway(Player* bot, SpellInfo const* info)
+{
+    if (!bot || !info || !bot->IsInCombat())
+        return false;
+    // In a fight a bot neither rolls off for seconds nor rushes on past the enemy it stands at: Wildwalkers spent
+    // a sixth of each boss fight out of reach after Boulder Dash and Primal Rush (bench, 10/10). Out of reach, a
+    // rush ahead still closes the gap.
+    Unit* const victim = bot->GetVictim();
+    bool const away = ForcesCasterForward(info) ||
+                      (SendsCasterAhead(info) && victim && bot->IsWithinMeleeRange(victim));
+    if (away)
+    {
+        static std::mutex logged;
+        static std::unordered_set<uint32> seen;
+        std::lock_guard<std::mutex> guard(logged);
+        if (seen.insert(info->Id).second)
+            LOG_INFO("playerbots", "coa carries away: {} (class {}) kept from {} ({}) in a fight", bot->GetName(),
+                     bot->getClass(), info->SpellName[LOCALE_enUS], info->Id);
+    }
+    return away;
 }
 
 bool CoaRotationMayCast(PlayerbotAI* botAI, Player* bot, SpellInfo const* info)

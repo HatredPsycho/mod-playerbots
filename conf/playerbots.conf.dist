@@ -109,6 +109,9 @@ AiPlayerbot.RandomBotAccountPrefix = "rndbot"
 # Delete all randombot accounts
 # To apply this, set the number to 1 and run the Worldserver. Once deletion is complete, if you would
 # like to recreate randombots, set the number back to 0 and rerun the Worldserver.
+# Set it back to 0 right after that one start, otherwise every start wipes all random bots again.
+# The purge also cleans the Conquest of Azeroth character tables (Mystic Enchants, challenges, Manastorm,
+# Mythic+, personal bank...) so new bots never inherit data from deleted bots that had the same guid.
 AiPlayerbot.DeleteRandomBotAccounts = 0
 
 # Disable randombots when no real players are logged in
@@ -1727,6 +1730,8 @@ AiPlayerbot.CoaDungeonPriorities = 1
 #       24/09 over ten arena runs at level 60: 0 taunts, 90 damage a second where the other eleven
 #       tanks do 289 to 668, and 4.2 group deaths a run, the worst of the twelve. Nothing on the bot
 #       side can repair it. Take it out again once the form is granted.
+#       10/10: tried again (the core grants the form since jealous-sound#5655): still broken on the tank
+#       bench, 12 to 53% of the fight held, Scarlet Delirium cast 80 times in 3 minutes and almost nothing else.
 # Read again by ".reload config".
 # Default: 99
 AiPlayerbot.CoaExcludedSpecializations = 99
@@ -1940,8 +1945,9 @@ AiPlayerbot.EnableNewRpgStrategy = 1
 # TravelFlight  (Default: 15  Go to the nearest flightmaster and fly to a level-appropriate area)
 # Rest          (Default: 5   Take a break for a while and do nothing)
 # OutdoorPvp    (Default: 10  Participate in outdoor PvP capture points if already in an outdoor PvP zone)
-# GoCity        (Default: 10  Visit a capital of the bot's faction for 10-30 minutes: bank, auction house,
-#                             trainers and vendors; bots too far away teleport there and back)
+# GoCity        (Default: 10  Visit a capital of the bot's faction for a while (see CoaCityStay below): bank,
+#                             auction house, inn, trainers and vendors; bots too far away (from level 10) teleport
+#                             there and back. Never a bot in a group, a queue, an instance or High Risk)
 AiPlayerbot.RpgStatusProbWeight.WanderRandom = 15
 AiPlayerbot.RpgStatusProbWeight.WanderNpc = 20
 AiPlayerbot.RpgStatusProbWeight.GoGrind = 15
@@ -1951,6 +1957,12 @@ AiPlayerbot.RpgStatusProbWeight.TravelFlight = 15
 AiPlayerbot.RpgStatusProbWeight.Rest = 5
 AiPlayerbot.RpgStatusProbWeight.OutdoorPvp = 10
 AiPlayerbot.RpgStatusProbWeight.GoCity = 10
+
+# How long a bot on a city visit (GoCity above) stays among the city NPCs, in minutes: a random time between the
+# two. Both are read again by ".reload config", like the GoCity weight.
+# Default: 10 and 30
+AiPlayerbot.CoaCityStayMinMinutes = 10
+AiPlayerbot.CoaCityStayMaxMinutes = 30
 
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel

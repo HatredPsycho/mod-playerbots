@@ -1734,11 +1734,16 @@ void PlayerbotAI::DoNextAction(bool min)
         CoaTankThreatBonus(bot);
         CoaTankThreatBuffs(this, bot);
 
-        // In a dungeon, the pet of a bot that is no tank leaves its taunt (Growl, Torment) to the tank; out of one it
-        // casts it again, to hold the mobs off its master.
+        // In a group with a tank, the pet of a bot that is no tank leaves its taunt (Growl, Torment) to the tank; on its
+        // own it casts it again, to hold the mobs off its master. Only in dungeons before: since pets assist in 2.0, they
+        // took the boss off a bench tank in the open world up to 10 times a fight (10/10).
         if (Pet* pet = bot->GetPet(); pet && GetCoaRole(bot) != CoaRole::Tank)
         {
-            bool const instance = bot->GetMap()->IsDungeon();
+            bool instance = bot->GetMap()->IsDungeon();
+            if (Group* group = bot->GetGroup(); group && !instance)
+                for (GroupReference* ref = group->GetFirstMember(); ref && !instance; ref = ref->next())
+                    if (Player* member = ref->GetSource(); member && member != bot && member->IsAlive() && IsTank(member))
+                        instance = true;
             for (auto const& [spellId, petSpell] : pet->m_spells)
                 if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
                     petSpell.state != PETSPELL_REMOVED && info && info->IsAutocastable() && CoaTankOnlySpell(bot, info, pet) &&
@@ -3363,6 +3368,9 @@ bool PlayerbotAI::MasterWantsThis()
 
 bool PlayerbotAI::TellMasterGreeting(std::string const text, PlayerbotSecurityLevel securityLevel)
 {
+    // AiPlayerbot.EnableGreet = 0: no "Hello" whispered on joining a group, a dungeon or coming back to life.
+    if (!sPlayerbotAIConfig.enableGreet)
+        return false;
     greeting = true;
     bool const told = TellMaster(text, securityLevel);
     greeting = false;
@@ -3644,6 +3652,62 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
 
     if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellid), target))
         return false;
+
+    if (CoaRivalBuffBlocks(bot, sSpellMgr->GetSpellInfo(spellid), target))
+        return false;
+
+    // A purge on an enemy wearing nothing it can take off: a Felsworn Tyrant cast Consume Magic 20 times every 2
+    // minutes on a boss with no magic buff, global cooldowns its threat lacked (bench, 10/10).
+    if (target != bot && bot->IsValidAttackTarget(target))
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellid))
+        {
+            uint32 mask = 0;
+            bool otherEffect = false;
+            for (SpellEffectInfo const& effect : info->Effects)
+            {
+                if (effect.Effect == SPELL_EFFECT_DISPEL || effect.Effect == SPELL_EFFECT_STEAL_BENEFICIAL_BUFF)
+                    mask |= SpellInfo::GetDispelMask(DispelType(effect.MiscValue));
+                else if (effect.IsEffect())
+                    otherEffect = true;
+            }
+            if (mask && !otherEffect)
+            {
+                bool dispellable = false;
+                for (auto const& [id, application] : target->GetAppliedAuras())
+                    if (application->IsPositive() && (application->GetBase()->GetSpellInfo()->GetDispelMask() & mask))
+                    {
+                        dispellable = true;
+                        break;
+                    }
+                if (!dispellable)
+                    return false;
+            }
+        }
+
+    if (CoaCarriesBotAway(bot, sSpellMgr->GetSpellInfo(spellid)))
+        return false;
+
+    // A spell that deals no damage is not cast again on an enemy still wearing the bot's own aura of it for more than
+    // 3 seconds: a spec rotation recast Cripple 28 times in a 3 minute fight on a boss already slowed, global cooldowns
+    // its tank lacked for threat (Felsworn Tyrant, bench, 10/10).
+    if (target != bot)
+        if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellid); info && !info->IsPositive())
+            if (Aura const* worn = target->GetAura(spellid, bot->GetGUID()); worn && worn->GetDuration() > 3000)
+            {
+                bool damages = false;
+                for (SpellEffectInfo const& effect : info->Effects)
+                    if (effect.Effect == SPELL_EFFECT_SCHOOL_DAMAGE || effect.Effect == SPELL_EFFECT_WEAPON_DAMAGE ||
+                        effect.Effect == SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL || effect.Effect == SPELL_EFFECT_NORMALIZED_WEAPON_DMG ||
+                        effect.Effect == SPELL_EFFECT_WEAPON_PERCENT_DAMAGE || effect.Effect == SPELL_EFFECT_HEALTH_LEECH ||
+                        effect.Effect == SPELL_EFFECT_TRIGGER_SPELL || effect.Effect == SPELL_EFFECT_TRIGGER_MISSILE ||
+                        (effect.IsAura() && (effect.ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE ||
+                                             effect.ApplyAuraName == SPELL_AURA_PERIODIC_LEECH ||
+                                             effect.ApplyAuraName == SPELL_AURA_PERIODIC_DAMAGE_PERCENT)))
+                        damages = true;
+                // A debuff that stacks (Sunder) still climbs to its top.
+                if (!damages && (info->StackAmount <= 1 || worn->GetStackAmount() >= info->StackAmount))
+                    return false;
+            }
 
     if (Pet* pet = bot->GetPet())
         if (pet->HasSpell(spellid))
@@ -3929,10 +3993,29 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
     // directly and the proc is never consumed. Umbral Glaive has no global
     // cooldown and could then be repeated without end.
     if (uint32 const replacement = bot->GetTemporarySpellReplacement(spellId); replacement && replacement != spellId)
+    {
         spellId = replacement;
+
+        // A swapped-in spell that only puts back a permanent aura the bot already wears won the turn at every tick:
+        // a Knight of Xoroth tank's rotation asked for Call: Hellfire Imp, swapped for Impcaller, and cast it 299
+        // times in a 3 minute fight and almost nothing else (bench, 10/10).
+        if (SpellInfo const* swapped = sSpellMgr->GetSpellInfo(spellId);
+            swapped && swapped->GetMaxDuration() == -1 && bot->HasAura(spellId, bot->GetGUID()))
+        {
+            bool selfOnly = true;
+            for (SpellEffectInfo const& effect : swapped->Effects)
+                if (effect.IsEffect() && effect.TargetA.GetTarget() != TARGET_UNIT_CASTER && effect.TargetA.GetTarget() != 0)
+                    selfOnly = false;
+            if (selfOnly)
+                return false;
+        }
+    }
 
     // The swapped-in spell may taunt where the one checked did not.
     if (CoaTankOnlySpell(bot, sSpellMgr->GetSpellInfo(spellId), target ? target : bot))
+        return false;
+
+    if (CoaCarriesBotAway(bot, sSpellMgr->GetSpellInfo(spellId)))
         return false;
 
     if (!target)
@@ -4991,6 +5074,14 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
     {
         if (bot->IsInCombat())
             return true;
+
+        // A member of its group fights nearby: asleep, the bot saw no enemy and never joined the fight that would
+        // have woken it, standing 30 yards away while the others fought (measured in our test arena, 23/09).
+        if (Group* group = bot->GetGroup())
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                if (Player* member = ref->GetSource(); member && member != bot && member->IsInCombat() &&
+                                                        member->IsInMap(bot) && bot->IsWithinDistInMap(member, 60.0f))
+                    return true;
     }
 
     // bot is inside a BG, dungeon, or raid — always active
