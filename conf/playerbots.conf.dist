@@ -746,6 +746,11 @@ AiPlayerbot.EndFishingWithMaster = 30.0
 # Enable/Disable randomly generated password for randombot accounts
 AiPlayerbot.RandomBotRandomPassword = 0
 
+# Race ids new random bots are never created with (comma separated, e.g. the CoA Custom races 9,12-63 as
+# "9,12,13,..."). Existing bots keep their race.
+# Default: "" (no race excluded)
+AiPlayerbot.ExcludedBotRaces = ""
+
 # Minimum and maximum levels for randombots
 AiPlayerbot.RandomBotMinLevel = 1
 AiPlayerbot.RandomBotMaxLevel = 60
