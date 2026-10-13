@@ -5,7 +5,6 @@
  */
 
 #include "PlayerbotAI.h"
-#include "RaceMgr.h"
 #include "CoaSpecialization.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
@@ -4864,8 +4863,10 @@ bool IsAlliance(uint8 race)
         return true;
 
     // Races a realm adds (Worgen, Vrykul...) take their side from the core's race table: they all counted as Horde
-    // (idea of rrawnsley, Zyth45/mod-playerbots#17, rewritten on RaceMgr's mask).
-    return race > RACE_DRAENEI && race <= 32 && (RaceMgr::GetAllianceRaceMask() & (1u << (race - 1)));
+    // (idea of rrawnsley, Zyth45/mod-playerbots#17). ChrRaces' team is read by race id, because the race masks
+    // above 32 wrap onto the bit of a lower race.
+    ChrRacesEntry const* entry = sChrRacesStore.LookupEntry(race);
+    return entry && entry->TeamID == 7;
 }
 
 Player* PlayerbotAI::FindNewMaster()

@@ -9,6 +9,7 @@
 #include "ArenaTeamMgr.h"
 #include "CharacterCache.h"
 #include "CoaBotNames.h"
+#include "CoaCustomRaces.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "DatabaseEnv.h"
@@ -88,6 +89,9 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
         if (std::find(sPlayerbotAIConfig.excludedBotRaces.begin(), sPlayerbotAIConfig.excludedBotRaces.end(), race) !=
             sPlayerbotAIConfig.excludedBotRaces.end())
             continue;
+        // CoA.CustomRaces.Enable and HighestRace: a bot takes no race a player could not create.
+        if (!baseRace && !sScriptMgr->CanAccountCreateCharacter(0, race, cls))
+            continue;
 
         // Try to get 50/50 faction distribution for random bot population balance.
         // Without this check, races from the faction with more class options would dominate.
@@ -105,8 +109,8 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
     }
 
     const uint8 race = raceOptions[urand(0, raceOptions.size() - 1)];
-    // Gnoll (83) and Saberon (97) of the custom races module only have a male model.
-    const uint8 gender = (race == 83 || race == 97 || urand(0, 1)) ? GENDER_MALE : GENDER_FEMALE;
+    // The male-only custom races (Tuskarr, Vrykul, Gnoll, Saberon...) have no female model.
+    const uint8 gender = (CoaCustomRaces::IsMaleOnly(race) || urand(0, 1)) ? GENDER_MALE : GENDER_FEMALE;
     const auto raceAndGender = CombineRaceAndGender(race, gender);
 
     std::string name;

@@ -1418,6 +1418,13 @@ AiPlayerbot.CoaClassesOnly = 1
 # Default: "65,72,77,80,81"
 AiPlayerbot.CrashingBotRaces = "65,72,77,80,81"
 
+# CoA Custom races (coa-custom-races line): 1 lets new random bots take the added races (Goblin 9, 12 to 32, 47 to
+# 97), minus the two lists above and every race CoA.CustomRaces.Enable / HighestRace (coa.conf) refuses to players.
+# Bots of the male-only races are always male, and each bot fights for its race's ChrRaces faction.
+# The CoA Server Manager's custom races module reads the same key from its own file; set it in one file only.
+# Default: 0 (base races only)
+CoACustomRaces.BotsEnable = 0
+
 # Authored combat rotations for the Conquest of Azeroth specializations.
 # Off: CoA bots are driven by the runtime classifier alone, which picks a spell
 # every tick from what the bot knows.
