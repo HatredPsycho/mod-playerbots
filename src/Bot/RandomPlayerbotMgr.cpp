@@ -904,6 +904,34 @@ std::vector<uint32> parseBrackets(std::string const& str)
     return brackets;
 }
 
+// A rated solo queue entry (AscensionArenaQueue) is rated and holds one player: no rated team queues alone.
+// Its 2v2 and 3v3 matches are played by two temporary teams, its 1v1 matches by personal teams.
+enum class RatedSolo : uint8
+{
+    None,
+    Waiting,
+    Taken  // invited or in its match
+};
+
+static RatedSolo GetRatedSolo(Player* player, BattlegroundQueueTypeId queueTypeId, uint32* joinTime = nullptr)
+{
+    GroupQueueInfo ginfo;
+    if (sBattlegroundMgr->GetBattlegroundQueue(queueTypeId).GetPlayerGroupInfoData(player->GetGUID(), &ginfo))
+    {
+        if (!ginfo.IsRated || ginfo.Players.size() != 1)
+            return RatedSolo::None;
+        if (joinTime)
+            *joinTime = ginfo.JoinTime;
+        return ginfo.IsInvitedToBGInstanceGUID ? RatedSolo::Taken : RatedSolo::Waiting;
+    }
+
+    Battleground* bg = player->GetBattleground();
+    if (bg && bg->isArena() && bg->isRated() &&
+        (bg->GetArenaType() == ARENA_TYPE_1v1 || bg->GetArenaTeamIdForTeam(TEAM_ALLIANCE) >= MAX_ARENA_TEAM_ID))
+        return RatedSolo::Taken;
+    return RatedSolo::None;
+}
+
 void RandomPlayerbotMgr::CheckBgQueue()
 {
     if (!BgCheckTimer)
@@ -931,6 +959,8 @@ void RandomPlayerbotMgr::CheckBgQueue()
             BattlegroundData[queueType][bracket] = BattlegroundInfo();
         }
     }
+
+    ratedSoloWaiting.clear();
 
     // Process real players and populate Battleground Data with player/queue count
     // Opens a queue for bots to join
@@ -968,6 +998,20 @@ void RandomPlayerbotMgr::CheckBgQueue()
             bool isRated = false;
             if (BattlegroundMgr::BGArenaType(queueTypeId))
             {
+                // A rated solo player opens no queue for the rated teams of bots: they would wait for nothing.
+                uint32 joinTime = 0;
+                if (RatedSolo solo = GetRatedSolo(player, queueTypeId, &joinTime); solo != RatedSolo::None)
+                {
+                    BattlegroundInfo& info = BattlegroundData[queueTypeId][bracketId];
+                    if (solo == RatedSolo::Waiting)
+                    {
+                        bool const healer = GetCoaRole(player) == CoaRole::Heal;
+                        ++(healer ? info.ratedSoloPlayerHealers : info.ratedSoloPlayerDamage);
+                        ratedSoloWaiting.push_back({ player->GetGUID(), joinTime, queueTypeId, bracketId, healer });
+                    }
+                    continue;
+                }
+
                 BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
                 GroupQueueInfo ginfo;
 
@@ -1092,6 +1136,15 @@ void RandomPlayerbotMgr::CheckBgQueue()
 
             if (BattlegroundMgr::BGArenaType(queueTypeId))
             {
+                // Bots of the rated solo queues are counted apart, their matches with them.
+                if (RatedSolo solo = GetRatedSolo(bot, queueTypeId); solo != RatedSolo::None)
+                {
+                    BattlegroundInfo& info = BattlegroundData[queueTypeId][bracketId];
+                    if (solo == RatedSolo::Waiting)
+                        ++(GetCoaRole(bot) == CoaRole::Heal ? info.ratedSoloBotHealers : info.ratedSoloBotDamage);
+                    continue;
+                }
+
                 bool isRated = false;
                 BattlegroundQueue& bgQueue = sBattlegroundMgr->GetBattlegroundQueue(queueTypeId);
                 GroupQueueInfo ginfo;
@@ -1169,6 +1222,9 @@ void RandomPlayerbotMgr::CheckBgQueue()
         }
     }
 
+    if (sPlayerbotAIConfig.coaRatedSoloQueue)
+        CountRatedSoloNeeds();
+
     // If enabled, wait for (nearly) all bots to have logged in before queueing for Arena's / BG's.
     // 95 %, not all: a few bots are always logging out and in again (rotation, a new bot count), and on a
     // CoA test realm with 1,000 bots no battleground started for 30 to 40 minutes of every hour while the
@@ -1230,6 +1286,89 @@ void RandomPlayerbotMgr::CheckBgQueue()
     }
 
     LogBattlegroundInfo();
+}
+
+// Bots for the rated solo queues a real player waits in, just enough to complete matches. A 1v1 pairs any two.
+// A 2v2 or 3v3 lineup (AscensionArenaQueue::ComposeLineup) holds either one healer and damage dealers per side,
+// or damage dealers only, and never leaves a waiting healer the only one of a match: each pair of real healers
+// gets damage dealers, the real damage dealers left over fill matches of their own.
+//
+// The role of a real player is read from their spec, the core keeping the one they queued with. One who waited
+// AiPlayerbot.CoaRatedSoloRoleFallback seconds with bots and no match is given one bot of the other role, once
+// per wait; the bots no lineup needs are counted as surplus, to leave after their usual wait.
+void RandomPlayerbotMgr::CountRatedSoloNeeds()
+{
+    std::unordered_map<ObjectGuid, std::pair<uint32, bool>> fallbacks;
+    uint32 const now = GameTime::GetGameTimeMS().count();
+    uint32 const fallbackAfter = sPlayerbotAIConfig.coaRatedSoloRoleFallback * IN_MILLISECONDS;
+    for (RatedSoloWait const& wait : ratedSoloWaiting)
+    {
+        uint8 const arenaType = BattlegroundMgr::BGArenaType(BattlegroundQueueTypeId(wait.queueTypeId));
+        if (arenaType == ARENA_TYPE_1v1)
+            continue;
+
+        BattlegroundInfo& info = BattlegroundData[wait.queueTypeId][wait.bracketId];
+        auto const sent = ratedSoloFallbacks.find(wait.guid);
+        if (sent != ratedSoloFallbacks.end() && sent->second.first == wait.joinTime)
+            fallbacks[wait.guid] = sent->second;
+        else if (fallbackAfter && info.ratedSoloBotHealers + info.ratedSoloBotDamage &&
+                 getMSTimeDiff(wait.joinTime, now) > fallbackAfter)
+        {
+            fallbacks[wait.guid] = { wait.joinTime, !wait.healer };
+            LOG_INFO("playerbots", "Rated solo {}v{}: player {} still waits, read as {}: one {} bot more",
+                     uint32(arenaType), uint32(arenaType), wait.guid.ToString(), wait.healer ? "healer" : "damage",
+                     wait.healer ? "damage" : "healer");
+        }
+        else
+            continue;
+
+        ++(fallbacks[wait.guid].second ? info.ratedSoloFallbackHealers : info.ratedSoloFallbackDamage);
+    }
+    ratedSoloFallbacks.swap(fallbacks);
+
+    for (int bracket = BG_BRACKET_ID_FIRST; bracket < MAX_BATTLEGROUND_BRACKETS; ++bracket)
+    {
+        for (BattlegroundQueueTypeId queueTypeId : { BATTLEGROUND_QUEUE_1v1, BATTLEGROUND_QUEUE_2v2, BATTLEGROUND_QUEUE_3v3 })
+        {
+            BattlegroundInfo& info = BattlegroundData[queueTypeId][bracket];
+            uint32 const realHealers = info.ratedSoloPlayerHealers;
+            uint32 const realDamage = info.ratedSoloPlayerDamage;
+
+            uint8 const arenaType = BattlegroundMgr::BGArenaType(queueTypeId);
+            if (arenaType == ARENA_TYPE_1v1)
+            {
+                uint32 const real = realHealers + realDamage;
+                uint32 const bots = info.ratedSoloBotHealers + info.ratedSoloBotDamage;
+                info.ratedSoloDamageNeeded = real ? (real + bots) % 2 : 0;
+                info.ratedSoloDamageSurplus = bots - std::min(bots, real % 2);
+            }
+            else
+            {
+                uint32 const teamSize = sBattlegroundMgr->isArenaTesting() ? 1 : arenaType;
+                uint32 const healerMatches = (realHealers + 1) / 2;
+                uint32 const healerMatchDamage = healerMatches * (2 * teamSize - 2);
+                uint32 const damageLeft = realDamage > healerMatchDamage ? realDamage - healerMatchDamage : 0;
+                uint32 const damageMatches = (damageLeft + 2 * teamSize - 1) / (2 * teamSize);
+                uint32 const healers = 2 * healerMatches + info.ratedSoloFallbackHealers;
+                uint32 const damage = healerMatchDamage + damageMatches * 2 * teamSize + info.ratedSoloFallbackDamage;
+                uint32 const haveHealers = realHealers + info.ratedSoloBotHealers;
+                uint32 const haveDamage = realDamage + info.ratedSoloBotDamage;
+                info.ratedSoloHealersNeeded = healers > haveHealers ? healers - haveHealers : 0;
+                info.ratedSoloDamageNeeded = damage > haveDamage ? damage - haveDamage : 0;
+                uint32 const botHealers = healers > realHealers ? healers - realHealers : 0;
+                uint32 const botDamage = damage > realDamage ? damage - realDamage : 0;
+                info.ratedSoloHealersSurplus =
+                    info.ratedSoloBotHealers > botHealers ? info.ratedSoloBotHealers - botHealers : 0;
+                info.ratedSoloDamageSurplus = info.ratedSoloBotDamage > botDamage ? info.ratedSoloBotDamage - botDamage : 0;
+            }
+
+            if (info.ratedSoloHealersNeeded || info.ratedSoloDamageNeeded)
+                LOG_DEBUG("playerbots", "Rated solo {}v{} bracket {}: players {} healers {} damage, bots {} healers {} damage, "
+                          "{} healers and {} damage needed", uint32(arenaType), uint32(arenaType), bracket, realHealers, realDamage,
+                          info.ratedSoloBotHealers, info.ratedSoloBotDamage, info.ratedSoloHealersNeeded,
+                          info.ratedSoloDamageNeeded);
+        }
+    }
 }
 
 void RandomPlayerbotMgr::LogBattlegroundInfo()
@@ -1320,6 +1459,9 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     LfgDungeons[TEAM_ALLIANCE].clear();
     LfgDungeons[TEAM_HORDE].clear();
     bool needTankOrHeal[2] = {false, false};
+    uint32 partiesWithoutTank[2] = {0, 0};
+    uint32 partiesWithoutHeal[2] = {0, 0};
+    std::unordered_set<ObjectGuid> countedParties;
 
     for (std::vector<Player*>::iterator i = players.begin(); i != players.end(); ++i)
     {
@@ -1343,10 +1485,57 @@ void RandomPlayerbotMgr::CheckLfgQueue()
                 LfgDungeons[player->GetTeamId()].push_back(dungeon->id);
             }
 
-            uint8 roles = sLFGMgr->GetRoles(player->GetGUID());
-            if (!(roles & lfg::PLAYER_ROLE_TANK) || !(roles & lfg::PLAYER_ROLE_HEALER))
-                needTankOrHeal[player->GetTeamId()] = true;
+            if (!sPlayerbotAIConfig.coaLfgMissingRoles)
+            {
+                uint8 roles = sLFGMgr->GetRoles(player->GetGUID());
+                if (!(roles & lfg::PLAYER_ROLE_TANK) || !(roles & lfg::PLAYER_ROLE_HEALER))
+                    needTankOrHeal[player->GetTeamId()] = true;
+                continue;
+            }
+
+            if (!countedParties.insert(guid).second)
+                continue;
+
+            uint8 partyRoles = 0;
+            if (group)
+            {
+                for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+                    if (Player* member = ref->GetSource())
+                        partyRoles |= sLFGMgr->GetRoles(member->GetGUID());
+            }
+            else
+                partyRoles = sLFGMgr->GetRoles(player->GetGUID());
+
+            if (!(partyRoles & lfg::PLAYER_ROLE_TANK))
+                ++partiesWithoutTank[player->GetTeamId()];
+            if (!(partyRoles & lfg::PLAYER_ROLE_HEALER))
+                ++partiesWithoutHeal[player->GetTeamId()];
         }
+    }
+
+    if (sPlayerbotAIConfig.coaLfgMissingRoles &&
+        (partiesWithoutTank[TEAM_ALLIANCE] + partiesWithoutTank[TEAM_HORDE] + partiesWithoutHeal[TEAM_ALLIANCE] +
+         partiesWithoutHeal[TEAM_HORDE]) > 0)
+    {
+        uint32 queuedTanks[2] = {0, 0};
+        uint32 queuedHeals[2] = {0, 0};
+        for (auto itr = GetPlayerBotsBegin(); itr != GetPlayerBotsEnd(); ++itr)
+        {
+            Player* bot = itr->second;
+            if (!bot || !bot->IsInWorld() || bot->GetGroup() ||
+                sLFGMgr->GetState(bot->GetGUID()) != lfg::LFG_STATE_QUEUED)
+                continue;
+
+            uint8 roles = sLFGMgr->GetRoles(bot->GetGUID());
+            if (roles & lfg::PLAYER_ROLE_TANK)
+                ++queuedTanks[bot->GetTeamId()];
+            if (roles & lfg::PLAYER_ROLE_HEALER)
+                ++queuedHeals[bot->GetTeamId()];
+        }
+
+        for (uint8 team : {TEAM_ALLIANCE, TEAM_HORDE})
+            needTankOrHeal[team] =
+                partiesWithoutTank[team] > queuedTanks[team] || partiesWithoutHeal[team] > queuedHeals[team];
     }
 
     LfgNeedTankOrHeal[TEAM_ALLIANCE] = needTankOrHeal[TEAM_ALLIANCE];
@@ -2312,6 +2501,11 @@ void RandomPlayerbotMgr::Refresh(Player* bot)
     bot->DurabilityRepairAll(false, 1.0f, false);
     bot->SetFullHealth();
     bot->SetPvP(sWorld->IsPvPRealm());
+
+    // The full-bags clean-up belongs to the "maintenance" strategy, which no random bot is given: run it
+    // here, with the repair. It does nothing below 90% of the bag space.
+    botAI->DoSpecificAction("smart destroy item", Event(), true);
+
     PlayerbotFactory factory(bot, bot->GetLevel());
     factory.Refresh();
 
@@ -2512,6 +2706,7 @@ bool RandomPlayerbotMgr::IsSpecPvp(uint32 bot, uint8 cls)
 
 uint32 RandomPlayerbotMgr::GetEventValue(uint32 bot, std::string const& event)
 {
+    std::lock_guard<std::mutex> lock(eventCacheLock);
     if (CachedEvent* e = FindEvent(bot, event))
         return e->value;
 
@@ -2520,6 +2715,7 @@ uint32 RandomPlayerbotMgr::GetEventValue(uint32 bot, std::string const& event)
 
 std::string RandomPlayerbotMgr::GetEventData(uint32 bot, std::string const& event)
 {
+    std::lock_guard<std::mutex> lock(eventCacheLock);
     if (CachedEvent* e = FindEvent(bot, event))
         return e->data;
 
@@ -2559,6 +2755,7 @@ uint32 RandomPlayerbotMgr::SetEventValue(uint32 bot, std::string const& event, u
     PlayerbotsDatabase.CommitTransaction(trans);
 
     // Update in-memory cache
+    std::lock_guard<std::mutex> lock(eventCacheLock);
     BotEventCache& cache = eventCache[bot];
     cache.loaded = true;
 
@@ -2661,7 +2858,10 @@ bool RandomPlayerbotMgr::HandlePlayerbotConsoleCommand(ChatHandler* handler, cha
     if (cmd == "reset")
     {
         PlayerbotsDatabase.Execute(PlayerbotsDatabase.GetPreparedStatement(PLAYERBOTS_DEL_RANDOM_BOTS));
-        sRandomPlayerbotMgr.eventCache.clear();
+        {
+            std::lock_guard<std::mutex> lock(sRandomPlayerbotMgr.eventCacheLock);
+            sRandomPlayerbotMgr.eventCache.clear();
+        }
         LOG_INFO("playerbots", "Random bots were reset for all players. Please restart the Server.");
         return true;
     }
@@ -3720,7 +3920,10 @@ void RandomPlayerbotMgr::Remove(Player* bot)
     PlayerbotsDatabase.Execute(stmt);
 
     uint32 botId = owner.GetCounter();
-    eventCache.erase(botId);
+    {
+        std::lock_guard<std::mutex> lock(eventCacheLock);
+        eventCache.erase(botId);
+    }
 
     LogoutPlayerBot(owner);
 }

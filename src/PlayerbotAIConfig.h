@@ -129,6 +129,7 @@ public:
     float maxAoeAvoidRadius;
     std::set<uint32> aoeAvoidSpellWhitelist;
     bool tellWhenAvoidAoe;
+    bool regainLineOfSight;
     std::set<uint32> disallowedGameObjects;
     std::set<uint32> attunementQuests;
     std::set<uint32> unobtainableItems;
@@ -399,6 +400,7 @@ public:
     bool autoLearnTrainerSpells;
     bool autoLearnTradeskillSpells;
     bool coaClassesOnly;
+    bool gatherOnlySkillUp;
     std::vector<uint32> excludedBotRaces;
     bool customRacesForBots;
     bool coaSpecRotations;
@@ -407,6 +409,19 @@ public:
     bool coaGroupTelemetry;
     bool coaSmartHeal;
     bool coaSmartTank;
+    bool coaLfgMissingRoles;
+    bool coaHoldBehindTank;
+    bool coaChaseLeash;
+    bool coaBodyPullGuard;
+    bool coaKeepTargetOutOfSight;
+    bool coaFocusRunners;
+    bool coaStickyTarget;
+    bool coaExclusionsEverywhere;
+    bool coaFastHealBelowLow;
+    bool coaHealSelfFirst;
+    bool coaNextTargetSameTick;
+    bool coaKeepCombatEngine;
+    bool coaNoFacingWhileMoving;
     bool coaBossKnowledge;
     bool coaRecruitSameFaction;
     uint32 coaBotSurname;
@@ -436,6 +451,8 @@ public:
     uint32 coaCityStayMinMinutes;
     uint32 coaCityStayMaxMinutes;
     uint32 coaBgLevelBalanceChance;
+    bool coaRatedSoloQueue;
+    uint32 coaRatedSoloRoleFallback;
     std::string coaStatusFile;
     uint32 coaStatusIntervalSeconds;
     bool coaStatusEnabled;

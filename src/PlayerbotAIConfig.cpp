@@ -169,6 +169,7 @@ bool PlayerbotAIConfig::Initialize()
     LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.AoeAvoidSpellWhitelist", "50759,57491,13810,29946"),
                               aoeAvoidSpellWhitelist);
     tellWhenAvoidAoe = sConfigMgr->GetOption<bool>("AiPlayerbot.TellWhenAvoidAoe", false);
+    regainLineOfSight = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRegainLineOfSight", true, false);
 
     randomGearLoweringChance = sConfigMgr->GetOption<float>("AiPlayerbot.RandomGearLoweringChance", 0.0f);
     randomGearQualityLimit = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomGearQualityLimit", 3);
@@ -743,6 +744,7 @@ bool PlayerbotAIConfig::Initialize()
     autoLearnTradeskillSpells =
         sConfigMgr->GetOption<bool>("AiPlayerbot.AutoLearnTradeskillSpells", true);
     coaClassesOnly = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaClassesOnly", true);
+    gatherOnlySkillUp = sConfigMgr->GetOption<bool>("AiPlayerbot.GatherOnlySkillUp", true, false);
     // Written by the CoA Server Manager's custom races module ("bots use custom races"): a list of race ids,
     // not a mask, since its races go up to 97. CrashingBotRaces adds to it the races that module's author lists
     // as crashing the client, so that an incomplete list written by the Manager never lets them back. Its own
@@ -759,6 +761,19 @@ bool PlayerbotAIConfig::Initialize()
     coaGroupTelemetry = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGroupTelemetry", false);
     coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
     coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
+    coaLfgMissingRoles = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLfgMissingRoles", true, false);
+    coaHoldBehindTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaHoldBehindTank", true, false);
+    coaChaseLeash = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaChaseLeash", true, false);
+    coaBodyPullGuard = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBodyPullGuard", true, false);
+    coaKeepTargetOutOfSight = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepTargetOutOfSight", true, false);
+    coaFocusRunners = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaFocusRunners", true, false);
+    coaStickyTarget = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaStickyTarget", true, false);
+    coaExclusionsEverywhere = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaExclusionsEverywhere", true, false);
+    coaFastHealBelowLow = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaFastHealBelowLow", true, false);
+    coaHealSelfFirst = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaHealSelfFirst", true, false);
+    coaNextTargetSameTick = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaNextTargetSameTick", true, false);
+    coaKeepCombatEngine = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeepCombatEngine", true, false);
+    coaNoFacingWhileMoving = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaNoFacingWhileMoving", true, false);
     coaBossKnowledge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBossKnowledge", true);
     coaRecruitSameFaction = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRecruitSameFaction", true);
     coaBotSurname = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBotSurname", 1);
@@ -788,6 +803,8 @@ bool PlayerbotAIConfig::Initialize()
     coaCityStayMinMinutes = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaCityStayMinMinutes", 10);
     coaCityStayMaxMinutes = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaCityStayMaxMinutes", 30);
     coaBgLevelBalanceChance = std::min<uint32>(100, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBgLevelBalanceChance", 15));
+    coaRatedSoloQueue = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRatedSoloQueue", true);
+    coaRatedSoloRoleFallback = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaRatedSoloRoleFallback", 40);
     coaStatusFile = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaStatusFile", "");
     coaStatusIntervalSeconds = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaStatusIntervalSeconds", 5));
     coaStatusEnabled = !coaStatusFile.empty();
@@ -833,7 +850,7 @@ bool PlayerbotAIConfig::Initialize()
     // arena
     randomBotArenaTeam2v2Count = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeam2v2Count", 10);
     randomBotArenaTeam3v3Count = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeam3v3Count", 10);
-    randomBotArenaTeam5v5Count = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeam5v5Count", 5);
+    randomBotArenaTeam5v5Count = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeam5v5Count", 0);
     deleteRandomBotArenaTeams = sConfigMgr->GetOption<bool>("AiPlayerbot.DeleteRandomBotArenaTeams", false);
     randomBotArenaTeamMaxRating = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeamMaxRating", 2000);
     randomBotArenaTeamMinRating = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotArenaTeamMinRating", 1000);
