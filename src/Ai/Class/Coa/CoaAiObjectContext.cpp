@@ -19,6 +19,7 @@
 #include "NonCombatStrategy.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
+#include "ServerFacade.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
 #include "SpellAuras.h"
@@ -46,6 +47,11 @@
 Strategy* NewCoaBossDodgeStrategy(PlayerbotAI* botAI);
 Action* NewCoaBossDodgeAction(PlayerbotAI* botAI);
 Trigger* NewCoaBossDangerTrigger(PlayerbotAI* botAI);
+
+// CoaPvpTactics.cpp: "coa pvp", arenas, duels and battlegrounds.
+NamedObjectContext<Strategy>* NewCoaPvpStrategyContext();
+NamedObjectContext<Action>* NewCoaPvpActionContext();
+NamedObjectContext<Trigger>* NewCoaPvpTriggerContext();
 
 // CoaGroupTelemetry.cpp: counts a taunt, a heal tried, or an interrupt, in the group fight being measured.
 void CoaTelemetryNoteTaunt(Player* bot);
@@ -282,6 +288,32 @@ bool SendsCasterAhead(SpellInfo const* info)
     return false;
 }
 
+// A spell that moves its caster somewhere else: a jump, leap, charge or blink (Dragon Leap jumps to its target),
+// looking into the spells the cast itself triggers.
+bool MovesCaster(SpellInfo const* info, uint8 depth = 0)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        switch (effect.Effect)
+        {
+            case SPELL_EFFECT_JUMP: case SPELL_EFFECT_JUMP_DEST: case SPELL_EFFECT_CHARGE:
+            case SPELL_EFFECT_CHARGE_DEST: case SPELL_EFFECT_LEAP: case SPELL_EFFECT_LEAP_BACK:
+                return true;
+            case SPELL_EFFECT_TELEPORT_UNITS:
+                if (effect.TargetA.GetTarget() == TARGET_UNIT_CASTER)
+                    return true;
+                break;
+            default:
+                break;
+        }
+        if (effect.TriggerSpell && effect.TriggerSpell != info->Id && !IsAuraEffect(effect) && depth < 2)
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (MovesCaster(triggered, depth + 1))
+                    return true;
+    }
+    return false;
+}
+
 bool IsDefensiveAura(SpellEffectInfo const& effect)
 {
     switch (effect.ApplyAuraName)
@@ -454,7 +486,9 @@ bool WearsBuffNamed(Unit* unit, SpellInfo const* buff)
         std::string wornName(worn->SpellName[0]);
         if (wornName.rfind(greater, 0) == 0)
             wornName = wornName.substr(greater.size());
-        if (wornName == name && worn->IsPositive())
+        // A passive namesake is no buff worn: the Draconic specialization aura 92128 bears the name of the
+        // form, Draconic Aspect (802117), and the form was never taken (#29).
+        if (wornName == name && worn->IsPositive() && (!worn->IsPassive() || buff->IsPassive()))
             return true;
     }
     return false;
@@ -2059,6 +2093,43 @@ bool KickReaches(Player* bot, SpellInfo const* kick, Unit* caster)
 
 // A kick the bot has ready that reaches the caster. Also read for other bots of the group, which
 // is safe for members on the bot's own map instance: the same thread updates them.
+// Whether this kick can work on that caster from this bot as it stands. Most classic dungeon bosses are immune to
+// interrupts (CreatureImmunitiesId -325: Zum'rah, Antu'sul, Jammal'an...) and Ley Lock or Jawbreaker carry the
+// interrupt mechanic, so they were spent on them while the heal finished (headless runs, 12/10). Toxic Dart needs
+// stealth: a Ranger out of stealth tried it 436 times for no kick, and won the kick claim each time.
+bool KickFits(Player* bot, SpellInfo const* kick, Unit* caster)
+{
+    if (kick->CheckShapeshift(bot->GetShapeshiftForm()) != SPELL_CAST_OK)
+        return false;
+    if (caster && caster->IsImmunedToSpell(kick, static_cast<Unit const*>(bot)))
+        return false;
+    // IsImmunedToSpell only says immune when every effect is: a kick that also hits (damage plus an interrupt effect
+    // of mechanic 26) passed against a boss immune to interrupts, and only its damage landed (#28).
+    if (caster)
+    {
+        bool stopper = false;
+        bool landing = false;
+        for (uint8 i = EFFECT_0; i < MAX_SPELL_EFFECTS; ++i)
+        {
+            SpellEffectInfo const& effect = kick->Effects[i];
+            if (effect.Effect != SPELL_EFFECT_INTERRUPT_CAST &&
+                !(effect.IsAura() && effect.ApplyAuraName == SPELL_AURA_MOD_SILENCE))
+                continue;
+            stopper = true;
+            landing |= !caster->IsImmunedToSpellEffect(kick, i, bot);
+        }
+        if (stopper && !landing)
+            return false;
+    }
+    // A kick with a cast time of its own (Ley Lock, half a second) lands after a cast that ends sooner: three heals
+    // finished under a Ley Lock started in time to be too late (Zul'Farrak, 12/10). An instant kick goes first then.
+    if (Spell* cast = caster ? InterruptibleSpell(caster) : nullptr)
+        if (int32 const own = kick->CalcCastTime(bot))
+            if (own + 100 >= cast->GetCastTimeRemaining())
+                return false;
+    return true;
+}
+
 SpellInfo const* ReadyKickFor(PlayerbotAI* ai, Player* member, Unit* caster)
 {
     auto const* context = dynamic_cast<CoaAiObjectContext const*>(ai->GetAiObjectContext());
@@ -2072,7 +2143,7 @@ SpellInfo const* ReadyKickFor(PlayerbotAI* ai, Player* member, Unit* caster)
         if (member->HasSpellCooldown(info->Id) || IsBenched(context->benchedSpells, spell.info->Id, now) ||
             IsBenched(context->benchedSpells, info->Id, now))
             continue;
-        if (KickReaches(member, info, caster))
+        if (KickFits(member, info, caster) && KickReaches(member, info, caster))
             return spell.info;
     }
     return nullptr;
@@ -3103,9 +3174,17 @@ public:
         // Read before the kick, which ends the cast.
         SpellInfo const* const enemySpell = InterruptibleSpell(caster)->GetSpellInfo();
         uint32 const enemySpellId = enemySpell->Id;
-        SpellInfo const* kick =
-            CastFirst(botAI, bot, KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_INTERRUPT) != 0; }), caster,
-                      LoopUsage(USAGE_INTERRUPT));
+        std::vector<Usable> kicks = KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_INTERRUPT) != 0; });
+        kicks.erase(std::remove_if(kicks.begin(), kicks.end(),
+                                   [&](Usable const& k) { return !KickFits(bot, EffectiveSpell(bot, k.info), caster); }),
+                    kicks.end());
+        if (kicks.empty())
+            return false;
+        // The strict check before the cast refuses a kick at a caster behind the bot ("not in front" was the first
+        // kick failure of those runs) and the facing in PlayerbotAI::CastSpell comes after it: turn first.
+        if (!bot->HasInArc(CAST_ANGLE_IN_FRONT, caster))
+            ServerFacade::instance().SetFacingTo(bot, caster);
+        SpellInfo const* kick = CastFirst(botAI, bot, kicks, caster, LoopUsage(USAGE_INTERRUPT));
         if (kick && sPlayerbotAIConfig.coaDungeonPriorities)
             if (uint8 const rank = CoaDungeonPriorities::InterruptRank(enemySpell))
                 if (CoaDungeonPriorities::LogDue(CoaDungeonPriorities::Decision::Kick))
@@ -3903,6 +3982,29 @@ bool GroupFighting(Player* bot)
 // 30 yards. Nearest first within each. Only the dead who have not released can be raised.
 constexpr float ResurrectStrangersWithin = 30.0f;
 
+// A corpse one bot goes to raise is left to it for a while: the tank of a Sunken Temple wipe got four
+// resurrection casts from three bots while a dead damage dealer stayed down 18 seconds longer (headless runs, 12/10).
+constexpr uint32 ResurrectClaimMs = 12 * IN_MILLISECONDS;
+std::mutex ResurrectClaimsLock;
+std::unordered_map<ObjectGuid, std::pair<ObjectGuid, uint32>> ResurrectClaims;  // dead -> (bot, until)
+
+bool ClaimedByOther(Player* bot, Player* dead)
+{
+    std::lock_guard<std::mutex> guard(ResurrectClaimsLock);
+    auto const found = ResurrectClaims.find(dead->GetGUID());
+    return found != ResurrectClaims.end() && found->second.first != bot->GetGUID() &&
+           !Passed(getMSTime(), found->second.second);
+}
+
+void ClaimCorpse(Player* bot, Player* dead)
+{
+    std::lock_guard<std::mutex> guard(ResurrectClaimsLock);
+    uint32 const now = getMSTime();
+    for (auto itr = ResurrectClaims.begin(); itr != ResurrectClaims.end();)
+        itr = Passed(now, itr->second.second) ? ResurrectClaims.erase(itr) : std::next(itr);
+    ResurrectClaims[dead->GetGUID()] = { bot->GetGUID(), now + ResurrectClaimMs };
+}
+
 Player* DeadGroupMember(Player* bot)
 {
     Group* group = bot->GetGroup();
@@ -3915,7 +4017,7 @@ Player* DeadGroupMember(Player* bot)
     auto consider = [&](Player* dead, int rank)
     {
         if (!dead || dead == bot || dead->IsAlive() || dead->HasPlayerFlag(PLAYER_FLAGS_GHOST) || dead->isResurrectRequested() ||
-            !OnSameInstance(bot, dead))
+            !OnSameInstance(bot, dead) || ClaimedByOther(bot, dead))
             return;
         float const distance = dead->GetDistance(bot);
         if (distance > sPlayerbotAIConfig.sightDistance)
@@ -3967,6 +4069,7 @@ public:
         Player* dead = DeadGroupMember(bot);
         if (!dead)
             return false;
+        ClaimCorpse(bot, dead);
 
         if (bot->GetDistance(dead) > ResurrectReach || !bot->IsWithinLOSInMap(dead))
             return MoveNear(dead, ResurrectReach - 5.0f);
@@ -4204,6 +4307,17 @@ private:
 
 }  // namespace
 
+// CoaPvpTactics.cpp: crowd control on an enemy player, when the bot knows one that is ready.
+bool CoaHasReadyControl(PlayerbotAI* botAI, Player* bot)
+{
+    return ClassHas(bot, KIND_CONTROL) && HasReadyAbility(botAI, bot, [](uint16 kind) { return (kind & KIND_CONTROL) != 0; });
+}
+
+bool CoaCastControl(PlayerbotAI* botAI, Player* bot, Unit* target)
+{
+    return CastFirst(botAI, bot, KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_CONTROL) != 0; }), target) != nullptr;
+}
+
 // Whether a spell heals or shields an ally, by the classifier (triggered spells included) or by an
 // absorb it puts on its target. Gaze of C'Thun hits enemies or heals allies: not a heal to the
 // classifier, yet the Cultist healer's main heal (its rotation's "can cast" line).
@@ -4424,14 +4538,23 @@ bool CoaRivalBuffBlocks(Player* bot, SpellInfo const* info, Unit* target)
 
 bool CoaCarriesBotAway(Player* bot, SpellInfo const* info)
 {
-    if (!bot || !info || !bot->IsInCombat())
+    if (!bot || !info)
+        return false;
+    // A healer never jumps, leaps, charges or blinks, in a fight or out of it: a Flameweaving healer cast Dragon
+    // Leap on cooldown from "coa attack" and "coa aoe" and landed in packs nobody had pulled (headless dungeon
+    // runs, 11/10). No CoA healer path moves the bot on purpose with a spell; its feet do it.
+    bool const healerMove = GetCoaRole(bot) == CoaRole::Heal && MovesCaster(info);
+    if (!healerMove && !bot->IsInCombat())
         return false;
     // In a fight a bot neither rolls off for seconds nor rushes on past the enemy it stands at: Wildwalkers spent
     // a sixth of each boss fight out of reach after Boulder Dash and Primal Rush (bench, 10/10). Out of reach, a
     // rush ahead still closes the gap.
     Unit* const victim = bot->GetVictim();
-    bool const away = ForcesCasterForward(info) ||
-                      (SendsCasterAhead(info) && victim && bot->IsWithinMeleeRange(victim));
+    // A ranged damage dealer does not leap ahead into the fight it shoots at: a Rot Venomancer used Skitter (15 yards
+    // forward) as a filler 114 times in Sunken Temple and fled back after 43 of them (headless runs, 12/10).
+    bool const away = healerMove || ForcesCasterForward(info) ||
+                      (SendsCasterAhead(info) && ((victim && bot->IsWithinMeleeRange(victim)) ||
+                                                  PlayerbotAI::IsRanged(bot, true)));
     if (away)
     {
         static std::mutex logged;
@@ -4506,18 +4629,21 @@ void CoaAiObjectContext::BuildSharedStrategyContexts(SharedNamedObjectContextLis
     AiObjectContext::BuildSharedStrategyContexts(strategyContexts);
     strategyContexts.Add(new CoaStrategyFactoryInternal());
     strategyContexts.Add(new CoaNonCombatStrategyFactoryInternal());
+    strategyContexts.Add(NewCoaPvpStrategyContext());
 }
 
 void CoaAiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Action>& actionContexts)
 {
     AiObjectContext::BuildSharedActionContexts(actionContexts);
     actionContexts.Add(new CoaActionFactoryInternal());
+    actionContexts.Add(NewCoaPvpActionContext());
 }
 
 void CoaAiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Trigger>& triggerContexts)
 {
     AiObjectContext::BuildSharedTriggerContexts(triggerContexts);
     triggerContexts.Add(new CoaTriggerFactoryInternal());
+    triggerContexts.Add(NewCoaPvpTriggerContext());
 }
 
 void CoaAiObjectContext::BuildSharedValueContexts(SharedNamedObjectContextList<UntypedValue>& valueContexts)

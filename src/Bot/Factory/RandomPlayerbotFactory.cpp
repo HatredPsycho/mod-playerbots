@@ -75,7 +75,18 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
     for (uint8 race = RACE_HUMAN; race < sRaceMgr->GetMaxRaces(); ++race)
     {
         // skip disabled with config races
-        if ((1 << (race - 1)) & sWorld->getIntConfig(CONFIG_CHARACTER_CREATING_DISABLED_RACEMASK))
+        if (race <= 32 && ((1u << (race - 1)) & sWorld->getIntConfig(CONFIG_CHARACTER_CREATING_DISABLED_RACEMASK)))
+            continue;
+
+        // The races a custom races module makes playable (the CoA Server Manager's: Goblin 9, 12 to 32 and 47 to
+        // 97) are left out unless that module lets bots have them, and any race can be excluded by id. The mask
+        // above cannot reach most of them: shifting by 32 or more is undefined and on x86 wrapped onto a base
+        // race's bit.
+        bool const baseRace = race <= RACE_DRAENEI && race != 9;
+        if (!baseRace && !sPlayerbotAIConfig.customRacesForBots)
+            continue;
+        if (std::find(sPlayerbotAIConfig.excludedBotRaces.begin(), sPlayerbotAIConfig.excludedBotRaces.end(), race) !=
+            sPlayerbotAIConfig.excludedBotRaces.end())
             continue;
 
         // Try to get 50/50 faction distribution for random bot population balance.
@@ -94,7 +105,8 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
     }
 
     const uint8 race = raceOptions[urand(0, raceOptions.size() - 1)];
-    const uint8 gender = urand(0, 1) ? GENDER_MALE : GENDER_FEMALE;
+    // Gnoll (83) and Saberon (97) of the custom races module only have a male model.
+    const uint8 gender = (race == 83 || race == 97 || urand(0, 1)) ? GENDER_MALE : GENDER_FEMALE;
     const auto raceAndGender = CombineRaceAndGender(race, gender);
 
     std::string name;
@@ -881,7 +893,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
                 continue;
 
             // skip disabled with config classes
-            if ((1 << (cls - 1)) & sWorld->getIntConfig(CONFIG_CHARACTER_CREATING_DISABLED_CLASSMASK))
+            if (cls <= 32 && ((1u << (cls - 1)) & sWorld->getIntConfig(CONFIG_CHARACTER_CREATING_DISABLED_CLASSMASK)))
                 continue;
 
             // Conquest of Azeroth gives its players twenty-one classes of its own and hides the nine

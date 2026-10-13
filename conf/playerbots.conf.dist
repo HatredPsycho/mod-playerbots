@@ -1403,6 +1403,21 @@ AiPlayerbot.AutoLearnTradeskillSpells = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaClassesOnly = 1
 
+# Races of the custom races module (CoA Server Manager) that random bots never use, as race ids separated by
+# commas, e.g. "55,63,97". The races that module makes playable (Goblin 9, 12 to 32, 47 to 97) only go to random bots
+# when its own setting CoACustomRaces.BotsEnable = 1; CharacterCreating.Disabled.RaceMask (worldserver.conf) only
+# reaches ids 1 to 32. Added to AiPlayerbot.CrashingBotRaces below. Applies to bots created afterwards: bots already
+# created keep their race; delete the bot accounts (AiPlayerbot.DeleteRandomBotAccounts) to renew them.
+# Commented out on purpose: the custom races module writes this line itself, and the first copy of a key in a .conf
+# file wins, so a line here would hide its own.
+# Default: "" (none)
+# AiPlayerbot.ExcludedBotRaces = ""
+
+# Custom races that crash the client, always left out of the random bots on top of AiPlayerbot.ExcludedBotRaces.
+# Default, from the module's author: 65 (Test Race), 72 and 77 (Skyborne), 80 and 81 (Darkfallen).
+# Default: "65,72,77,80,81"
+AiPlayerbot.CrashingBotRaces = "65,72,77,80,81"
+
 # Authored combat rotations for the Conquest of Azeroth specializations.
 # Off: CoA bots are driven by the runtime classifier alone, which picks a spell
 # every tick from what the bot knows.
@@ -1530,7 +1545,8 @@ AiPlayerbot.CoaStatusIntervalSeconds = 5
 AiPlayerbot.CoaSmartHeal = 1
 
 # Tanks of Conquest of Azeroth: of the enemies hitting someone else, take first the one
-# on the healer, then the one on whoever is lowest, rather than the nearest one.
+# on the healer, then the one on whoever is lowest, rather than the nearest one; a mob
+# running away or for help comes last, so the tank no longer follows it into other packs.
 # Read again by ".reload config".
 # Default: 1 (enabled)
 AiPlayerbot.CoaSmartTank = 1
@@ -1539,7 +1555,9 @@ AiPlayerbot.CoaSmartTank = 1
 # dealers step out of a point blank cast (Whirlwind, Fire Nova, War Stomp) or from in front of
 # a cone (breaths, Arcing Smash) while its cast bar runs, anyone leaves the spot of an area
 # cast (Flamestrike), and ranged members keep out of the reach of instant point blank spells
-# that the smart_scripts rows of the creature hold. Radius limit: AiPlayerbot.MaxAoeAvoidRadius.
+# that the smart_scripts rows of the creature hold. A point blank cast of any nearby enemy, not
+# only of the bot's target, is stepped out of too (a boss's Bladestorm while the group kills an
+# add). Radius limit: AiPlayerbot.MaxAoeAvoidRadius.
 # Takes effect when a bot's strategies are reset (login, ".playerbots bot init", spec change).
 # Default: 1 (enabled)
 AiPlayerbot.CoaBossKnowledge = 1
@@ -1647,6 +1665,157 @@ AiPlayerbot.Coa.AncestralCombatFix = 1
 #        Default:     1
 
 AiPlayerbot.CoaKeepPassiveAuras = 1
+
+#    AiPlayerbot.CoaArenaReady
+#        Description: 1 - an arena shows a ready pylon in each starting room, as on the original CoA realm.
+#                     A player clicks it when ready; a bot is ready by itself once settled. When every
+#                     combatant is ready, the preparation drops to AiPlayerbot.CoaArenaReadyCountdown seconds.
+#                     0 - the full preparation time, as before.
+#                     Read again by ".reload config".
+#        Default:     1
+
+AiPlayerbot.CoaArenaReady = 1
+
+#    AiPlayerbot.CoaArenaReadyCountdown
+#        Description: seconds left before the gates open once everyone is ready.
+#        Default:     6
+
+AiPlayerbot.CoaArenaReadyCountdown = 5
+
+#    AiPlayerbot.CoaArenaReadyBotDelay
+#        Description: seconds a bot waits after it enters the arena (gear, buffs, pet) before it is ready.
+#        Default:     10
+
+AiPlayerbot.CoaArenaReadyBotDelay = 10
+
+#    AiPlayerbot.CoaArenaReadyEntry
+#    AiPlayerbot.CoaArenaReadyDisplay
+#        Description: gameobject template spawned as the pylon (a clickable object without lock or script)
+#                     and an optional display id to give it another look (0 - the template's own).
+#        Default:     184615, 0
+
+AiPlayerbot.CoaArenaReadyEntry = 184615
+AiPlayerbot.CoaArenaReadyDisplay = 0
+
+#    AiPlayerbot.CoaArenaReadyScale
+#        Description: size of the pylon (the default crystal is far taller than a player at 1).
+#        Default:     0.5
+
+AiPlayerbot.CoaArenaReadyScale = 0.5
+
+#    AiPlayerbot.CoaArenaReadyDistance
+#        Description: yards from the team start point towards the other team, where the pylon stands.
+#        Default:     5
+
+AiPlayerbot.CoaArenaReadyDistance = 6
+
+#    AiPlayerbot.CoaArenaReadySide
+#        Description: yards to the right of that line (negative: to the left), out of the way to the gate.
+#        Default:     3
+
+AiPlayerbot.CoaArenaReadySide = 3
+
+#    AiPlayerbot.CoaArenaReadyHeight
+#        Description: yards above the ground the pylon floats (the crystal sinks halfway into the floor at 0).
+#        Default:     1.2
+
+AiPlayerbot.CoaArenaReadyHeight = 1.2
+
+#    AiPlayerbot.CoaArenaRoleSpot
+#        Description: 1 - in an arena a CoA bot takes the spot of its role before the fight (healers at the back,
+#                     ranged in the middle, melee and tanks in front). 0 - all CoA bots take the melee spot, as
+#                     before (they all share class id 27). Every CoaArena*, CoaPvp* and CoaDuel* switch below is
+#                     read again by ".reload config".
+#        Default:     1
+
+AiPlayerbot.CoaArenaRoleSpot = 1
+
+#    AiPlayerbot.CoaArenaPreparation
+#        Description: 1 - before the gates open, a CoA bot takes a place of its role in its starting room, between
+#                     the start point and the gate (healers at the back, ranged in the middle, melee in front, side
+#                     by side), faces the gate, then keeps its buffs and pet up. It never leaves the room, stays on
+#                     the Ring of Valor lift, and is still marked ready (AiPlayerbot.CoaArenaReady).
+#                     0 - the bots wait on their start point.
+#        Default:     1
+
+AiPlayerbot.CoaArenaPreparation = 1
+
+#    AiPlayerbot.CoaArenaLineOfSight
+#        Description: 1 - in an arena, a CoA ranged bot or healer whose target (or most hurt team member) is out of
+#                     sight steps to the nearest reachable point that sees it from casting range, away from enemy
+#                     melee, or joins a team member who sees it. 0 - it walks onto the target's spot, as before.
+#        Default:     1
+
+AiPlayerbot.CoaArenaLineOfSight = 1
+
+#    AiPlayerbot.CoaArenaCover
+#        Description: 1 - the CoA arena moves (kiting, hiding when under pressure, running after a crowd control)
+#                     know the pillars of each arena: found once per arena map by a walk over its floor (written
+#                     to the log as "coa arena cover: ..." to check them in game), plus the Ring of Valor pillars
+#                     and the Dalaran waterfall the core spawns as objects. 0 - they only try points around the bot.
+#        Default:     1
+
+AiPlayerbot.CoaArenaCover = 1
+
+#    AiPlayerbot.CoaArenaKite
+#        Description: 1 - in an arena, a CoA ranged bot or healer with an enemy melee on it steps 7 to 11 yards
+#                     away (towards a pillar when one is near), staying within casting range and sight of its
+#                     target or of the most hurt team member; at most 5 seconds of steps, then 6 seconds of
+#                     fighting before it kites again. Arenas only. 0 - it stands in the melee, as before.
+#        Default:     1
+
+AiPlayerbot.CoaArenaKite = 1
+
+#    AiPlayerbot.CoaArenaFocus
+#        Description: 1 - in an arena, a CoA damage dealer goes for the enemy healer it sees within reach (35 yards
+#                     from range, 25 in melee), else for the most hurt enemy it sees; it finishes a target under
+#                     25% and switches at most every 4 seconds ("dps assist" waits meanwhile). 0 - as before.
+#        Default:     1
+
+AiPlayerbot.CoaArenaFocus = 1
+
+#    AiPlayerbot.CoaArenaPeel
+#        Description: 1 - in an arena, a CoA tank (or a melee damage dealer once its healer is under 60%) turns on
+#                     the enemy hitting its team's healer and puts a crowd control on it, every 12 seconds at most.
+#        Default:     1
+
+AiPlayerbot.CoaArenaPeel = 1
+
+#    AiPlayerbot.CoaArenaPressure
+#        Description: 1 - in an arena, a CoA ranged bot or healer under 45% health that enemies aim at hides from
+#                     the casters among them (behind a pillar, preferably still in sight of its own healer), or
+#                     falls back behind its tank or melee team mate when only melee are on it. 6 seconds at most,
+#                     then 10 seconds before it hides again.
+#        Default:     1
+
+AiPlayerbot.CoaArenaPressure = 1
+
+#    AiPlayerbot.CoaDuelOpening
+#        Description: 1 - during the duel countdown, a CoA melee bot closes in to 3.5 yards and a ranged bot or
+#                     healer steps back to 20 yards (in sight, near the duel flag), then faces the opponent and
+#                     refreshes its buffs. Works in the .coapvp duel bench too (the held duellist does not move;
+#                     the distance logged at the start of a bench duel grows for ranged bots).
+#                     0 - both stay where the challenge left them, as before.
+#        Default:     1
+
+AiPlayerbot.CoaDuelOpening = 1
+
+#    AiPlayerbot.CoaPvpRecovery
+#        Description: 1 - in a duel, arena or battleground, a CoA bot under 40% health with an enemy player in its
+#                     face puts a crowd control on it (every 20 seconds at most), then runs 9 to 14 yards away for
+#                     up to 4 seconds, out of the enemy's sight when it can. 0 - as before.
+#        Default:     1
+
+AiPlayerbot.CoaPvpRecovery = 1
+
+#    AiPlayerbot.CoaPvpBandage
+#        Description: 1 - in a duel, arena or battleground, a CoA bot under 65% health bandages itself when it
+#                     carries a bandage it has the First Aid for and no free enemy can reach it (held, out of
+#                     sight or far); never while Recently Bandaged, under a damage over time, moving or eating.
+#                     Eating and drinking between fights stay with the "food" strategy.
+#        Default:     1
+
+AiPlayerbot.CoaPvpBandage = 1
 
 #    AiPlayerbot.CoaShortLivedDebuffs
 #        Description: life a target must have left (its health over the estimated damage of the group)

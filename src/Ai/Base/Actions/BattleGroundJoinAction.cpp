@@ -16,6 +16,35 @@
 #include "PositionValue.h"
 #include "RandomPlayerbotFactory.h"
 
+namespace
+{
+// CoA: the battles random bots keep going on their own in a battleground, RandomBotAutoJoinBG<type>Count.
+uint32 AutoJoinBgCount(BattlegroundQueueTypeId queueTypeId)
+{
+    switch (queueTypeId)
+    {
+        case BATTLEGROUND_QUEUE_AV: return sPlayerbotAIConfig.randomBotAutoJoinBGAVCount;
+        case BATTLEGROUND_QUEUE_WS: return sPlayerbotAIConfig.randomBotAutoJoinBGWSCount;
+        case BATTLEGROUND_QUEUE_AB: return sPlayerbotAIConfig.randomBotAutoJoinBGABCount;
+        case BATTLEGROUND_QUEUE_EY: return sPlayerbotAIConfig.randomBotAutoJoinBGEYCount;
+        case BATTLEGROUND_QUEUE_IC: return sPlayerbotAIConfig.randomBotAutoJoinBGICCount;
+        default: return 0;
+    }
+}
+
+// CoA: bots filled TeamSize places per open battle. Bots leaving a battle queued again to be replaced, the core
+// opened a new battle with them, and that new battle raised the limit by a full battle: on a 500-bot test realm
+// set to one Alterac Valley, four ran at once with 318 bots (12/10/2026). Where no real player is in that queue,
+// the limit is the number of battles the bots keep going, not the number open.
+uint32 BotBattles(BattlegroundQueueTypeId queueTypeId, uint32 activeBgQueue, uint32 bgInstanceCount, uint32 players)
+{
+    uint32 const battles = activeBgQueue + bgInstanceCount;
+    if (players)
+        return battles;
+    return std::min(battles, std::max(AutoJoinBgCount(queueTypeId), activeBgQueue));
+}
+}
+
 bool BGJoinAction::Execute(Event /*event*/)
 {
     uint32 queueType = AI_VALUE(uint32, "bg type");
@@ -321,15 +350,17 @@ bool BGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battlegroun
     uint32 bgHordePlayerCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgHordePlayerCount;
     uint32 activeBgQueue = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].activeBgQueue;
     uint32 bgInstanceCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgInstanceCount;
+    uint32 const battles = BotBattles(queueTypeId, activeBgQueue, bgInstanceCount,
+                                      bgAlliancePlayerCount + bgHordePlayerCount);
 
     if (teamId == TEAM_ALLIANCE)
     {
-        if ((bgAllianceBotCount + bgAlliancePlayerCount) < TeamSize * (activeBgQueue + bgInstanceCount))
+        if ((bgAllianceBotCount + bgAlliancePlayerCount) < TeamSize * battles)
             return true;
     }
     else
     {
-        if ((bgHordeBotCount + bgHordePlayerCount) < TeamSize * (activeBgQueue + bgInstanceCount))
+        if ((bgHordeBotCount + bgHordePlayerCount) < TeamSize * battles)
             return true;
     }
 
@@ -550,6 +581,10 @@ bool BGJoinAction::JoinQueue(uint32 type)
 
         switch (arenaType)
         {
+            case ARENA_TYPE_1v1:
+                arenaslot = 2;
+                _bgType = "1v1";
+                break;
             case ARENA_TYPE_2v2:
                 arenaslot = 0;
                 _bgType = "2v2";
@@ -698,15 +733,17 @@ bool FreeBGJoinAction::shouldJoinBg(BattlegroundQueueTypeId queueTypeId, Battleg
     uint32 bgHordePlayerCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgHordePlayerCount;
     uint32 activeBgQueue = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].activeBgQueue;
     uint32 bgInstanceCount = sRandomPlayerbotMgr.BattlegroundData[queueTypeId][bracketId].bgInstanceCount;
+    uint32 const battles = BotBattles(queueTypeId, activeBgQueue, bgInstanceCount,
+                                      bgAlliancePlayerCount + bgHordePlayerCount);
 
     if (teamId == TEAM_ALLIANCE)
     {
-        if ((bgAllianceBotCount + bgAlliancePlayerCount) < TeamSize * (activeBgQueue + bgInstanceCount))
+        if ((bgAllianceBotCount + bgAlliancePlayerCount) < TeamSize * battles)
             return true;
     }
     else
     {
-        if ((bgHordeBotCount + bgHordePlayerCount) < TeamSize * (activeBgQueue + bgInstanceCount))
+        if ((bgHordeBotCount + bgHordePlayerCount) < TeamSize * battles)
             return true;
     }
 
@@ -921,6 +958,9 @@ bool BGStatusAction::Execute(Event event)
 
     switch (arenaType)
     {
+        case ARENA_TYPE_1v1:
+            _bgType = "1v1";
+            break;
         case ARENA_TYPE_2v2:
             _bgType = "2v2";
             break;
@@ -1097,6 +1137,9 @@ bool BGStatusAction::Execute(Event event)
         WorldPacket emptyPacket;
         bot->GetSession()->HandleCancelMountAuraOpcode(emptyPacket);
 
+        if (bot->IsInCombat() && !botAI->GetMaster() && sRandomPlayerbotMgr.IsRandomBot(bot))
+            bot->CombatStopWithPets(true);
+
         action = 0x1;
 
         WorldPacket packet(CMSG_BATTLEFIELD_PORT, 20);
@@ -1129,6 +1172,11 @@ bool BGStatusCheckAction::Execute(Event /*event*/)
 {
     if (bot->IsBeingTeleported())
         return false;
+
+    // The core refuses the port of a player in combat: a random bot fighting outside (a mob, a High-Risk
+    // player) would let the invitation run out and leave its team one short.
+    if (bot->IsInCombat() && !botAI->GetMaster() && sRandomPlayerbotMgr.IsRandomBot(bot))
+        bot->CombatStop(true);
 
     WorldPacket packet(CMSG_BATTLEFIELD_STATUS);
     bot->GetSession()->HandleBattlefieldStatusOpcode(packet);
