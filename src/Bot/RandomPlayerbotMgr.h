@@ -14,6 +14,7 @@
 #include "PlayerbotMgr.h"
 #include <array>
 #include <atomic>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -55,6 +56,31 @@ struct BattlegroundInfo
     // battleground can start (its minimum per team), taken down as bots join.
     uint32 bgAllianceMissing = 0;
     uint32 bgHordeMissing = 0;
+
+    // Rated solo queues (AiPlayerbot.CoaRatedSoloQueue), kept out of the rated team counts above: real players
+    // and bots waiting there uninvited, by role, and how many more bots of each role complete their matches.
+    uint32 ratedSoloPlayerHealers = 0;
+    uint32 ratedSoloPlayerDamage = 0;
+    uint32 ratedSoloBotHealers = 0;
+    uint32 ratedSoloBotDamage = 0;
+    uint32 ratedSoloHealersNeeded = 0;
+    uint32 ratedSoloDamageNeeded = 0;
+    // Bots a real player's other role may need (CoaRatedSoloRoleFallback), and bots no lineup needs:
+    // these leave the queue after their usual wait, the 1v1 ones in the damage count.
+    uint32 ratedSoloFallbackHealers = 0;
+    uint32 ratedSoloFallbackDamage = 0;
+    uint32 ratedSoloHealersSurplus = 0;
+    uint32 ratedSoloDamageSurplus = 0;
+};
+
+// A real player waiting in a rated solo queue, and the role read from their spec.
+struct RatedSoloWait
+{
+    ObjectGuid guid;
+    uint32 joinTime;
+    uint32 queueTypeId;
+    uint32 bracketId;
+    bool healer;
 };
 
 class ChatHandler;
@@ -176,6 +202,11 @@ public:
     // A queued real player of this team still lacks a tank or a healer: damage dealers hold back.
     std::array<std::atomic<bool>, 2> LfgNeedTankOrHeal{};
     void CheckBgQueue();
+    // How many healer and damage bots the rated solo queues real players wait in still need (CheckBgQueue).
+    void CountRatedSoloNeeds();
+    std::vector<RatedSoloWait> ratedSoloWaiting;
+    // Real players given a bot of their other role: guid -> join time of that wait, and whether it was a healer.
+    std::unordered_map<ObjectGuid, std::pair<uint32, bool>> ratedSoloFallbacks;
     void KeepArenaCaptainsOnline();
     void CheckLfgQueue();
     void CheckPlayers();
@@ -277,6 +308,8 @@ private:
     // std::map<uint32, std::vector<WorldLocation>> rpgLocsCache;
     std::map<uint32, std::map<uint32, std::vector<WorldLocation>>> rpgLocsCacheLevel;
     std::map<TeamId, std::map<BattlegroundTypeId, std::vector<uint32>>> BattleMastersCache;
+    // Bot AI reads and writes these values from the map update threads.
+    std::mutex eventCacheLock;
     std::unordered_map<uint32, BotEventCache> eventCache;
     std::unordered_set<uint32> currentBots;
     uint32 playersLevel;

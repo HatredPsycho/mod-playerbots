@@ -40,6 +40,14 @@ bool AggressiveTargetAction::isUseful()
     return true;
 }
 
+bool DropTargetAction::isUseful()
+{
+    if (!sPlayerbotAIConfig.coaKeepCombatEngine || context->GetValue<Unit*>("current target")->Get())
+        return true;
+
+    return !bot->IsInCombat() || context->GetValue<GuidVector>("attackers")->Get().empty();
+}
+
 bool DropTargetAction::Execute(Event /*event*/)
 {
     Unit* target = context->GetValue<Unit*>("current target")->Get();
@@ -62,7 +70,9 @@ bool DropTargetAction::Execute(Event /*event*/)
 
     bot->SetTarget(ObjectGuid::Empty);
     bot->SetSelection(ObjectGuid());
-    botAI->ChangeEngine(BOT_STATE_NON_COMBAT);
+    if (!sPlayerbotAIConfig.coaKeepCombatEngine || !bot->IsInCombat() ||
+        context->GetValue<GuidVector>("attackers")->Get().empty())
+        botAI->ChangeEngine(BOT_STATE_NON_COMBAT);
     if (bot->getClass() == CLASS_HUNTER) // Check for Hunter Class
     {
         Spell const* spell = bot->GetCurrentSpell(CURRENT_AUTOREPEAT_SPELL); // Get the current spell being cast by the bot
@@ -83,6 +93,14 @@ bool DropTargetAction::Execute(Event /*event*/)
     //         pet->GetMotionMaster()->MoveFollow(bot, PET_FOLLOW_DIST, pet->GetFollowAngle());
     //     }
     // }
+
+    if (sPlayerbotAIConfig.coaNextTargetSameTick && !botAI->IsHeal(bot) && bot->IsInCombat() &&
+        !context->GetValue<GuidVector>("attackers")->Get().empty())
+    {
+        Unit* next = context->GetValue<Unit*>(PlayerbotAI::IsTank(bot) ? "tank target" : "dps target")->Get();
+        if (next && next->IsInWorld() && next->IsAlive() && !bot->IsFriendlyTo(next))
+            Attack(next);
+    }
 
     return true;
 }

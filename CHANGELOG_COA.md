@@ -1,6 +1,6 @@
 # CoA Bots — changelog
 
-## v2.1.1 — in progress
+## v2.2 — Rated solo queues, ideas from other forks and your reports (October 2026)
 
 ### Rotations — from the specs site reports
 - **Primalist Mountain King**: Geode Barrage only on the Aftershock proc (instant), no more channelled filler.
@@ -24,11 +24,55 @@
 - Shipped as `zz_coa_rotation_corrections_2_1_1.sql` and `zz_coa_rotation_corrections_2_1_1_b.sql` (default
   rotations only, applied once at server start).
 
+### Arenas
+- **Rated solo queues**: bots join the rated 1v1, 2v2 and 3v3 solo queues when a real player is waiting, in the role
+  the match still needs (`AiPlayerbot.CoaRatedSoloQueue`, `AiPlayerbot.CoaRatedSoloRoleFallback`).
+- No bot 5v5 arena teams any more (Conquest of Azeroth has no 5v5); bot teams of a format set to 0 are disbanded at start.
+- Teammates from the other faction (rated solo queues mix them) now show as friends for the match, not as enemies;
+  their own faction comes back when they leave.
+- Random bots back from an arena or battleground leave a party they were left in with a real player.
+
+### Forks — ideas from other mod-playerbots forks
+Each behaviour change has its own switch in `playerbots.conf` (all on by default, `0` turns one off).
+- **Stability**: the command server listens on 127.0.0.1 only, bounds its input and runs commands on the world
+  thread (`AiPlayerbot.CommandServerBind`; jealous-sound, via HatredPsycho); no crash when a bot flees from a player
+  (leewheel); no double delete of a ground-targeted spell cast while moving (pengjinfei); items no longer read after
+  being freed (upstream #2811, Terry Raimondo and Celandriel; avirar); locks on the bot event cache, the packet
+  queue, the trainer and item caches, and chat heard in the bot's own update (shiro2448).
+- **Area effects**: the detectors of ground and aura damage no longer give up on the first unrelated mob or aura
+  (felworld, f33rx). Tanks ignore passive summons that attack nobody (pengjinfei).
+- **Healers**: walk back into line of sight of whoever needs healing (`CoaRegainLineOfSight`, f33rx); keep healing
+  on the move (`CoaNoFacingWhileMoving`, pengjinfei); stay in their combat strategies while the fight goes on
+  (`CoaKeepCombatEngine`, pengjinfei); heal themselves first when hurt and nobody is in danger (`CoaHealSelfFirst`,
+  idea of pengjinfei); use their fast heals from 45% health when saving mana (`CoaFastHealBelowLow`, shiro2448).
+- **Targeting**: next target in the same update and a wider facing (`CoaNextTargetSameTick`, pengjinfei); raid
+  exclusions also apply to marks and area attacks (`CoaExclusionsEverywhere`, upstream #2912 by Crow); sticky
+  targets (`CoaStickyTarget`, qavryxdev); mobs running for help are killed and snared first in dungeons
+  (`CoaFocusRunners`, felworld); a target out of sight for a moment is kept (`CoaKeepTargetOutOfSight`, qavryxdev).
+- **Movement**: no more body pulls by walking past an idle pack in dungeons (`CoaBodyPullGuard`, sksmith261); no
+  chasing an enemy far from the tank's fight (`CoaChaseLeash`, pengjinfei); ranged and healers behind the tank,
+  melee on its side (`CoaHoldBehindTank`, f33rx).
+- **Dungeon finder**: random damage dealers hold back only while a queued party really lacks a tank or a healer
+  (`CoaLfgMissingRoles`, ideas of shiro2448 and HatredPsycho).
+
 ### Fixes
 - **Interrupts**: no kick wasted on a caster immune to its interrupt, even when the kick also deals damage (most
   classic dungeon bosses; issue #28 by ladiabale).
 - **Pyromancer Draconic** bots now take Draconic Aspect: the spec's passive of the same name counted as the form, so
   they never cast it (issue #29 by mightyrathalos).
+- **Worldforged chests**: bots no longer duplicate their loot by opening them again and again (squidbots-addon#2 by
+  Dogsmeller), and no longer run back and forth to a pickup they have already looted (reported by Maky).
+- **Full bags**: random bots whose bags are full now also get rid of gear they could wear but that is worse than
+  their own (level 60 bots kept every soulbound raid epic they looted).
+- **Custom races** (custom races module of the CoA Server Manager): random bots only take them when
+  `CoACustomRaces.BotsEnable = 1`, skip the ids listed in `AiPlayerbot.ExcludedBotRaces`, and never take the races that
+  crash the client (`AiPlayerbot.CrashingBotRaces`, default 65,72,77,80,81); Gnoll and Saberon bots are male.
+
+### Gathering
+- Bots with herbalism, mining or skinning only gather what still raises their skill (green or better for their
+  client): no more bags of Peacebloom and Copper at level 60, and two alts with the same profession no longer fight
+  over the same nodes (idea by Maky). `AiPlayerbot.GatherOnlySkillUp` (default 1); `nc +gather all` lets one bot
+  gather everything again.
 
 ### Gear
 - **Witch Hunter Houndmaster** no longer takes spell power gear: Agility, Haste and Crit, Spell Penetration first.

@@ -1403,6 +1403,12 @@ AiPlayerbot.AutoLearnTradeskillSpells = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaClassesOnly = 1
 
+# Gathering bots (herbalism, mining, skinning) only gather what still raises their skill: green, yellow or orange
+# for their client, never grey (100 points or more below their skill). One bot can gather everything again with the
+# chat command "nc +gather all" ("nc -gather all" to go back).
+# Default: 1 (enabled)
+AiPlayerbot.GatherOnlySkillUp = 1
+
 # Races of the custom races module (CoA Server Manager) that random bots never use, as race ids separated by
 # commas, e.g. "55,63,97". The races that module makes playable (Goblin 9, 12 to 32, 47 to 97) only go to random bots
 # when its own setting CoACustomRaces.BotsEnable = 1; CharacterCreating.Disabled.RaceMask (worldserver.conf) only
@@ -1562,6 +1568,94 @@ AiPlayerbot.CoaSmartTank = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaBossKnowledge = 1
 
+# CoA 2.2, ideas taken from other mod-playerbots forks. Each one can be turned off on its own.
+# They are read once at start-up (and again by ".reload config").
+
+# Move to regain line of sight in combat. Ranged bots in a group whose target is behind an
+# obstacle walk to the nearest group member that can see it, and hold position if none can.
+# Melee and solo bots walk towards the target. Healers (CoA healers too) keep the group
+# members they cannot see as candidates, at a penalty, and walk until they see them.
+# Default: 1 (enabled)
+AiPlayerbot.CoaRegainLineOfSight = 1
+
+# A moving bot no longer stops to turn to its target: the movement rewrites its facing every
+# update, so "set facing" fired again each tick, above every heal, and healers on the move
+# cast nothing.
+# Default: 1 (enabled)
+AiPlayerbot.CoaNoFacingWhileMoving = 1
+
+# A bot in a fight with an enemy at hand always runs its combat strategies. A healer whose
+# target went invalid dropped into the out of combat strategies, where "coa heal" does not
+# exist, and healed nobody until something hit it (boss submerged, flying phase).
+# Default: 1 (enabled)
+AiPlayerbot.CoaKeepCombatEngine = 1
+
+# When its target dies in a fight, a bot attacks the next one in the same update instead of
+# going through four updates (drop, assist, reach, face), and a target within 85 degrees of
+# its front counts as faced (the game's own test is 90; it was 45).
+# Default: 1 (enabled)
+AiPlayerbot.CoaNextTargetSameTick = 1
+
+# A CoA healer under 65% health (MediumHealth) heals itself first, unless the member it would
+# heal instead is under 45% (LowHealth). With the tank a little lower, the healer was always
+# second and died while full of mana.
+# Default: 1 (enabled)
+AiPlayerbot.CoaHealSelfFirst = 1
+
+# A CoA healer saving its mana stops picking its cheapest heal once the target is under 45%
+# (LowHealth) instead of 25% (CriticalHealth): one boss hit took a tank from 45% to dead.
+# Default: 1 (enabled)
+AiPlayerbot.CoaFastHealBelowLow = 1
+
+# Raid and dungeon target exclusions (Molten Core, Blackwing Lair, Karazhan...) also apply to
+# raid marks and to the count of enemies that starts an area attack: a skull on an excluded
+# unit no longer overrides them, and excluded units no longer trigger "coa aoe".
+# Default: 1 (enabled)
+AiPlayerbot.CoaExclusionsEverywhere = 1
+
+# Damage dealers keep their target unless another one is clearly better (dies a quarter sooner,
+# or stands 5 yards closer), and the list of attackers comes in a stable order (distance, then
+# id): bots no longer flip between two mobs every second and stand still in between.
+# Default: 1 (enabled)
+AiPlayerbot.CoaStickyTarget = 1
+
+# In dungeons, damage dealers switch to a mob that runs off to fetch help (not a boss, not a
+# feared mob) and snares slow it down; a skull mark still comes first, and tanks keep the pack.
+# Default: 1 (enabled)
+AiPlayerbot.CoaFocusRunners = 1
+
+# A target that steps out of sight for a moment (pillar, wall, a player in the way) is kept:
+# the bot walks around instead of dropping the fight and taking the same target back next
+# update. Works best with CoaRegainLineOfSight.
+# Default: 1 (enabled)
+AiPlayerbot.CoaKeepTargetOutOfSight = 1
+
+# In dungeons and raids, out of combat, a routine move (follow, loot, positioning) that would
+# end inside the aggro radius of an idle hostile mob is refused: bots no longer pull a pack by
+# walking past it. Moves toward the bot's own target, fights and orders are not affected.
+# Default: 1 (enabled)
+AiPlayerbot.CoaBodyPullGuard = 1
+
+# In a dungeon or raid fight, a bot no longer runs after an enemy farther than healing range
+# from the main tank (from its healer, for a tank): casters and melee stopped dying alone at an
+# add spawn point. A tank may still fetch an enemy nobody holds yet (the pull).
+# Default: 1 (enabled)
+AiPlayerbot.CoaChaseLeash = 1
+
+# In a party of five, ranged damage dealers and healers stand behind the living tank (next to
+# the healer when it is already back there), step back when they end up on the mob's side,
+# and melee close on the tank's side of the mob. Follow between pulls uses the same spot. Works
+# with the CoA healer rules (within 18 yards of the tank): the spot is 12 yards behind it.
+# Default: 1 (enabled)
+AiPlayerbot.CoaHoldBehindTank = 1
+
+# Dungeon finder: random damage dealers hold back only while a queued party of real players
+# still misses a tank or a healer that no queued bot covers. The old test held them back
+# whenever a queued player was not tank and healer at once, nearly always, so players waited
+# for damage dealers.
+# Default: 1 (enabled)
+AiPlayerbot.CoaLfgMissingRoles = 1
+
 #    AiPlayerbot.CoaTankOpenerSeconds
 #        Description: With CoaSmartTank, a CoA damage dealer lets the tank open: on a target no tank
 #                     has touched yet it waits at most this many seconds, then goes all out. Read
@@ -1665,6 +1759,27 @@ AiPlayerbot.Coa.AncestralCombatFix = 1
 #        Default:     1
 
 AiPlayerbot.CoaKeepPassiveAuras = 1
+
+#    AiPlayerbot.CoaRatedSoloQueue
+#        Description: 1 - while a real player waits in a rated solo queue (1v1, 2v2 or 3v3 with roles), random
+#                     bots of their level bracket join it, just enough to complete the matches: healers and
+#                     damage dealers as the 2v2 and 3v3 lineups need them. A bot gets a personal arena team
+#                     of that bracket, as a player does. The role of a real player is read from their spec.
+#                     0 - bots never join the rated solo queues.
+#                     Read again by ".reload config".
+#        Default:     1
+
+AiPlayerbot.CoaRatedSoloQueue = 1
+
+#    AiPlayerbot.CoaRatedSoloRoleFallback
+#        Description: seconds a real player waits in a rated solo 2v2 or 3v3 queue, bots already queued with
+#                     them and no match started, before their role is taken for the other one: one more bot,
+#                     a healer if they were read as a damage dealer and a damage dealer if read as a healer,
+#                     once per wait. A bot no lineup needs leaves the queue after its usual wait.
+#                     0 - never. Read again by ".reload config".
+#        Default:     40
+
+AiPlayerbot.CoaRatedSoloRoleFallback = 40
 
 #    AiPlayerbot.CoaArenaReady
 #        Description: 1 - an arena shows a ready pylon in each starting room, as on the original CoA realm.
@@ -2396,10 +2511,10 @@ AiPlayerbot.RandomBotAutoJoinBGRatedArena5v5Count = 0
 # You may need to first delete all arena teams, then reinitialize bots.
 # Warning: Reinitializing bots completely resets them (command in game: .playerbots rndbot init)
 # Bots only join one arena team to avoid queueing issues. Take that into account when increasing count.
-# Default: 2v2: 10 (20 Bots), 3v3: 10 (30 bots), 5v5: 5 (25 bots)
+# Default: 2v2: 10 (20 Bots), 3v3: 10 (30 bots), 5v5: 0 (CoA has no 5v5; bot 5v5 teams left from before are disbanded at start)
 AiPlayerbot.RandomBotArenaTeam2v2Count = 10
 AiPlayerbot.RandomBotArenaTeam3v3Count = 10
-AiPlayerbot.RandomBotArenaTeam5v5Count = 5
+AiPlayerbot.RandomBotArenaTeam5v5Count = 0
 
 # Arena rating is randomized on team creation.
 # Default: Max: 2000, Min: 1000
