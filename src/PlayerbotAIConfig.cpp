@@ -8,6 +8,7 @@
 #include "BisListMgr.h"
 #include "CoaBotNames.h"
 #include "Config.h"
+#include "ContentScalingHooks.h"
 #include "NewRpgInfo.h"
 #include "PlayerbotDungeonRepository.h"
 #include "PlayerbotFactory.h"
@@ -423,6 +424,18 @@ bool PlayerbotAIConfig::Initialize()
         randomBotMaxLevel = sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL);
     }
 
+    // A content scaling module that moves the world's levels (the journey of mod-coa-content-scaling) says where
+    // the bots stop and when they ride.
+    LocalLevelScaling::BotLevelPlan contentPlan;
+    bool const hasContentPlan = LocalLevelScaling::GetContentScalingBotLevelPlan(contentPlan);
+    if (hasContentPlan && contentPlan.maxLevel && randomBotMaxLevel > contentPlan.maxLevel)
+    {
+        LOG_WARN("server.loading",
+                 "Content scaling: the random bots stop at {}, not at {} (AiPlayerbot.RandomBotMaxLevel)",
+                 contentPlan.maxLevel, randomBotMaxLevel);
+        randomBotMaxLevel = contentPlan.maxLevel;
+    }
+
     // Bracket defaults (below) derive from randomBotMaxLevel, so this must run after it is read.
     LoadRandomBotLevelConfig();
 
@@ -484,6 +497,13 @@ bool PlayerbotAIConfig::Initialize()
     useFastGroundMountAtMinLevel = sConfigMgr->GetOption<int32>("AiPlayerbot.UseFastGroundMountAtMinLevel", 40);
     useFlyMountAtMinLevel = sConfigMgr->GetOption<int32>("AiPlayerbot.UseFlyMountAtMinLevel", 60);
     useFastFlyMountAtMinLevel = sConfigMgr->GetOption<int32>("AiPlayerbot.UseFastFlyMountAtMinLevel", 70);
+    if (hasContentPlan && contentPlan.groundMountLevel)
+    {
+        useGroundMountAtMinLevel = contentPlan.groundMountLevel;
+        useFastGroundMountAtMinLevel = contentPlan.fastGroundMountLevel;
+        useFlyMountAtMinLevel = contentPlan.flyMountLevel;
+        useFastFlyMountAtMinLevel = contentPlan.fastFlyMountLevel;
+    }
 
     // stagger bot flightpath takeoff
     botTaxiDelayMin = sConfigMgr->GetOption<uint32>("AiPlayerbot.BotTaxiDelayMinMs", 350);

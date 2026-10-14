@@ -8,6 +8,7 @@
 #include "AreaDefines.h"
 #include "CellImpl.h"
 #include "ChatHelper.h"
+#include "ContentScalingHooks.h"
 #include "Corpse.h"
 #include "Creature.h"
 #include "Log.h"
@@ -4643,6 +4644,17 @@ void TravelMgr::PrepareZone2LevelBracket()
     for (auto const& [zoneId, bracketPair] : sPlayerbotAIConfig.zoneBrackets)
         zone2LevelBracket[zoneId] = {bracketPair.first, bracketPair.second};
 
+    // A content scaling module that moves the world's levels (the journey of mod-coa-content-scaling) lays Outland
+    // and Northrend below 60 too: its brackets win, and its zones stay open to bots that stop at 60.
+    std::set<uint32> contentZones;
+    LocalLevelScaling::BotLevelPlan contentPlan;
+    if (LocalLevelScaling::GetContentScalingBotLevelPlan(contentPlan))
+        for (auto const& [zoneId, bracket] : contentPlan.zoneBrackets)
+        {
+            zone2LevelBracket[zoneId] = {bracket.first, bracket.second};
+            contentZones.insert(zoneId);
+        }
+
     // A realm whose bots stop at 60 (Conquest of Azeroth) has no Burning Crusade or Wrath content to send them
     // to, whatever an older playerbots.conf says: level 58-60 bots were teleported to Hellfire Peninsula and
     // Zangarmarsh (Zyth45/mod-playerbots#14). The Blood Elf and Draenei zones stay.
@@ -4652,7 +4664,8 @@ void TravelMgr::PrepareZone2LevelBracket()
                               AREA_DRAGONBLIGHT, AREA_ZUL_DRAK, AREA_THE_STORM_PEAKS, 210u, AREA_GRIZZLY_HILLS,
                               AREA_HOWLING_FJORD, AREA_CRYSTALSONG_FOREST, AREA_BOREAN_TUNDRA, AREA_SHOLAZAR_BASIN,
                               AREA_WINTERGRASP})
-            zone2LevelBracket.erase(zoneId);
+            if (!contentZones.count(zoneId))
+                zone2LevelBracket.erase(zoneId);
 }
 
 void TravelMgr::PrepareDestinationCache()
