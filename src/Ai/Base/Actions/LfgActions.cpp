@@ -19,6 +19,27 @@
 
 using namespace lfg;
 
+namespace
+{
+    // The level range the core's Dungeon Finder applies; content scaling moves it away from the client DBC.
+    std::pair<uint32, uint32> FinderLevels(LFGDungeonEntry const* dungeon)
+    {
+        if (LFGDungeonData const* data = sLFGMgr->GetLFGDungeon(dungeon->ID))
+            return { data->minlevel, data->maxlevel };
+        return { dungeon->MinLevel, dungeon->MaxLevel };
+    }
+
+    // The lowest level a dungeon queued by a real player of this team admits, but never above 15.
+    uint32 LowestQueuedLevel(TeamId team)
+    {
+        uint32 lowest = 15;
+        for (uint32 id : RandomPlayerbotMgr::instance().LfgDungeons[team])
+            if (LFGDungeonData const* data = sLFGMgr->GetLFGDungeon(id); data && data->minlevel)
+                lowest = std::min<uint32>(lowest, data->minlevel);
+        return lowest;
+    }
+}
+
 bool LfgJoinAction::Execute(Event /*event*/) { return JoinLFG(); }
 
 uint32 LfgJoinAction::GetRoles()
@@ -127,10 +148,11 @@ bool LfgJoinAction::JoinLFG()
             continue;
 
         auto const& botLevel = bot->GetLevel();
+        auto const [minLevel, maxLevel] = FinderLevels(dungeon);
 
         /*LFG_TYPE_RANDOM on classic is 15-58 so bot over level 25 will never queue*/
-        if ((dungeon->MinLevel && (botLevel < dungeon->MinLevel || botLevel > dungeon->MaxLevel)) ||
-            (botLevel > dungeon->MinLevel + 10 && dungeon->TypeID == LFG_TYPE_DUNGEON))
+        if ((minLevel && (botLevel < minLevel || botLevel > maxLevel)) ||
+            (botLevel > minLevel + 10 && dungeon->TypeID == LFG_TYPE_DUNGEON))
             continue;
 
         // The finder range comes from the DBC, the entrance checks dungeon_access_template: a bot below
@@ -376,7 +398,7 @@ bool LfgJoinAction::isUseful()
         return false;
     }
 
-    if (bot->GetLevel() < 15)
+    if (bot->GetLevel() < LowestQueuedLevel(bot->GetTeamId()))
         return false;
 
     // Don't use for selfbots (a real player is at the keyboard).
