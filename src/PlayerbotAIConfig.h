@@ -422,6 +422,12 @@ public:
     bool coaNextTargetSameTick;
     bool coaKeepCombatEngine;
     bool coaNoFacingWhileMoving;
+    bool coaSmartDispel;
+    bool coaAvoidMarkedAlly;
+    bool coaMeleeNoRangedHardcast;
+    bool coaLootMakeRoom;
+    bool coaPvpTrinket;
+    bool coaArenaPurge;
     bool coaBossKnowledge;
     bool coaRecruitSameFaction;
     uint32 coaBotSurname;

@@ -1,5 +1,69 @@
 # CoA Bots — changelog
 
+## v2.3 — Your reports, better cleanses and healers, smarter PvP (October 2026)
+
+Many fixes from ladiabale's test runs and pull requests (thanks!).
+
+### Rotations
+- **Chronomancer Artificer and Infinite**: no more Time Out! as a filler, a 6 s self-stun cast with full mana
+  (Zyth45/mod-playerbots#35, ladiabale).
+- **Guardian** (all three specs): no more Assume Peak Posture, a cosmetic aura that any movement ends; the bot
+  stood still in combat to cast it, and out of combat it was taken for a stance (ladiabale).
+- Shipped as `zz_coa_rotation_corrections_2_2_2_time_out.sql` and `zz_coa_rotation_corrections_2_2_2_peak_posture.sql`
+  (default rotations only, rows chosen by content, re-runnable). Restart the worldserver to see the change.
+
+### Rotations — from the specs site reports (thanks kuribo)
+- **Witch Doctor Shadowhunting**: Frenzied Spirits and Spirit Eclipse at 5 stacks of Spirit, no Hex of Malice nor
+  Malefic Wrath, Shadow Avatar up first.
+- **Primalist Mountain King** (tank): Earthen Avatar under low health, Bearskin and Primal Convergence under critical
+  health instead of all on cooldown at once; Ursoc's Bellow kept up on the target.
+- **Venomancer Fortitude** (tank): Weakening Venom instead of Adrenal Venom, Lifeblood under low health.
+- Shipped as `zz_coa_rotation_corrections_2_3.sql`.
+
+### Healers and cleanses (from ladiabale's Zul'Farrak and Sunken Temple runs)
+- **Resonance Rune** (Runemaster) is used to cleanse allies: it was taken for an attack only because it also purges
+  the enemies in its area, so during Hex on the healer the one cleanse the group had was never cast on her.
+- A cleanse is only tried when one able to clear the debuff is ready: a Ranger whose self-cleanse was on cooldown
+  failed it over and over without casting anything.
+- A healer with no heal over time known no longer keeps trying one on the tank: a Fleshweaver did, and nothing
+  answered the tank between 65 and 85% health.
+
+### Fixes
+- **Pyromancer Draconic** bots carrying the hidden Draconic Form aura (704262) take their Draconic Aspect form again:
+  that hidden marker shares the form's spell category and counted as a buff already worn (thanks mightyrathalos).
+
+### Bots
+- **Lower spell ranks usable again** after a bot is rebuilt at a lower level: the rank kept below a removed one
+  stayed inactive until the next login, and its rotation rows failed (ladiabale).
+- **CoA class bots no longer get a miscellaneous item or a fishing pole as their weapon** from the gear factory,
+  and give one up at their next gear-up: their weapon strikes failed with it (ladiabale).
+- **Preferred mounts** (`mount <spell>`) are found again when the playerbots database has another name than
+  `acore_playerbots`, and survive a restart (ladiabale).
+- **Alts no longer run circles around you**: the "ranged and healers behind the tank" placement from 2.2 could take
+  you for the tank and followed your facing out of combat. It is now off by default (`CoaHoldBehindTank = 1` to try
+  it, combat only).
+- **Battlegrounds**: a bot hit by a player while capturing an Arathi Basin (or other base) flag fights back instead
+  of restarting the capture under the hits.
+
+### Combat, arenas and group play
+Each behaviour change has its own switch in `playerbots.conf` (all on by default, `0` turns one off).
+- **Stability**: a pair of settings written the wrong way round (MaxRandomBots under MinRandomBots, and the other
+  min/max ranges) no longer stops the server when the bots load: the two values are swapped, with an error in the
+  log; level rolls and the empty mount or travel lists can no longer draw out of range. Bots stuck mounted after a
+  taxi flight are freed. Addon messages (DBM, Carbonite...) no longer command bots or open trades (SquidBots Lite is
+  not affected).
+- **Dispels**: a member stunned, feared, polymorphed or silenced is freed first, healers then tanks; one dispeller
+  per member; cleanses laid on the ground or around the caster now reach the group, and spells that also strike
+  enemies still cleanse (`AiPlayerbot.CoaSmartDispel`).
+- **Marked allies**: bots step out of the reach of a member carrying a bomb, brand or beacon, read from the spell
+  data, and the carrier steps away from the others (`AiPlayerbot.CoaAvoidMarkedAlly`).
+- **Melee hybrids** close in instead of hardcasting from 20 yards; only their instants on the way
+  (`AiPlayerbot.CoaMeleeNoRangedHardcast`).
+- **Full bags**: random bots no longer leave a quest item or an uncommon or better drop on the corpse, the cheapest
+  grey item makes room for it; your own bots' bags are not touched (`AiPlayerbot.CoaLootMakeRoom`).
+- **Arenas**: the PvP trinket breaks a stun, fear, polymorph or charm of 2 seconds or more, in arenas, battlegrounds
+  and duels (`AiPlayerbot.CoaPvpTrinket`); purgers take magic buffs off the enemy players (`AiPlayerbot.CoaArenaPurge`).
+
 ## v2.2.1 — Rated arenas with your party (October 2026)
 
 Needs the core with the rated solo arena changes (jealous-sound/azerothcore-wotlk-coa, rated solo queue #7408 and
@@ -13,7 +77,7 @@ its follow-up: "Join as Group" in the rated solo system, Arena Points and runes 
   accepts.
 - The needs of the rated solo queues are logged (bots wanted per bracket and role).
 
-## v2.2 — Rated solo queues, ideas from other forks and your reports (October 2026)
+## v2.2 — Rated solo queues, smarter group play and your reports (October 2026)
 
 ### Rotations — from the specs site reports
 - **Primalist Mountain King**: Geode Barrage only on the Aftershock proc (instant), no more channelled filler.
@@ -45,28 +109,25 @@ its follow-up: "Join as Group" in the rated solo system, Arena Points and runes 
   their own faction comes back when they leave.
 - Random bots back from an arena or battleground leave a party they were left in with a real player.
 
-### Forks — ideas from other mod-playerbots forks
+### Combat, arenas and group play
 Each behaviour change has its own switch in `playerbots.conf` (all on by default, `0` turns one off).
 - **Stability**: the command server listens on 127.0.0.1 only, bounds its input and runs commands on the world
-  thread (`AiPlayerbot.CommandServerBind`; jealous-sound, via HatredPsycho); no crash when a bot flees from a player
-  (leewheel); no double delete of a ground-targeted spell cast while moving (pengjinfei); items no longer read after
-  being freed (upstream #2811, Terry Raimondo and Celandriel; avirar); locks on the bot event cache, the packet
-  queue, the trainer and item caches, and chat heard in the bot's own update (shiro2448).
-- **Area effects**: the detectors of ground and aura damage no longer give up on the first unrelated mob or aura
-  (felworld, f33rx). Tanks ignore passive summons that attack nobody (pengjinfei).
-- **Healers**: walk back into line of sight of whoever needs healing (`CoaRegainLineOfSight`, f33rx); keep healing
-  on the move (`CoaNoFacingWhileMoving`, pengjinfei); stay in their combat strategies while the fight goes on
-  (`CoaKeepCombatEngine`, pengjinfei); heal themselves first when hurt and nobody is in danger (`CoaHealSelfFirst`,
-  idea of pengjinfei); use their fast heals from 45% health when saving mana (`CoaFastHealBelowLow`, shiro2448).
-- **Targeting**: next target in the same update and a wider facing (`CoaNextTargetSameTick`, pengjinfei); raid
-  exclusions also apply to marks and area attacks (`CoaExclusionsEverywhere`, upstream #2912 by Crow); sticky
-  targets (`CoaStickyTarget`, qavryxdev); mobs running for help are killed and snared first in dungeons
-  (`CoaFocusRunners`, felworld); a target out of sight for a moment is kept (`CoaKeepTargetOutOfSight`, qavryxdev).
-- **Movement**: no more body pulls by walking past an idle pack in dungeons (`CoaBodyPullGuard`, sksmith261); no
-  chasing an enemy far from the tank's fight (`CoaChaseLeash`, pengjinfei); ranged and healers behind the tank,
-  melee on its side (`CoaHoldBehindTank`, f33rx).
+  thread (`AiPlayerbot.CommandServerBind`); no crash when a bot flees from a player; no double delete of a ground-targeted spell cast while moving; items no longer read after
+  being freed; locks on the bot event cache, the packet
+  queue, the trainer and item caches, and chat heard in the bot's own update.
+- **Area effects**: the detectors of ground and aura damage no longer give up on the first unrelated mob or aura. Tanks ignore passive summons that attack nobody.
+- **Healers**: walk back into line of sight of whoever needs healing (`CoaRegainLineOfSight`); keep healing
+  on the move (`CoaNoFacingWhileMoving`); stay in their combat strategies while the fight goes on
+  (`CoaKeepCombatEngine`); heal themselves first when hurt and nobody is in danger (`CoaHealSelfFirst`); use their fast heals from 45% health when saving mana (`CoaFastHealBelowLow`).
+- **Targeting**: next target in the same update and a wider facing (`CoaNextTargetSameTick`); raid
+  exclusions also apply to marks and area attacks (`CoaExclusionsEverywhere`); sticky
+  targets (`CoaStickyTarget`); mobs running for help are killed and snared first in dungeons
+  (`CoaFocusRunners`); a target out of sight for a moment is kept (`CoaKeepTargetOutOfSight`).
+- **Movement**: no more body pulls by walking past an idle pack in dungeons (`CoaBodyPullGuard`); no
+  chasing an enemy far from the tank's fight (`CoaChaseLeash`); ranged and healers behind the tank,
+  melee on its side (`CoaHoldBehindTank`).
 - **Dungeon finder**: random damage dealers hold back only while a queued party really lacks a tank or a healer
-  (`CoaLfgMissingRoles`, ideas of shiro2448 and HatredPsycho).
+  (`CoaLfgMissingRoles`).
 
 ### Fixes
 - **Interrupts**: no kick wasted on a caster immune to its interrupt, even when the kick also deals damage (most
