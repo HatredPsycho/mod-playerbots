@@ -1520,6 +1520,8 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     // Clear LFG list
     LfgDungeons[TEAM_ALLIANCE].clear();
     LfgDungeons[TEAM_HORDE].clear();
+    LfgPlayerLevels[TEAM_ALLIANCE].clear();
+    LfgPlayerLevels[TEAM_HORDE].clear();
     bool needTankOrHeal[2] = {false, false};
     uint32 partiesWithoutTank[2] = {0, 0};
     uint32 partiesWithoutHeal[2] = {0, 0};
@@ -1545,6 +1547,13 @@ void RandomPlayerbotMgr::CheckLfgQueue()
                     continue;
 
                 LfgDungeons[player->GetTeamId()].push_back(dungeon->id);
+                uint8 const level = player->GetLevel();
+                auto [levels, added] = LfgPlayerLevels[player->GetTeamId()].try_emplace(dungeon->id, level, level);
+                if (!added)
+                {
+                    levels->second.first = std::min(levels->second.first, level);
+                    levels->second.second = std::max(levels->second.second, level);
+                }
             }
 
             if (!sPlayerbotAIConfig.coaLfgMissingRoles)

@@ -214,6 +214,8 @@ public:
     std::map<uint32, std::map<uint32, std::map<TeamId, uint32>>> VisualBots;
     std::map<uint32, std::map<uint32, std::map<uint32, uint32>>> Supporters;
     std::map<TeamId, std::vector<uint32>> LfgDungeons;
+    // Lowest and highest level of the real players of a team waiting for a dungeon.
+    std::map<TeamId, std::map<uint32, std::pair<uint8, uint8>>> LfgPlayerLevels;
     // A queued real player of this team still lacks a tank or a healer: damage dealers hold back.
     std::array<std::atomic<bool>, 2> LfgNeedTankOrHeal{};
     void CheckBgQueue();
