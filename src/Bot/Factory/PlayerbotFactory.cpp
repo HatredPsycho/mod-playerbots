@@ -1905,7 +1905,8 @@ uint32 PlayerbotFactory::DropCoaRanksAbove(Player* bot, uint32 level)
         if (grant != NoCoaGrantLevel && grant > level)
             above.push_back(spellId);
     }
-    // Highest first: each removal gives the rank below back its place in the spellbook.
+    // Highest first. The rank below a removed one stays inactive (Player::removeSpell: "can't be replaced by
+    // previous rank"): ReactivateHighestRanks makes it active again at the end.
     std::sort(above.begin(), above.end(), [bot](uint32 a, uint32 b) { return CoaGrantLevel(bot, a) > CoaGrantLevel(bot, b); });
     for (uint32 spellId : above)
         bot->removeSpell(spellId, SPEC_MASK_ALL, false);
@@ -1916,7 +1917,46 @@ uint32 PlayerbotFactory::DropCoaRanksAbove(Player* bot, uint32 level)
             bot->removeSpell(rank.SpellId, SPEC_MASK_ALL, false);
             above.push_back(rank.SpellId);
         }
+    if (!above.empty())
+        ReactivateHighestRanks(bot);
     return uint32(above.size());
+}
+
+uint32 PlayerbotFactory::ReactivateHighestRanks(Player* bot)
+{
+    uint8 const spec = bot->GetActiveSpec();
+    PlayerSpellMap& spells = bot->GetSpellMap();
+    auto const known = [&spells, spec](uint32 spellId)
+    {
+        auto itr = spells.find(spellId);
+        return itr != spells.end() && itr->second->State != PLAYERSPELL_REMOVED && itr->second->IsInSpec(spec);
+    };
+
+    uint32 reactivated = 0;
+    for (auto& [spellId, spell] : spells)
+    {
+        if (spell->State == PLAYERSPELL_REMOVED || spell->Active || !spell->IsInSpec(spec))
+            continue;
+        SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+        if (!info || !info->IsRanked() || info->IsStackableWithRanks())
+            continue;
+
+        // A higher rank of the chain still known keeps this one inactive, as the core does at login.
+        bool higher = false;
+        for (uint32 next = sSpellMgr->GetNextSpellInChain(spellId); next && !higher;
+             next = sSpellMgr->GetNextSpellInChain(next))
+            higher = known(next);
+        if (higher)
+            continue;
+
+        spell->Active = true;
+        ++reactivated;
+    }
+
+    if (reactivated)
+        LOG_INFO("playerbots", "coa: {} (class {}, level {}) reactivated {} spell ranks after higher ranks were removed",
+                 bot->GetName(), bot->getClass(), bot->GetLevel(), reactivated);
+    return reactivated;
 }
 
 void PlayerbotFactory::ClearSpells()
@@ -2355,6 +2395,14 @@ void PlayerbotFactory::AddItemStats(uint32 mod, uint8& sp, uint8& ap, uint8& tan
 bool PlayerbotFactory::CanEquipWeapon(ItemTemplate const* proto)
 {
     if (proto->SubClass == ITEM_SUBCLASS_WEAPON_WAND && CoaSpecNeedsShootingWeapon(bot))
+        return false;
+
+    // The CoA classes have no case below and took any weapon. A Templar tank held two Jade Bracers (12866, a
+    // miscellaneous "weapon" with 1-1 damage), and its strikes that need a real weapon failed (Condemn,
+    // Righteous Lunge, Holy Cleave: EquippedItemSubClassMask 0x2A5F3, without miscellaneous). A miscellaneous
+    // item or a fishing pole is never their weapon.
+    if (IsAscensionCustomClassId(bot->getClass()) &&
+        (proto->SubClass == ITEM_SUBCLASS_WEAPON_MISC || proto->SubClass == ITEM_SUBCLASS_WEAPON_FISHING_POLE))
         return false;
 
     switch (bot->getClass())
@@ -2932,10 +2980,14 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
             continue;
         }
 
-        // CoA: an idol or a wand held by a spec that shoots gives way to the bow whatever it scores.
+        // CoA: an idol or a wand held by a spec that shoots gives way to the bow whatever it scores, and so
+        // does a weapon CanEquipWeapon no longer allows (a miscellaneous item held before that rule).
         bool const oldCannotShoot = slot == EQUIPMENT_SLOT_RANGED && oldItem &&
                                     CoaRangedSlotCannotShoot(bot, oldItem->GetTemplate());
-        if (incremental && oldItem && !oldCannotShoot)
+        bool const oldNoWeapon = oldItem && IsAscensionCustomClassId(bot->getClass()) &&
+                                 oldItem->GetTemplate()->Class == ITEM_CLASS_WEAPON &&
+                                 !CanEquipWeapon(oldItem->GetTemplate());
+        if (incremental && oldItem && !oldCannotShoot && !oldNoWeapon)
         {
             float old_score = calculator.CalculateItem(oldItem->GetEntry(), oldItem->GetItemRandomPropertyId(), slot);
             if (bestScoreForSlot < 1.2f * old_score)
@@ -4506,6 +4558,10 @@ void PlayerbotFactory::InitMounts()
             continue;
 
         if (bot->GetLevel() < fourthmount && type == 3)
+            continue;
+
+        // A team without flying mounts leaves its list empty: urand(0, size - 1) would draw out of it.
+        if (mounts[bot->getRace()][type].empty())
             continue;
 
         uint32 index = urand(0, mounts[bot->getRace()][type].size() - 1);

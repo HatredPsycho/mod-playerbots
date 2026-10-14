@@ -29,7 +29,7 @@
 #include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.2.1";
+static constexpr char const* COA_BOTS_VERSION = "2.3";
 
 // The login notices reach each account once per worldserver start, not again with every character it logs in.
 static bool FirstLoginSinceStart(uint32 accountId)
@@ -224,9 +224,9 @@ public:
 
     using PlayerScript::OnPlayerCanUseChat;  // keep the base overloads visible
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Player* receiver) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Player* receiver) override
     {
-        if (type != CHAT_MSG_WHISPER)
+        if (type != CHAT_MSG_WHISPER || lang == LANG_ADDON)
         {
             return true;
         }
@@ -249,8 +249,12 @@ public:
         return true;
     }
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Group* group) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Group* group) override
     {
+        // Addon traffic (DBM, Carbonite, ...) is no bot command; its text used to trigger item commands like trade.
+        if (lang == LANG_ADDON)
+            return true;
+
         for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
         {
             Player* const member = itr->GetSource();
@@ -269,9 +273,9 @@ public:
         return true;
     }
 
-    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg, Guild* /*guild*/) override
+    bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Guild* /*guild*/) override
     {
-        if (type != CHAT_MSG_GUILD)
+        if (type != CHAT_MSG_GUILD || lang == LANG_ADDON)
             return true;
 
         PlayerbotMgr* playerbotMgr = PlayerbotsMgr::instance().GetPlayerbotMgr(player);
