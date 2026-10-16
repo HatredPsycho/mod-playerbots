@@ -6,7 +6,11 @@
 
 #include "RFCTriggers.h"
 #include "AiObjectContext.h"
+#include "Map.h"
 #include "Playerbots.h"
+
+#include <cmath>
+#include <limits>
 
 namespace RagefireEscort
 {
@@ -72,27 +76,69 @@ namespace TaragamanPillar
         return true;
     }
 
-    Position CoverSpot(Unit* boss, Creature* pillar)
+    bool HasCore(Creature* pillar)
     {
-        float dx = pillar->GetPositionX() - boss->GetPositionX();
-        float dy = pillar->GetPositionY() - boss->GetPositionY();
-        float const length = std::sqrt(dx * dx + dy * dy);
-        if (length < 0.1f)
-        {
-            dx = std::cos(pillar->GetOrientation());
-            dy = std::sin(pillar->GetOrientation());
-        }
-        else
-        {
-            dx /= length;
-            dy /= length;
-        }
+        return pillar->FindNearestGameObject(GO_EARTH_PILLAR_CORE, EARTH_PILLAR_CORE_SEARCH, true) != nullptr;
+    }
 
-        float x = pillar->GetPositionX() + dx * EARTH_PILLAR_COVER;
-        float y = pillar->GetPositionY() + dy * EARTH_PILLAR_COVER;
-        float z = pillar->GetPositionZ();
-        pillar->UpdateAllowedPositionZ(x, y, z);
-        return Position(x, y, z, std::atan2(-dy, -dx));
+    // Mirrors the area spell's own target check: from the boss's hit sphere to the bot's chest, with
+    // M2 models ignored.
+    bool Hidden(Player* bot, Unit* boss, float x, float y, float z)
+    {
+        float const chest = z + bot->GetCollisionHeight();
+        float sx, sy, sz;
+        boss->GetHitSpherePointFor({ x, y, chest }, sx, sy, sz);
+        return !boss->GetMap()->isInLineOfSight(sx, sy, sz, x, y, chest, boss->GetPhaseMask(),
+                                                LINEOFSIGHT_ALL_CHECKS, VMAP::ModelIgnoreFlags::M2);
+    }
+
+    bool SafelyHidden(Player* bot, Unit* boss, float x, float y, float z)
+    {
+        if (!Hidden(bot, boss, x, y, z))
+            return false;
+
+        float const angle = boss->GetAngle(x, y) + float(M_PI) / 2.0f;
+        float const sideX = std::cos(angle) * EARTH_PILLAR_SHADOW_MARGIN;
+        float const sideY = std::sin(angle) * EARTH_PILLAR_SHADOW_MARGIN;
+        return Hidden(bot, boss, x + sideX, y + sideY, z) && Hidden(bot, boss, x - sideX, y - sideY, z);
+    }
+
+    Position CoverSpot(Player* bot, Unit* boss, Creature* pillar)
+    {
+        float const away = boss->GetAngle(pillar);
+        auto spotAt = [pillar, away](float offset, float radius)
+        {
+            float x = pillar->GetPositionX() + std::cos(away + offset) * radius;
+            float y = pillar->GetPositionY() + std::sin(away + offset) * radius;
+            float z = pillar->GetPositionZ();
+            pillar->UpdateAllowedPositionZ(x, y, z);
+            return Position(x, y, z, away + float(M_PI));
+        };
+
+        Position const fallback = spotAt(0.0f, EARTH_PILLAR_COVER);
+        if (!HasCore(pillar))
+            return fallback;
+
+        // Directly behind the pillar first, then fanning out; the nearest safe spot wins so nobody
+        // runs round the pillar when a closer one would do.
+        static constexpr float Radii[] = { 2.0f, 2.5f, 3.0f, 4.0f, 5.0f };
+        static constexpr float Offsets[] = { 0.0f, 0.26f, -0.26f, 0.52f, -0.52f, 0.79f, -0.79f };
+        Position best = fallback;
+        float bestDistance = std::numeric_limits<float>::max();
+        for (float offset : Offsets)
+            for (float radius : Radii)
+            {
+                Position const spot = spotAt(offset, radius);
+                float const distance = bot->GetExactDist2d(spot);
+                if (distance >= bestDistance ||
+                    !SafelyHidden(bot, boss, spot.GetPositionX(), spot.GetPositionY(), spot.GetPositionZ()))
+                    continue;
+
+                best = spot;
+                bestDistance = distance;
+            }
+
+        return best;
     }
 }
 

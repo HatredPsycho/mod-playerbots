@@ -30,6 +30,7 @@ enum RagefireChasmIDs
     // seconds later, starts a six second Massive Fire Nova that covers the whole room. Only
     // standing behind the pillar, out of his line of sight, survives it.
     NPC_RUMBLING_EARTH             = 663030,
+    GO_EARTH_PILLAR_CORE           = 663043,
     SPELL_MASSIVE_FIRE_NOVA        = 2102516
 };
 
@@ -39,10 +40,15 @@ constexpr float FIRE_NOVA_RADIUS = 10.0f;
 constexpr float FIRE_NOVA_SAFETY = 3.0f;
 
 // The nova reaches seventy yards, so any pillar the bot can find in that range is the one to use.
-// The hiding spot sits this far past the pillar's centre, on the side facing away from the boss.
+// Until the pillar's collision core has risen, the bot heads for a spot this far past the pillar's
+// centre on the side facing away from the boss. Once it stands, the spot is chosen with the same line
+// of sight test the nova uses, and must stay hidden this far to either side so a small drift on
+// arrival does not expose the bot.
 constexpr float EARTH_PILLAR_SEARCH = 70.0f;
 constexpr float EARTH_PILLAR_COVER = 2.5f;
 constexpr float EARTH_PILLAR_TOLERANCE = 1.0f;
+constexpr float EARTH_PILLAR_CORE_SEARCH = 5.0f;
+constexpr float EARTH_PILLAR_SHADOW_MARGIN = 0.75f;
 
 // The room a boss shares with its escort, measured from the spawns: Oggleflint stands within
 // thirteen yards of a Trogg and a Shaman, Jergosh and Bazzalan within twelve of their Cultists.
@@ -65,7 +71,10 @@ namespace TaragamanPillar
     Unit* Boss(PlayerbotAI* botAI, AiObjectContext* context);
     Creature* Find(Player* bot);
     bool ShouldHide(PlayerbotAI* botAI, Player* bot, AiObjectContext* context);
-    Position CoverSpot(Unit* boss, Creature* pillar);
+    bool HasCore(Creature* pillar);
+    bool Hidden(Player* bot, Unit* boss, float x, float y, float z);
+    bool SafelyHidden(Player* bot, Unit* boss, float x, float y, float z);
+    Position CoverSpot(Player* bot, Unit* boss, Creature* pillar);
 }
 
 class OggleflintAddsTrigger : public Trigger
