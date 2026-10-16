@@ -44,6 +44,58 @@ namespace RagefireEscort
     }
 }
 
+namespace TaragamanPillar
+{
+    Unit* Boss(PlayerbotAI* botAI, AiObjectContext* context)
+    {
+        Unit* boss = AI_VALUE2(Unit*, "find target", "taragaman the hungerer");
+        return boss && boss->IsAlive() ? boss : nullptr;
+    }
+
+    Creature* Find(Player* bot)
+    {
+        Creature* pillar = bot->FindNearestCreature(NPC_RUMBLING_EARTH, EARTH_PILLAR_SEARCH);
+        return pillar && pillar->IsAlive() ? pillar : nullptr;
+    }
+
+    bool ShouldHide(PlayerbotAI* botAI, Player* bot, AiObjectContext* context)
+    {
+        Unit* boss = Boss(botAI, context);
+        if (!boss || !Find(bot))
+            return false;
+
+        // The tank keeps Taragaman where he is until the nova is actually being cast; leaving
+        // earlier would only drag him along to the pillar.
+        if (botAI->IsTank(bot))
+            return boss->HasUnitState(UNIT_STATE_CASTING) && boss->FindCurrentSpellBySpellId(SPELL_MASSIVE_FIRE_NOVA);
+
+        return true;
+    }
+
+    Position CoverSpot(Unit* boss, Creature* pillar)
+    {
+        float dx = pillar->GetPositionX() - boss->GetPositionX();
+        float dy = pillar->GetPositionY() - boss->GetPositionY();
+        float const length = std::sqrt(dx * dx + dy * dy);
+        if (length < 0.1f)
+        {
+            dx = std::cos(pillar->GetOrientation());
+            dy = std::sin(pillar->GetOrientation());
+        }
+        else
+        {
+            dx /= length;
+            dy /= length;
+        }
+
+        float x = pillar->GetPositionX() + dx * EARTH_PILLAR_COVER;
+        float y = pillar->GetPositionY() + dy * EARTH_PILLAR_COVER;
+        float z = pillar->GetPositionZ();
+        pillar->UpdateAllowedPositionZ(x, y, z);
+        return Position(x, y, z, std::atan2(-dy, -dx));
+    }
+}
+
 bool OggleflintAddsTrigger::IsActive()
 {
     // The Shaman is named first on purpose: it is the one that heals, and the action takes the
@@ -77,5 +129,13 @@ bool TaragamanFireNovaTrigger::IsActive()
     if (!boss || !boss->IsAlive())
         return false;
 
+    if (TaragamanPillar::ShouldHide(botAI, bot, context))
+        return false;
+
     return bot->GetExactDist2d(boss->GetPosition()) < FIRE_NOVA_RADIUS + FIRE_NOVA_SAFETY;
+}
+
+bool TaragamanMassiveFireNovaTrigger::IsActive()
+{
+    return TaragamanPillar::ShouldHide(botAI, bot, context);
 }
