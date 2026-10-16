@@ -23,14 +23,26 @@ enum RagefireChasmIDs
     NPC_RAGEFIRE_SHAMAN            = 11319,
     NPC_SEARING_BLADE_CULTIST      = 11322,
 
-    // Taragaman's only area spell. Its radius is what the ranged have to clear.
-    SPELL_FIRE_NOVA                = 11970
+    // Taragaman's small area spell. Its radius is what the ranged have to clear.
+    SPELL_FIRE_NOVA                = 11970,
+
+    // Every 35 seconds Taragaman raises a rock pillar under a player for 15 seconds and, seven
+    // seconds later, starts a six second Massive Fire Nova that covers the whole room. Only
+    // standing behind the pillar, out of his line of sight, survives it.
+    NPC_RUMBLING_EARTH             = 663030,
+    SPELL_MASSIVE_FIRE_NOVA        = 2102516
 };
 
 // Fire Nova reaches ten yards from Taragaman himself. The extra yards keep a bot that drifts
 // slightly from being clipped by the next one.
 constexpr float FIRE_NOVA_RADIUS = 10.0f;
 constexpr float FIRE_NOVA_SAFETY = 3.0f;
+
+// The nova reaches seventy yards, so any pillar the bot can find in that range is the one to use.
+// The hiding spot sits this far past the pillar's centre, on the side facing away from the boss.
+constexpr float EARTH_PILLAR_SEARCH = 70.0f;
+constexpr float EARTH_PILLAR_COVER = 2.5f;
+constexpr float EARTH_PILLAR_TOLERANCE = 1.0f;
 
 // The room a boss shares with its escort, measured from the spawns: Oggleflint stands within
 // thirteen yards of a Trogg and a Shaman, Jergosh and Bazzalan within twelve of their Cultists.
@@ -46,6 +58,14 @@ namespace RagefireEscort
 
     bool StillUp(PlayerbotAI* botAI, Player* bot, AiObjectContext* context, std::string const& bossName,
                  std::initializer_list<uint32> entries);
+}
+
+namespace TaragamanPillar
+{
+    Unit* Boss(PlayerbotAI* botAI, AiObjectContext* context);
+    Creature* Find(Player* bot);
+    bool ShouldHide(PlayerbotAI* botAI, Player* bot, AiObjectContext* context);
+    Position CoverSpot(Unit* boss, Creature* pillar);
 }
 
 class OggleflintAddsTrigger : public Trigger
@@ -73,6 +93,13 @@ class TaragamanFireNovaTrigger : public Trigger
 {
 public:
     TaragamanFireNovaTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman fire nova") {}
+    bool IsActive() override;
+};
+
+class TaragamanMassiveFireNovaTrigger : public Trigger
+{
+public:
+    TaragamanMassiveFireNovaTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman massive fire nova") {}
     bool IsActive() override;
 };
 
