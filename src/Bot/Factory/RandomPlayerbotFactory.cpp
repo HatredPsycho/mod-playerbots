@@ -109,8 +109,18 @@ Player* RandomPlayerbotFactory::CreateRandomBot(WorldSession* session, uint8 cls
     }
 
     const uint8 race = raceOptions[urand(0, raceOptions.size() - 1)];
-    // The male-only custom races (Tuskarr, Vrykul, Gnoll, Saberon...) have no female model.
-    const uint8 gender = (CoaCustomRaces::IsMaleOnly(race) || urand(0, 1)) ? GENDER_MALE : GENDER_FEMALE;
+    // Added races with a male model only (the core's IsAscensionMaleOnlyRace, same list as the client's creation
+    // screen): a female of these races has no body in the client, or wears gear stretched across the screen.
+    // Broken (22) too, from the races' author (CoA Custom README); the core leaves it out since Eunoia's Broken.
+    // Earthen (68, 69): a client crashed drawing earthendwarffemale.m2 among bots (15/10), so their bots stay male.
+    // Ogre (53): its female shows the male model. Alpha Goblin (57): its male has no head (a missing texture shown
+    // as a checker square), so its bots are female.
+    // The realm's male-only custom races (CoaCustomRaces) come on top of these.
+    bool const maleOnly = CoaCustomRaces::IsMaleOnly(race) || race == 15 || race == 17 || race == 18 ||
+                          (race >= 22 && race <= 26) || race == 32 || race == 50 || race == 53 || race == 68 ||
+                          race == 69 || race == 83 || race == 97;
+    bool const femaleOnly = race == 57;
+    const uint8 gender = femaleOnly ? GENDER_FEMALE : (maleOnly || urand(0, 1)) ? GENDER_MALE : GENDER_FEMALE;
     const auto raceAndGender = CombineRaceAndGender(race, gender);
 
     std::string name;

@@ -4904,9 +4904,11 @@ bool IsAlliance(uint8 race)
     if (race == RACE_HUMAN || race == RACE_DWARF || race == RACE_NIGHTELF || race == RACE_GNOME || race == RACE_DRAENEI)
         return true;
 
-    // Races a realm adds (Worgen, Vrykul...) take their side from the core's race table: they all counted as Horde
-    // (idea of rrawnsley, Zyth45/mod-playerbots#17). ChrRaces' team is read by race id, because the race masks
-    // above 32 wrap onto the bit of a lower race.
+    // Races a realm adds (Worgen, Vrykul, Saberon 97...) take their side from ChrRaces.dbc: they all counted as Horde
+    // (idea of rrawnsley, Zyth45/mod-playerbots#17). Not the race mask, which stops at id 32.
+    if (race <= RACE_DRAENEI)
+        return false;
+
     ChrRacesEntry const* entry = sChrRacesStore.LookupEntry(race);
     return entry && entry->TeamID == 7;
 }
