@@ -151,7 +151,7 @@ public:
                 // The source of this build (mod-playerbots and every CoA change) stays linked here.
                 ChatHandler(player->GetSession()).SendSysMessage(
                     std::string("|cff00ff00CoA Bots|r |cff00ccffv") + COA_BOTS_VERSION +
-                    "|r (|cff00ccffmod-playerbots|r) |cffcccccchttps://github.com/HatredPsycho/mod-playerbots|r");
+                    "|r (|cff00ccffmod-playerbots|r) |cffcccccchttps://github.com/Zyth45/mod-playerbots|r");
             }
 
             if (sPlayerbotAIConfig.enabled || sPlayerbotAIConfig.randomBotAutologin)
