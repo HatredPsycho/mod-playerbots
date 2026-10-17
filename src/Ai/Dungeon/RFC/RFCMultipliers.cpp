@@ -52,14 +52,15 @@ float TaragamanTheHungererMultiplier::GetValue(Action* action)
     if (!boss)
         return 1.0f;
 
-    // Behind the pillar the bot has no line of sight to the boss, and every movement or chase
-    // action would walk it back out into the nova.
+    // Behind the pillar every movement or chase action would walk the bot back out into the nova.
+    // Spells still go through: casters keep damaging the boss and healers keep healing whoever is in
+    // range, they just may not move for it.
     if (TaragamanPillar::ShouldHide(botAI, bot, context))
     {
         if (dynamic_cast<TaragamanHideBehindPillarAction*>(action))
             return 1.0f;
 
-        return dynamic_cast<MovementAction*>(action) || IsAssist(action) ? 0.0f : 1.0f;
+        return dynamic_cast<MovementAction*>(action) ? 0.0f : 1.0f;
     }
 
     if (!botAI->IsRanged(bot))
