@@ -122,6 +122,15 @@ AiPlayerbot.DisabledWithoutRealPlayer = 0
 AiPlayerbot.DisabledWithoutRealPlayerLoginDelay = 30
 AiPlayerbot.DisabledWithoutRealPlayerLogoutDelay = 300
 
+# Autosave interval for randombots, in seconds
+# Default: 0 (randombots autosave every PlayerSaveInterval, like players)
+# The core autosaves every character in the world every PlayerSaveInterval (15 minutes by default).
+# With thousands of randombots that is a steady stream of database writes. A longer interval here
+# only spaces out their autosaves: bots still save on logout, at shutdown and when the code saves
+# them on purpose. A randombot whose master is a real player is back on the normal interval from
+# its next save. Values shorter than PlayerSaveInterval are ignored.
+AiPlayerbot.RandomBotSaveInterval = 0
+
 ####################################################################################################
 
 ###################################
@@ -329,6 +338,12 @@ AiPlayerbot.LootNeedRollLevel = 1
 # If disabled, bots will PASS instead of GREED on all items
 # Default: 0 (disabled - bots only NEED or PASS)
 AiPlayerbot.LootGreedRollLevel = 0
+
+# Treat weapons and armor up to this many levels above the bot as upgrades it can grow into:
+# the bot rolls NEED, including against real players in its group, and keeps the item until it can
+# wear it, unless it already holds something at least as good for that slot.
+# Default: 0 (disabled)
+AiPlayerbot.LootNeedLevelLookahead = 0
 
 # Enable bots to roll on recipes. Will NEED on learnable profession recipes they don't already know
 # Bots will roll GREED on BoE recipes they can't learn if LootRollGreed is enabled.
@@ -1701,6 +1716,12 @@ AiPlayerbot.CoaMeleeNoRangedHardcast = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaLootMakeRoom = 1
 
+# In a dungeon or a raid, a bot no longer casts an area spell (its own AoE, a ground spell, a tank's
+# Thunder Clap) that would also hit an attackable creature not yet in combat: the next pack, or the
+# spectators of an arena, are no longer pulled by the group's AoE. Outside instances nothing changes.
+# Default: 1 (enabled)
+AiPlayerbot.CoaAoeNoIdlePull = 1
+
 # In an arena, a battleground or a duel, a CoA bot stunned, feared, polymorphed or charmed for 2
 # seconds or more uses the PvP trinket it wears (spell 42292) to break free. Bots wore it and never
 # used it.
@@ -2225,6 +2246,14 @@ AiPlayerbot.LootLogMinQuality = 3
 # Randombots automatically spend talent points on levelup
 # Default: 1 (enabled)
 AiPlayerbot.AutoPickTalents = 1
+
+# Altbots (your own characters added as bots) spend their free talent points by themselves, on levelup and when
+# they log in: CoA classes along their specialization's level build, other classes with the talent template of
+# their main tree. Points already spent are kept: nothing is lowered, reset or swapped, and a free choice you made
+# stays yours. "talents autopick" does the same on demand. Off by default: it spends points on players' own
+# characters; set it to 1 on a server of your own.
+# Default: 0 (disabled)
+AiPlayerbot.AutoPickTalentsAltBots = 0
 
 # Spells every randombot will learn automatically and every altbot will learn with maintenance
 # Default: 54197 (Cold Weather Flying)

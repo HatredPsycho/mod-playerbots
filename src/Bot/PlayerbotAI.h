@@ -433,6 +433,9 @@ public:
     void Reset(bool full = false);
     void LeaveOrDisbandGroup();
     static bool IsTank(Player* player, bool bySpec = false);
+    // The target would most likely send this spell back (Kalithresh's Warlord's Rage, a reflect stance): the spell
+    // itself or the spells it triggers, two levels down.
+    static bool WouldBeReflected(Unit* caster, SpellInfo const* spellInfo, Unit* target);
     // AiPlayerbot.CoaGearByContent: look at the bot's gear within the next two seconds (it just queued).
     void CoaCheckGearSoon() { coaGearCheckedAt = getMSTime() - 8000; }
     // Last time the bot was seen in a battleground, an arena or their queue (RandomPlayerbotMgr::CoaUpdateGear).
@@ -534,6 +537,9 @@ public:
     bool CanCastSpell(uint32 spellid, GameObject* goTarget, bool checkHasSpell = true);
     bool CanCastSpell(uint32 spellid, float x, float y, float z, bool checkHasSpell = true,
                       Item* itemTarget = nullptr);
+    // True when an enemy area spell centred on (x, y, z) would also hit an attackable creature that
+    // isn't fighting yet (and isn't `skip`), which would pull it. Dungeons and raids only.
+    bool AoeWouldPullIdleCreature(SpellInfo const* spellInfo, float x, float y, float z, Unit const* skip = nullptr);
 
     Aura* GetAura(std::string const spellName, Unit* unit, bool checkIsOwner = false, bool checkDuration = false,
                   int checkStack = -1);

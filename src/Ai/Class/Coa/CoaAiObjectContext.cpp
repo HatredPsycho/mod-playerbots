@@ -1128,6 +1128,22 @@ SpellCastResult StrictCheck(Player* bot, SpellInfo const* info, Unit* target)
     return result;
 }
 
+// Whether the bot can use this spell in the state it is in: Spell::CheckCasterAuras' rules, read before asking.
+bool CanActNow(Player* bot, SpellInfo const* info)
+{
+    if (bot->HasUnitState(UNIT_STATE_CHARMED) || bot->IsCharmed())
+        return false;
+    if (bot->HasUnitState(UNIT_STATE_STUNNED) && !info->HasAttribute(SPELL_ATTR5_ALLOW_WHILE_STUNNED))
+        return false;
+    if (bot->HasUnitState(UNIT_STATE_FLEEING) && !info->HasAttribute(SPELL_ATTR5_ALLOW_WHILE_FLEEING))
+        return false;
+    if (bot->HasUnitState(UNIT_STATE_CONFUSED) && !info->HasAttribute(SPELL_ATTR5_ALLOW_WHILE_CONFUSED))
+        return false;
+    if (bot->HasUnitFlag(UNIT_FLAG_SILENCED) && info->PreventionType & SPELL_PREVENTION_TYPE_SILENCE)
+        return false;
+    return true;
+}
+
 constexpr uint16 FAILURE_REFUSED = 1000;  // passed the strict check, refused by PlayerbotAI::CastSpell
 constexpr uint16 FAILURE_NOTHING = 1001;  // nothing left to cast (e.g. every heal over time already on the target)
 constexpr uint16 FAILURE_MOVING = 1002;   // cast time while moving: the bot stops and casts on a later tick
@@ -1670,6 +1686,18 @@ SpellInfo const* CastFirst(PlayerbotAI* botAI, Player* bot, std::vector<Usable> 
         // What the bot will really cast (see EffectiveSpell): cooldown, cast time, bench and the
         // failure log go by the replacement, the cast itself by the listed id.
         SpellInfo const* const info = EffectiveSpell(bot, spell.info);
+
+        // Feared, stunned, confused or silenced, the bot only looks at what it may use as it is; the rest is neither
+        // tried nor set aside. 310 heals were tried under Hellmaw's fear (ladiabale, 16/10).
+        if (!CanActNow(bot, info))
+            continue;
+
+        // Thrown back at the bot for as long as the reflect lasts (seconds): skipped, never set aside.
+        if (target && target != bot && PlayerbotAI::WouldBeReflected(bot, info, target))
+        {
+            note(spell.info->Id, SKIPPED_BENCHED);
+            continue;
+        }
 
         // A spell on cooldown would only fail with SPELL_FAILED_NOT_READY.
         if (bot->HasSpellCooldown(info->Id))
@@ -2573,6 +2601,9 @@ public:
                 continue;
 
             if (saveMana && info->PowerType == POWER_MANA && info->CalcPowerCost(bot, info->GetSchoolMask()) > 0)
+                continue;
+
+            if (!CanActNow(bot, info) || PlayerbotAI::WouldBeReflected(bot, info, target))
                 continue;
 
             if (BreaksOwnChannel(bot, info) || StrictCheck(bot, info, target) != SPELL_CAST_OK)
@@ -3502,6 +3533,11 @@ public:
                 if (member != bot && !(spell.kind & KIND_ALLY_CAST))
                     continue;
 
+                // A buff of under a minute is a fight cooldown, not one to keep up between fights: a Bloodmage
+                // Fleshweaver cast Scarlet Delirium (40 s) again and again out of combat (player report, 10/10).
+                if (!(spell.kind & KIND_STANCE) && spell.info->GetMaxDuration() > 0 && spell.info->GetMaxDuration() < 60000)
+                    continue;
+
                 // A buff raising its bearer's threat goes on a tank only.
                 if (!(spell.kind & KIND_STANCE) && RaisesThreat(spell.info) && !PlayerbotAI::IsTank(member))
                     continue;
@@ -4368,6 +4404,9 @@ public:
         // Dungeons only: in the open world the player is questing or travelling, not asking for pulls.
         if (!sPlayerbotAIConfig.coaSmartTank || !PlayerbotAI::IsTank(bot) || bot->IsInCombat() || !bot->IsAlive() ||
             !bot->GetMap()->IsDungeon())
+            return false;
+        // A Manastorm floor is one room with its boss: the tank pulled the boss across it on its own (17/10).
+        if (bot->GetScriptedPrivateMapId() != MAPID_INVALID)
             return false;
         Player* master = GroupPlayer(botAI, bot);
         if (!master || !OnSameInstance(bot, master))

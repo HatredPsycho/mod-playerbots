@@ -103,17 +103,6 @@ namespace TaragamanPillar
         return Hidden(bot, boss, x + sideX, y + sideY, z) && Hidden(bot, boss, x - sideX, y - sideY, z);
     }
 
-    // Before the collision core has risen there is nothing to test the shadow against, so the bot
-    // counts as covered once it stands on the spot behind the pillar.
-    bool InCover(Player* bot, Unit* boss, Creature* pillar)
-    {
-        if (HasCore(pillar))
-            return SafelyHidden(bot, boss, bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ());
-
-        Position const spot = CoverSpot(bot, boss, pillar);
-        return bot->GetExactDist2d(spot.GetPositionX(), spot.GetPositionY()) <= EARTH_PILLAR_TOLERANCE;
-    }
-
     Position CoverSpot(Player* bot, Unit* boss, Creature* pillar)
     {
         float const away = boss->GetAngle(pillar);
