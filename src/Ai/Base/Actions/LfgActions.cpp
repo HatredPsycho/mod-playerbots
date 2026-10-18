@@ -38,19 +38,6 @@ namespace
                 lowest = std::min<uint32>(lowest, data->minlevel);
         return lowest;
     }
-
-    // A random dungeon spans the whole range of its dungeons; the bot is matched to the players instead.
-    constexpr uint32 LFG_PLAYER_LEVEL_SPREAD = 5;
-
-    bool NearQueuedPlayers(TeamId team, uint32 dungeonId, uint32 level)
-    {
-        auto const& queued = RandomPlayerbotMgr::instance().LfgPlayerLevels[team];
-        auto const levels = queued.find(dungeonId);
-        if (levels == queued.end())
-            return true;
-        return level + LFG_PLAYER_LEVEL_SPREAD >= levels->second.first &&
-               level <= levels->second.second + LFG_PLAYER_LEVEL_SPREAD;
-    }
 }
 
 bool LfgJoinAction::Execute(Event /*event*/) { return JoinLFG(); }
@@ -166,7 +153,7 @@ bool LfgJoinAction::JoinLFG()
         /*LFG_TYPE_RANDOM on classic is 15-58 so bot over level 25 will never queue*/
         if ((minLevel && (botLevel < minLevel || botLevel > maxLevel)) ||
             (botLevel > minLevel + 10 && dungeon->TypeID == LFG_TYPE_DUNGEON) ||
-            !NearQueuedPlayers(bot->GetTeamId(), dungeon->ID, botLevel))
+            !RandomPlayerbotMgr::instance().IsNearLfgPlayerLevels(bot->GetTeamId(), dungeon->ID, botLevel))
             continue;
 
         // The finder range comes from the DBC, the entrance checks dungeon_access_template: a bot below

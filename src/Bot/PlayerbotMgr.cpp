@@ -5,6 +5,7 @@
  */
 
 #include "PlayerbotMgr.h"
+#include "CoaSpecialization.h"
 #include "BroadcastHelper.h"
 #include "ChannelMgr.h"
 #include "CharacterCache.h"
@@ -28,6 +29,7 @@
 #include "Playerbots.h"
 #include "RandomPlayerbotMgr.h"
 #include "SharedDefines.h"
+#include "Timer.h"
 #include "WorldSession.h"
 #include "WorldSessionMgr.h"
 #include <algorithm>
@@ -654,6 +656,9 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
         pkt << "";  // Pass
         bot->GetSession()->HandleJoinChannel(pkt);
     }
+
+    // An alt that levelled while its owner played it, or before AutoPickTalentsAltBots existed, catches up here.
+    SpendAltBotTalentPoints(bot);
 
     JoinBotChannels(bot);
 }
@@ -1589,6 +1594,31 @@ void PlayerbotMgr::UpdateAIInternal(uint32 elapsed, bool /*minimal*/)
 {
     SetNextCheckDelay(sPlayerbotAIConfig.reactDelay);
     CheckTellErrors(elapsed);
+    RefreshGroupForMaster();
+}
+
+// Wall-clock delay: `elapsed` above is only the last world tick, not the time since the previous call.
+void PlayerbotMgr::RefreshGroupForMaster()
+{
+    if (!groupRefreshPending || getMSTimeDiff(groupRefreshFrom, getMSTime()) < 3000)
+        return;
+
+    if (!master || !master->IsInWorld())
+        return;  // still loading: try again on a later tick
+
+    groupRefreshPending = false;
+    Group* group = master->GetGroup();
+    if (!group)
+        return;
+
+    group->SendUpdate();
+
+    // The client asked for these names when the master logged in, while the bots were still offline, and does
+    // not ask again when they come online, so the frames kept showing "Unknown" until /reload.
+    if (WorldSession* session = master->GetSession())
+        for (Group::MemberSlot const& slot : group->GetMemberSlots())
+            if (slot.guid != master->GetGUID())
+                session->SendNameQueryOpcode(slot.guid);
 }
 
 void PlayerbotMgr::HandleCommand(uint32 type, std::string const text)
@@ -1729,6 +1759,10 @@ void PlayerbotMgr::OnBotLoginInternal(Player* const bot)
     }
     botAI->SetMaster(master);
     botAI->ResetStrategies();
+
+    // Resend the master's group list a few seconds after the last bot login.
+    groupRefreshPending = true;
+    groupRefreshFrom = getMSTime();
 
     LOG_INFO("playerbots", "Bot {} logged in", bot->GetName().c_str());
 }

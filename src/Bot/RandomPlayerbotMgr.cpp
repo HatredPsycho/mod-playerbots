@@ -902,26 +902,39 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
 void RandomPlayerbotMgr::LoadBattleMastersCache()
 {
     BattleMastersCache.clear();
+    BattleMasterSpawnIds.clear();
 
     LOG_INFO("playerbots", "Loading Battlemasters Cache...");
 
     QueryResult result = WorldDatabase.Query("SELECT `entry`,`bg_template` FROM `battlemaster_entry`");
-
-    uint32 count = 0;
 
     if (!result)
     {
         return;
     }
 
+    std::vector<std::pair<uint32, uint32>> battleMasterEntries;
     do
     {
-        ++count;
-
         Field* fields = result->Fetch();
-
         uint32 entry = fields[0].Get<uint32>();
-        uint32 bgTypeId = fields[1].Get<uint32>();
+        battleMasterEntries.emplace_back(entry, fields[1].Get<uint32>());
+        BattleMasterSpawnIds.emplace(entry, 0);
+    } while (result->NextRow());
+
+    // Resolve every entry to its first spawn once; 0 marks entries with no static spawn.
+    for (auto const& [spawnId, creatureData] : sObjectMgr->GetAllCreatureData())
+    {
+        auto spawnIt = BattleMasterSpawnIds.find(creatureData.id);
+        if (spawnIt != BattleMasterSpawnIds.end() && !spawnIt->second)
+            spawnIt->second = spawnId;
+    }
+
+    uint32 count = 0;
+
+    for (auto const& [entry, bgTypeId] : battleMasterEntries)
+    {
+        ++count;
 
         CreatureTemplate const* bmaster = sObjectMgr->GetCreatureTemplate(entry);
         if (!bmaster)
@@ -950,8 +963,7 @@ void RandomPlayerbotMgr::LoadBattleMastersCache()
                   bmTeam == TEAM_ALLIANCE ? "Alliance"
                   : bmTeam == TEAM_HORDE  ? "Horde"
                                           : "Neutral");
-
-    } while (result->NextRow());
+    }
 
     LOG_INFO("playerbots", ">> Loaded {} battlemaster entries", count);
 }
@@ -1611,8 +1623,7 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     // Clear LFG list
     LfgDungeons[TEAM_ALLIANCE].clear();
     LfgDungeons[TEAM_HORDE].clear();
-    LfgPlayerLevels[TEAM_ALLIANCE].clear();
-    LfgPlayerLevels[TEAM_HORDE].clear();
+    std::map<TeamId, std::map<uint32, std::pair<uint8, uint8>>> playerLevels;
     bool needTankOrHeal[2] = {false, false};
     uint32 partiesWithoutTank[2] = {0, 0};
     uint32 partiesWithoutHeal[2] = {0, 0};
@@ -1639,7 +1650,7 @@ void RandomPlayerbotMgr::CheckLfgQueue()
 
                 LfgDungeons[player->GetTeamId()].push_back(dungeon->id);
                 uint8 const level = player->GetLevel();
-                auto [levels, added] = LfgPlayerLevels[player->GetTeamId()].try_emplace(dungeon->id, level, level);
+                auto [levels, added] = playerLevels[player->GetTeamId()].try_emplace(dungeon->id, level, level);
                 if (!added)
                 {
                     levels->second.first = std::min(levels->second.first, level);
@@ -1703,7 +1714,30 @@ void RandomPlayerbotMgr::CheckLfgQueue()
     LfgNeedTankOrHeal[TEAM_ALLIANCE] = needTankOrHeal[TEAM_ALLIANCE];
     LfgNeedTankOrHeal[TEAM_HORDE] = needTankOrHeal[TEAM_HORDE];
 
+    {
+        std::lock_guard<std::mutex> lock(lfgPlayerLevelsLock);
+        lfgPlayerLevels.swap(playerLevels);
+    }
+
     LOG_DEBUG("playerbots", "LFG Queue check finished");
+}
+
+bool RandomPlayerbotMgr::IsNearLfgPlayerLevels(TeamId team, uint32 dungeonId, uint32 level)
+{
+    // Seen: bots of level 18-19 joined a player of 13 in Ragefire Chasm through the random dungeon.
+    constexpr uint32 LFG_PLAYER_LEVEL_SPREAD = 5;
+
+    std::lock_guard<std::mutex> lock(lfgPlayerLevelsLock);
+    auto const teamLevels = lfgPlayerLevels.find(team);
+    if (teamLevels == lfgPlayerLevels.end())
+        return true;
+
+    auto const levels = teamLevels->second.find(dungeonId);
+    if (levels == teamLevels->second.end())
+        return true;
+
+    return level + LFG_PLAYER_LEVEL_SPREAD >= levels->second.first &&
+           level <= levels->second.second + LFG_PLAYER_LEVEL_SPREAD;
 }
 
 void RandomPlayerbotMgr::CheckPlayers()
@@ -4138,7 +4172,13 @@ ObjectGuid RandomPlayerbotMgr::GetBattleMasterGUID(Player* bot, BattlegroundType
 
     for (auto i = begin(Bms); i != end(Bms); ++i)
     {
-        CreatureData const* data = sRandomPlayerbotMgr.GetCreatureDataByEntry(*i);
+        CreatureData const* data = nullptr;
+        auto spawnIt = BattleMasterSpawnIds.find(*i);
+        if (spawnIt == BattleMasterSpawnIds.end())
+            data = sRandomPlayerbotMgr.GetCreatureDataByEntry(*i);
+        else if (spawnIt->second)
+            data = sObjectMgr->GetCreatureData(spawnIt->second);
+
         if (!data)
             continue;
 
