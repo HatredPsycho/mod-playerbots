@@ -177,6 +177,7 @@ public:
     uint32 randomBotPrintStatsInterval;
     uint32 minRandomBotsPriceChangeInterval, maxRandomBotsPriceChangeInterval;
     uint32 disabledWithoutRealPlayerLoginDelay, disabledWithoutRealPlayerLogoutDelay;
+    uint32 randomBotSaveInterval;
     bool randomBotJoinLfg;
 
     // Professions
@@ -382,6 +383,7 @@ public:
     bool freeMethodLoot;
     int32 lootNeedRollLevel;
     bool lootGreedRollLevel;
+    uint32 lootNeedLevelLookahead;
     bool lootRollRecipe;
     bool lootRollDisenchant;
     std::string autoPickReward;
@@ -393,6 +395,7 @@ public:
     bool dropObsoleteQuests;
     bool allowLearnTrainerSpells;
     bool autoPickTalents;
+    bool autoPickTalentsAltBots;
     bool autoUpgradeEquip;
     int32 hunterWolfPet;
     int32 defaultPetStance;
@@ -428,6 +431,7 @@ public:
     bool coaAvoidMarkedAlly;
     bool coaMeleeNoRangedHardcast;
     bool coaLootMakeRoom;
+    bool coaAoeNoIdlePull;
     bool coaPvpTrinket;
     bool coaArenaPurge;
     bool coaBossKnowledge;

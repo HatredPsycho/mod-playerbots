@@ -5,9 +5,12 @@
  */
 
 #include "PlayerbotAI.h"
+
+#include <functional>
 #include "CoaSpecialization.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
+#include "CellImpl.h"
 #include "ChannelMgr.h"
 #include "CharacterPackets.h"
 #include "ChatHelper.h"
@@ -21,6 +24,8 @@
 #include "ExternalEventHelper.h"
 #include "GameObjectData.h"
 #include "GameTime.h"
+#include "GridNotifiers.h"
+#include "GridNotifiersImpl.h"
 #include "GuildMgr.h"
 #include "Helpers.h"
 #include "LFGMgr.h"
@@ -71,6 +76,70 @@ constexpr uint32 SPELL_TITAN_GRIP = 49152;
 constexpr uint32 SPELL_DK_FROST_PRESENCE = 48263;
 constexpr uint32 SPELL_GRAVITY_LAPSE_TK = 39432;
 constexpr uint32 SPELL_GRAVITY_LAPSE_MGT = 44226;
+
+// A creature an enemy area spell centred on (x, y, z) would hit although it isn't fighting yet:
+// neutral or hostile, attackable, not a critter, totem, trigger or player-controlled unit.
+class IdleCreatureInAoeCheck
+{
+public:
+    IdleCreatureInAoeCheck(Player* bot, SpellInfo const* spellInfo, float x, float y, float z, float radius,
+                           Unit const* skip)
+        : _bot(bot), _spellInfo(spellInfo), _x(x), _y(y), _z(z), _radius(radius), _skip(skip) {}
+
+    bool operator()(Unit* unit)
+    {
+        Creature* creature = unit->ToCreature();
+        if (!creature || creature == _skip || !creature->IsAlive() || creature->IsInCombat() ||
+            creature->IsInEvadeMode())
+            return false;
+
+        if (creature->IsCritter() || creature->IsTotem() || creature->IsTrigger() ||
+            creature->IsControlledByPlayer() || !creature->IsVisible())
+            return false;
+
+        return creature->IsWithinDist3d(_x, _y, _z, _radius) && _bot->IsValidAttackTarget(creature, _spellInfo);
+    }
+
+private:
+    Player* _bot;
+    SpellInfo const* _spellInfo;
+    float _x, _y, _z, _radius;
+    Unit const* _skip;
+};
+}
+
+bool PlayerbotAI::AoeWouldPullIdleCreature(SpellInfo const* spellInfo, float x, float y, float z, Unit const* skip)
+{
+    // AiPlayerbot.CoaAoeNoIdlePull, in dungeons and raids only: outside, a pulled mob is one more mob, and the
+    // grid search would run for every area spell of thousands of random bots.
+    if (!sPlayerbotAIConfig.coaAoeNoIdlePull || !bot->GetMap() || !bot->GetMap()->IsDungeon())
+        return false;
+
+    if (!spellInfo || spellInfo->IsPositive() || !spellInfo->IsAffectingArea())
+        return false;
+
+    float radius = 0.0f;
+    for (uint8 i = EFFECT_0; i < MAX_SPELL_EFFECTS; ++i)
+    {
+        SpellEffectInfo const& effect = spellInfo->Effects[i];
+        if (!effect.IsEffect())
+            continue;
+
+        bool const enemyArea = (effect.TargetA.IsArea() && effect.TargetA.GetCheckType() == TARGET_CHECK_ENEMY) ||
+                               (effect.TargetB.IsArea() && effect.TargetB.GetCheckType() == TARGET_CHECK_ENEMY);
+        if (enemyArea || effect.IsEffect(SPELL_EFFECT_PERSISTENT_AREA_AURA))
+            radius = std::max(radius, effect.CalcRadius(bot));
+    }
+
+    if (radius <= 0.0f)
+        return false;
+
+    Unit* found = nullptr;
+    IdleCreatureInAoeCheck check(bot, spellInfo, x, y, z, radius, skip);
+    Acore::UnitSearcher<IdleCreatureInAoeCheck> searcher(bot, found, check);
+    // The check adds each creature's own size, so search a little wider than the spell's radius.
+    Cell::VisitObjects(x, y, bot->GetMap(), searcher, radius + 10.0f);
+    return found != nullptr;
 }
 
 std::vector<std::string> PlayerbotAI::dispel_whitelist = {
@@ -321,6 +390,13 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
     if (!CanUpdateAI())
         return;
 
+    // Under a mind control the charmer's AI drives the bot: its own engine kept casting and moving against it.
+    if (bot->IsCharmed())
+    {
+        YieldThread(bot, GetReactDelay());
+        return;
+    }
+
     // Handle a spell that is still in its preparing phase (including channeled spells).
     Spell* currentSpell = bot->GetCurrentSpell(CURRENT_GENERIC_SPELL);
     if (!currentSpell)
@@ -345,6 +421,14 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
                 Unit* spellTarget = currentSpell->m_targets.GetUnitTarget();
                 // Interrupt if target is dead or spell can't target dead units
                 if (spellTarget && !spellTarget->IsAlive() && !spellInfo->IsAllowingDeadTarget())
+                {
+                    bot->InterruptSpell(currentSpell->GetCurrentContainer());
+                    YieldThread(bot, GetReactDelay());
+                    return;
+                }
+
+                // The target raised a reflect during the cast: the spell would come back at the bot.
+                if (spellTarget && WouldBeReflected(bot, spellInfo, spellTarget))
                 {
                     bot->InterruptSpell(currentSpell->GetCurrentContainer());
                     YieldThread(bot, GetReactDelay());
@@ -1916,11 +2000,11 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
 {
     static const std::vector<std::string> allInstanceStrategies =
     {
-        "aq20", "blacktemple", "bwl", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon",
-        "moltencore", "naxx", "onyxia", "rs", "ssc", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub",
-        "tempestkeep", "ulduar", "vanilla-rfc", "vanilla-sfk", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk",
-        "wotlk-eoe", "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok",
-        "wotlk-os", "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman"
+        "aq20", "blacktemple", "bwl", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon", "moltencore", "naxx",
+        "onyxia", "rs", "ssc", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub", "tempestkeep", "ulduar",
+        "vanilla-rfc", "vanilla-sfk", "vanilla-sm", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
+        "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os",
+        "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman"
     };
 
     for (std::string const& strat : allInstanceStrategies)
@@ -1934,6 +2018,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
     {
         case 33:
             strategyName = "vanilla-sfk";  // Shadowfang Keep
+            break;
+        case 189:
+            strategyName = "vanilla-sm";  // Scarlet Monastery
             break;
         case 249:
             strategyName = "onyxia";  // Onyxia's Lair
@@ -2572,6 +2659,52 @@ int32 PlayerbotAI::GetMeleeIndex(Player* player)
     return 0;
 }
 
+// Spell::Spell's m_canReflect rule, then the chance Unit::SpellHitResult rolls. Under half, the bot casts anyway: a
+// passive 10 % reflect must not stop it fighting. Before 2.5 nothing looked: in the Steamvault two bots started 100
+// casts on Kalithresh during his 6 s full reflect (ladiabale, 16/10).
+bool PlayerbotAI::WouldBeReflected(Unit* caster, SpellInfo const* spellInfo, Unit* target)
+{
+    if (!caster || !spellInfo || !target || target == caster || !caster->IsValidAttackTarget(target))
+        return false;
+
+    if (!target->HasAuraType(SPELL_AURA_REFLECT_SPELLS) && !target->HasAuraType(SPELL_AURA_REFLECT_SPELLS_SCHOOL))
+        return false;
+
+    std::function<bool(SpellInfo const*, uint8)> reflected = [&](SpellInfo const* info, uint8 depth)
+    {
+        bool const canReflect = info->DmgClass == SPELL_DAMAGE_CLASS_MAGIC &&
+                                !info->HasAttribute(SPELL_ATTR0_IS_ABILITY) &&
+                                !info->HasAttribute(SPELL_ATTR1_NO_REFLECTION) &&
+                                !info->HasAttribute(SPELL_ATTR0_NO_IMMUNITIES) && !info->IsPassive() &&
+                                (!info->IsPositive() || info->HasEffect(SPELL_EFFECT_DISPEL));
+        if (canReflect)
+        {
+            int32 chance = target->GetTotalAuraModifier(SPELL_AURA_REFLECT_SPELLS);
+            chance += target->GetTotalAuraModifierByMiscMask(SPELL_AURA_REFLECT_SPELLS_SCHOOL, info->GetSchoolMask());
+            if (chance >= 50)
+                return true;
+        }
+
+        if (depth >= 2)
+            return false;
+
+        for (SpellEffectInfo const& effect : info->Effects)
+        {
+            bool const triggers = effect.Effect == SPELL_EFFECT_TRIGGER_SPELL ||
+                                  effect.Effect == SPELL_EFFECT_TRIGGER_MISSILE ||
+                                  effect.ApplyAuraName == SPELL_AURA_PERIODIC_TRIGGER_SPELL;
+            if (!triggers || !effect.TriggerSpell || effect.TriggerSpell == info->Id)
+                continue;
+            if (SpellInfo const* triggered = sSpellMgr->GetSpellInfo(effect.TriggerSpell))
+                if (reflected(triggered, depth + 1))
+                    return true;
+        }
+        return false;
+    };
+
+    return reflected(spellInfo, 0);
+}
+
 bool PlayerbotAI::IsTank(Player* player, bool bySpec)
 {
     PlayerbotAI* botAi = GET_PLAYERBOT_AI(player);
@@ -2954,13 +3087,13 @@ Player* PlayerbotAI::GetPlayer(ObjectGuid guid)
 
 uint32 GetCreatureIdForCreatureTemplateId(uint32 creatureTemplateId)
 {
-    QueryResult results =
-        WorldDatabase.Query("SELECT guid FROM `creature` WHERE id = {} LIMIT 1;", creatureTemplateId);
-    if (results)
+    // Map-thread safe: resolve from memory, never the world DB.
+    for (auto const& [spawnId, creatureData] : sObjectMgr->GetAllCreatureData())
     {
-        Field* fields = results->Fetch();
-        return fields[0].Get<uint32>();
+        if (creatureData.id == creatureTemplateId)
+            return spawnId;
     }
+
     return 0;
 }
 
@@ -3810,6 +3943,21 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
         return false;
     }
 
+    // Area spells land around the bot unless they are aimed at a unit or a spot (then around the target).
+    // Don't pull creatures that aren't fighting yet with them: a tank's Thunder Clap pulled the Ring of Law
+    // spectators in Blackrock Depths, and the group's area spells kept pulling more.
+    Unit* aoeCenter =
+        (spellInfo->GetExplicitTargetMask() & (TARGET_FLAG_DEST_LOCATION | TARGET_FLAG_UNIT_MASK)) ? target : bot;
+    if (AoeWouldPullIdleCreature(spellInfo, aoeCenter->GetPositionX(), aoeCenter->GetPositionY(),
+                                 aoeCenter->GetPositionZ(), target))
+    {
+        if (!sPlayerbotAIConfig.logInGroupOnly || (bot->GetGroup() && HasGameClientMaster()))
+            LOG_DEBUG("playerbots", "Can cast spell failed. Area spell would pull an idle creature. - target name: {}, spellid: {}, bot name: {}",
+                target->GetName(), spellid, bot->GetName());
+
+        return false;
+    }
+
     uint32 CastingTime = !spellInfo->IsChanneled() ? spellInfo->CalcCastTime(bot) : spellInfo->GetDuration();
     // bool interruptOnMove = spellInfo->InterruptFlags & SPELL_INTERRUPT_FLAG_MOVEMENT;
     if ((CastingTime || spellInfo->IsAutoRepeatRangedSpell()) && bot->isMoving())
@@ -3836,6 +3984,9 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
             }
             // Otherwise, allow Deep Freeze even if immune
         }
+
+        if (WouldBeReflected(bot, spellInfo, target))
+            return false;
 
         if (bot != target && ServerFacade::instance().GetDistance2d(bot, target) > sPlayerbotAIConfig.sightDistance)
         {
@@ -3980,6 +4131,9 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, float x, float y, float z, bool c
             return false;
     }
 
+    if (AoeWouldPullIdleCreature(spellInfo, x, y, z))
+        return false;
+
     Spell* spell = new Spell(bot, spellInfo, TRIGGERED_NONE);
 
     spell->m_targets.SetDst(x, y, z, 0.f);
@@ -4069,6 +4223,9 @@ bool PlayerbotAI::CastSpell(uint32 spellId, Unit* target, Item* itemTarget)
 
     SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(spellId);
     if (!spellInfo)
+        return false;
+
+    if (WouldBeReflected(bot, spellInfo, target))
         return false;
 
     Pet* pet = bot->GetPet();

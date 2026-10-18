@@ -1,6 +1,98 @@
 # CoA Bots — changelog
 
-## v2.4 — in progress
+## v2.5 — Auction house, Manastorm, smarter casts and your reports (October 2026)
+
+### Core (repack)
+- **New map data** from the CoA dev team: the maps, vmaps and mmaps of the CoA custom zones the repack lacked
+  (bots fell through the ground there) and fuller paths for the bots. It makes 2.5 a **big update** (about 2 GB to
+  download, 5.3 GB of map files): the old map folders are set aside in the update's backup, and Undo puts them back.
+- **Auction house bot** (mod-ah-bot-plus), **on by default**: a seller (Gavelgrin) keeps about 3000 auctions of items
+  you can get in game, nothing above level 60 and no TBC/WotLK goods, and buys what players sell. Turn it off with
+  `AuctionHouseBot.Enable = false` in `configs\modules\mod_ahbot.conf` (server stopped).
+- **Manastorm Endless**, **off by default** (`Manastorm.Enable = 0` in `configs\modules\manastorm-endless.conf`):
+  its tables and data are always installed (the server needs them at start); to play it, the game client needs the
+  Manastorm client files (Interface files of the CoA client patch). Optional core feature, not supported by the CoA
+  Bots team.
+- The core's one-button rotation assist is **off** (`CoA.RotationAssist.Enable = 0` in `coa.conf`). Optional core
+  feature, not supported by the CoA Bots team.
+
+### SquidBots launcher 0.3.25
+- **Modules** tab: the auction house (on by default) with an **Empty the auction house** button (only the bot's
+  auctions go, bidders are refunded); Manastorm Endless and the rotation assist (off by default), with a notice when
+  Manastorm is switched on (game client from the official PTR launcher).
+- **Undo the last update**: Management > Backups puts the server back exactly as before the last CoA Bots update
+  (database and files), not only after an error.
+- "The bots are arriving: X / 500" while they log in after a start, so a high tick at start is no longer alarming.
+- Smoother updates: the server restarts by itself after an update if it was running, the test start shows a plain
+  sentence with a timer, the download size is right.
+- **Your game**: SquidBots Lite 2.5 is detected and installed; the realmlist check and the home page show the address
+  players really use.
+- Server settings: a "Creature difficulty" section explains the CoA scaling keys (off in CoA Bots).
+- **Big updates made clear**: before you click, the update window says what it replaces (here the new map files),
+  how much it downloads and how much free disk space it needs; not enough space = no update started.
+- **Large updates in several parts**: the 2.5 (with the new maps) comes in 3 files, downloaded and checked one by
+  one, in one click.
+- New "Unpacking the files" step (part 1 of 3...), and every long step shows "Still working (time)... do not close the
+  launcher".
+- Verification: a few low-level bots in Outland is now a simple info, with a clearer text.
+- Fixes: servers opened to the network are no longer reset to 127.0.0.1; a crash counts once and can be put away;
+  clearer messages when a launcher update fails or the bots are missing from a repack. Green/red module switches.
+
+### Combat
+- Bots no longer cast a spell their target would reflect (Warlord Kalithresh's 6 s full reflect sent back about a
+  hundred casts in one Steamvault run); a cast in progress is cut when the target raises a reflect.
+- A group member under a boss's mind control (Blackheart the Inciter) is no longer attacked by the other bots, and a
+  charmed bot no longer runs its own actions against its charmer.
+- Spells for the bot itself or its friends on a rotation line (Mana Module, Auto Resuscitation Device, Essence of
+  Malygos, Void Shield) are cast on the bot instead of being aimed at the enemy, which never worked.
+- Feared, stunned, confused or silenced, a bot no longer tries the spells it cannot use in that state (310 heals tried
+  under Hellmaw's fear) and no longer sets them aside for later.
+- Rotations: Cultist Dreadnought taunts and throws Twilight Shieldtoss from range and uses Sanity Tap when low on mana;
+  Tinker Invention no longer builds Rusthound (6 s cast) in fights; Knight of Xoroth Defiance spends 6 Demonfire on
+  Suffuse and Melt and keeps Burning Rage / Demon Heart up; Sun Cleric Blessings casts Holy Form, Circle of Valor,
+  Blessing of Light, Chosen of the Light, its Vows and Dawn at 20 stacks; Primalist Mountain King casts Ursoc's
+  Bellow.
+- Sun Cleric Blessings takes Final Vows instead of Taking Vows at level 50.
+- Out of combat, bots no longer keep recasting buffs of under a minute, fight cooldowns (a Bloodmage Fleshweaver cast
+  Scarlet Delirium again and again between fights).
+
+### Dungeons
+- In a dungeon, a dead bot no longer waits for ever: once the fight is over it releases when no living healer of
+  the group is inside, or after two minutes if nobody raised it (#37). On a Manastorm floor it always waits: the
+  floor raises its dead when it is cleared.
+- **Area spells no longer pull the next pack** (`AiPlayerbot.CoaAoeNoIdlePull`, on by default): in a dungeon or a
+  raid, a bot no longer casts an area spell that would also hit a creature not yet fighting (a tank's Thunder Clap
+  pulled the Ring of Law spectators in Blackrock Depths).
+- Ragefire Chasm, Taragaman (Heroic/Mythic): the bots hide behind the earth pillar before Massive Fire Nova, the tank
+  once the cast starts.
+- Scarlet Monastery, Arcanist Doan: the bots run out of Detonation (36 yd) as soon as the Arcane Bubble is up.
+- Random bots join a random dungeon only within 5 levels of the real players waiting for it.
+
+### Loot and gear
+- No epic gear below `AiPlayerbot.CoaEpicGearMinLevel` however the bot is geared: bots you add and autogear now keep
+  to it too (epics at level 13, #39).
+- Your own characters added as bots can spend their free talent points by themselves along their level build
+  (`AiPlayerbot.AutoPickTalentsAltBots`, off by default; "talents autopick" does it on demand).
+- Heirlooms and other level-scaled items (Felforged sets) are rated by their real values at the bot's level.
+- Optional: `AiPlayerbot.LootNeedLevelLookahead` (off by default) lets bots NEED and keep gear a few levels above
+  them, to wear it when they reach its level.
+
+### Players and bots
+- Party frames are refreshed a few seconds after your own bots log in: no more "Unknown" or "Offline" until /reload.
+- Random bots no longer take again the quests they have just dropped to free their quest log (accept / drop loops).
+
+### Server
+- Optional: `AiPlayerbot.RandomBotSaveInterval` (seconds, 0 = unchanged) spaces out the autosave of random bots
+  without a real master: fewer database writes with thousands of bots.
+- The spawn of a creature is found in memory instead of a world database query on the map thread.
+
+### SquidBots Lite 2.5 (addon)
+- Role icons, the bot menu and the alerts on Ascension's raid-style party frames too (`/sbl raidframes off` to
+  stop).
+- Role icons cut cleanly from Ascension's role texture; a bot joining from the dungeon finder gets its role too.
+- **Bots > Take my quests**: every bot next to the quest giver takes your quests, alts included (`accept *`).
+
+## v2.4 — Dungeon fixes, players replace bots, every module's settings (October 2026)
 
 ### Players and bots
 - **Real players take the place of random bots** (`AiPlayerbot.CoaPlayersReplaceBots`, off by default): at 100,
