@@ -19,6 +19,7 @@ class VanillaDungeonRFCTriggerContext : public NamedObjectContext<Trigger>
             creators["jergosh adds"] = &VanillaDungeonRFCTriggerContext::jergosh_adds;
             creators["bazzalan priority"] = &VanillaDungeonRFCTriggerContext::bazzalan_priority;
             creators["taragaman fire nova"] = &VanillaDungeonRFCTriggerContext::taragaman_fire_nova;
+            creators["taragaman earth break"] = &VanillaDungeonRFCTriggerContext::taragaman_earth_break;
             creators["taragaman massive fire nova"] = &VanillaDungeonRFCTriggerContext::taragaman_massive_fire_nova;
         }
     private:
@@ -26,6 +27,7 @@ class VanillaDungeonRFCTriggerContext : public NamedObjectContext<Trigger>
         static Trigger* jergosh_adds(PlayerbotAI* ai) { return new JergoshAddsTrigger(ai); }
         static Trigger* bazzalan_priority(PlayerbotAI* ai) { return new BazzalanDpsTrigger(ai); }
         static Trigger* taragaman_fire_nova(PlayerbotAI* ai) { return new TaragamanFireNovaTrigger(ai); }
+        static Trigger* taragaman_earth_break(PlayerbotAI* ai) { return new TaragamanEarthBreakTrigger(ai); }
         static Trigger* taragaman_massive_fire_nova(PlayerbotAI* ai)
         {
             return new TaragamanMassiveFireNovaTrigger(ai);
