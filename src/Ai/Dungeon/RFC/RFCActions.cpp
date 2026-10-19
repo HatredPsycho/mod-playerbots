@@ -8,6 +8,8 @@
 #include "AiObjectContext.h"
 #include "Playerbots.h"
 
+#include <cmath>
+
 bool AttackOggleflintAddAction::isUseful() { return !botAI->IsHeal(bot); }
 bool AttackOggleflintAddAction::Execute(Event /*event*/)
 {
@@ -53,6 +55,26 @@ bool TaragamanAvoidFireNovaAction::Execute(Event /*event*/)
     return MoveAway(boss, wanted - distance);
 }
 
+bool TaragamanAvoidEarthBreakAction::Execute(Event /*event*/)
+{
+    Creature* pillar = TaragamanPillar::EruptingNear(bot);
+    if (!pillar)
+        return false;
+
+    if (bot->IsNonMeleeSpellCast(false))
+        bot->InterruptNonMeleeSpells(false);
+
+    // Forced, so a cover run that is still under way cannot hold the bot inside the zone.
+    float const angle = pillar->GetAngle(bot);
+    float const radius = EARTH_BREAK_RADIUS + EARTH_BREAK_SAFETY + 0.5f;
+    float x = pillar->GetPositionX() + std::cos(angle) * radius;
+    float y = pillar->GetPositionY() + std::sin(angle) * radius;
+    float z = bot->GetPositionZ();
+    bot->GetMap()->CheckCollisionAndGetValidCoords(bot, bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ(),
+                                                   x, y, z);
+    return MoveTo(bot->GetMapId(), x, y, z, false, false, false, true, MovementPriority::MOVEMENT_FORCED);
+}
+
 bool TaragamanHideBehindPillarAction::Execute(Event /*event*/)
 {
     Unit* boss = TaragamanPillar::Boss(botAI, context);
@@ -72,6 +94,14 @@ bool TaragamanHideBehindPillarAction::Execute(Event /*event*/)
     Position const spot = TaragamanPillar::CoverSpot(bot, boss, pillar);
     if (bot->GetExactDist2d(spot.GetPositionX(), spot.GetPositionY()) <= EARTH_PILLAR_TOLERANCE)
         return true;
+
+    // Until the pillar has broken out, its Earth Break is not to be crossed; the bot waits where it is.
+    if (TaragamanPillar::PathCrossesEruption(bot, pillar, spot))
+    {
+        if (bot->isMoving())
+            bot->StopMoving();
+        return true;
+    }
 
     if (bot->IsNonMeleeSpellCast(false))
         bot->InterruptNonMeleeSpells(false);

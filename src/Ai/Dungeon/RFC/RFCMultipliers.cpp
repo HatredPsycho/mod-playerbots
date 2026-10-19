@@ -52,6 +52,13 @@ float TaragamanTheHungererMultiplier::GetValue(Action* action)
     if (!boss)
         return 1.0f;
 
+    // Leaving a pillar's Earth Break comes first; every other movement would hold the bot inside it.
+    if (dynamic_cast<TaragamanAvoidEarthBreakAction*>(action))
+        return 1.0f;
+
+    if (TaragamanPillar::EruptingNear(bot) && dynamic_cast<MovementAction*>(action))
+        return 0.0f;
+
     // Behind the pillar the bot has no line of sight to the boss, and every movement or chase
     // action would walk it back out into the nova.
     if (TaragamanPillar::ShouldHide(botAI, bot, context))

@@ -31,8 +31,16 @@ enum RagefireChasmIDs
     // standing behind the pillar, out of his line of sight, survives it.
     NPC_RUMBLING_EARTH             = 663030,
     GO_EARTH_PILLAR_CORE           = 663043,
-    SPELL_MASSIVE_FIRE_NOVA        = 2102516
+    SPELL_MASSIVE_FIRE_NOVA        = 2102516,
+
+    // For five seconds after it is summoned the pillar carries this ground warning, then breaks out of
+    // the ground with Earth Break, which deals 800 damage and knocks back everyone within four yards.
+    SPELL_EARTH_PILLAR_WARNING     = 256852
 };
+
+// The extra yards cover the hit sphere of the bot and a little drift.
+constexpr float EARTH_BREAK_RADIUS = 4.0f;
+constexpr float EARTH_BREAK_SAFETY = 2.0f;
 
 // Fire Nova reaches ten yards from Taragaman himself. The extra yards keep a bot that drifts
 // slightly from being clipped by the next one.
@@ -75,6 +83,9 @@ namespace TaragamanPillar
     bool Hidden(Player* bot, Unit* boss, float x, float y, float z);
     bool SafelyHidden(Player* bot, Unit* boss, float x, float y, float z);
     Position CoverSpot(Player* bot, Unit* boss, Creature* pillar);
+    bool IsErupting(Creature* pillar);
+    Creature* EruptingNear(Player* bot);
+    bool PathCrossesEruption(Player* bot, Creature* pillar, Position const& spot);
 }
 
 class OggleflintAddsTrigger : public Trigger
@@ -102,6 +113,13 @@ class TaragamanFireNovaTrigger : public Trigger
 {
 public:
     TaragamanFireNovaTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman fire nova") {}
+    bool IsActive() override;
+};
+
+class TaragamanEarthBreakTrigger : public Trigger
+{
+public:
+    TaragamanEarthBreakTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman earth break") {}
     bool IsActive() override;
 };
 

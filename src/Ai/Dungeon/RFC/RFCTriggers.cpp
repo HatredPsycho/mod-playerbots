@@ -9,7 +9,9 @@
 #include "Map.h"
 #include "Playerbots.h"
 
+#include <algorithm>
 #include <cmath>
+#include <list>
 #include <limits>
 
 namespace RagefireEscort
@@ -115,7 +117,9 @@ namespace TaragamanPillar
             return Position(x, y, z, away + float(M_PI));
         };
 
-        Position const fallback = spotAt(0.0f, EARTH_PILLAR_COVER);
+        // Before the pillar has broken out, the spot waits outside its Earth Break.
+        Position const fallback = spotAt(0.0f, IsErupting(pillar) ? EARTH_BREAK_RADIUS + EARTH_BREAK_SAFETY
+                                                                   : EARTH_PILLAR_COVER);
         if (!HasCore(pillar))
             return fallback;
 
@@ -139,6 +143,40 @@ namespace TaragamanPillar
             }
 
         return best;
+    }
+
+    bool IsErupting(Creature* pillar)
+    {
+        return pillar->HasAura(SPELL_EARTH_PILLAR_WARNING);
+    }
+
+    Creature* EruptingNear(Player* bot)
+    {
+        std::list<Creature*> pillars;
+        bot->GetCreatureListWithEntryInGrid(pillars, NPC_RUMBLING_EARTH, EARTH_BREAK_RADIUS + EARTH_BREAK_SAFETY);
+        for (Creature* pillar : pillars)
+            if (pillar->IsAlive() && IsErupting(pillar) &&
+                bot->GetExactDist2d(pillar) < EARTH_BREAK_RADIUS + EARTH_BREAK_SAFETY)
+                return pillar;
+
+        return nullptr;
+    }
+
+    bool PathCrossesEruption(Player* bot, Creature* pillar, Position const& spot)
+    {
+        if (!IsErupting(pillar))
+            return false;
+
+        float const dx = spot.GetPositionX() - bot->GetPositionX();
+        float const dy = spot.GetPositionY() - bot->GetPositionY();
+        float const lengthSquared = dx * dx + dy * dy;
+        float along = 0.0f;
+        if (lengthSquared > 0.01f)
+            along = std::clamp(((pillar->GetPositionX() - bot->GetPositionX()) * dx +
+                                (pillar->GetPositionY() - bot->GetPositionY()) * dy) / lengthSquared, 0.0f, 1.0f);
+
+        return pillar->GetExactDist2d(bot->GetPositionX() + dx * along, bot->GetPositionY() + dy * along) <
+               EARTH_BREAK_RADIUS + EARTH_BREAK_SAFETY;
     }
 }
 
@@ -179,6 +217,11 @@ bool TaragamanFireNovaTrigger::IsActive()
         return false;
 
     return bot->GetExactDist2d(boss->GetPosition()) < FIRE_NOVA_RADIUS + FIRE_NOVA_SAFETY;
+}
+
+bool TaragamanEarthBreakTrigger::IsActive()
+{
+    return TaragamanPillar::Boss(botAI, context) && TaragamanPillar::EruptingNear(bot);
 }
 
 bool TaragamanMassiveFireNovaTrigger::IsActive()

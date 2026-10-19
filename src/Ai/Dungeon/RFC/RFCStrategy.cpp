@@ -30,6 +30,11 @@ void VanillaDungeonRFCStrategy::InitTriggers(std::vector<TriggerNode*> &triggers
     triggers.push_back(new TriggerNode("taragaman massive fire nova",
             { NextAction("hide behind earth pillar", ACTION_EMERGENCY + 6) }));
 
+    // The pillar breaks out of the ground five seconds after it appears, under a player, and kills
+    // whoever still stands in its swirling ground warning. Everyone leaves it, the tank included.
+    triggers.push_back(new TriggerNode("taragaman earth break",
+            { NextAction("avoid earth break", ACTION_EMERGENCY + 7) }));
+
     // Jergosh the Invoker
     triggers.push_back(new TriggerNode("jergosh adds",
             { NextAction("attack jergosh add", ACTION_RAID + 1) }));
