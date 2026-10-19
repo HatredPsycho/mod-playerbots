@@ -44,6 +44,13 @@ public:
     bool Execute(Event event) override;
 };
 
+class TaragamanAvoidEarthBreakAction : public MovementAction
+{
+public:
+    TaragamanAvoidEarthBreakAction(PlayerbotAI* ai) : MovementAction(ai, "avoid earth break") {}
+    bool Execute(Event event) override;
+};
+
 class TaragamanHideBehindPillarAction : public MovementAction
 {
 public:
