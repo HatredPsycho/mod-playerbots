@@ -5,6 +5,8 @@
  */
 
 #include "AiObjectContext.h"
+#include "Ai/Dungeon/DungeonClear/DungeonClearValueContext.h"
+#include "DcModuleEnable.h"
 #include "GDValueContext.h"
 #include "MechValueContext.h"
 #include "MgTValueContext.h"
@@ -18,4 +20,6 @@ void AiObjectContext::BuildSharedValueContexts(SharedNamedObjectContextList<Unty
     valueContexts.Add(new TbcDungeonUnderbogValueContext());
     valueContexts.Add(new WotlkDungeonGDValueContext());
     valueContexts.Add(new TbcDungeonMgTValueContext());
+    if (DcModule::IsEnabled())
+        valueContexts.Add(new DungeonClearValueContext());
 }
