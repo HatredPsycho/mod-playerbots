@@ -1,8 +1,128 @@
--- DungeonClear Lua Companion Addon
--- Drives the C++ mod-dungeon-clear module with a premium UI
+-- CoA Companion, Dungeon Clear part (from jrad7/mod-dungeon-clear-addon)
+-- Drives the Dungeon Clear strategy of Conquest of Azeroth's Playerbots. The spectator
+-- camera is not part of it: on this realm it is a game master's server command.
 
-local AddonName = "DungeonClear"
+local AddonName = "CoACompanionBots"
 local Prefix = "DC"
+
+-- English is the text in the code; French comes from this table, in the language CoA Companion's bar uses
+-- (/coa lang fr|en). Labels set once at load are kept in `labels` and set again when the language changes.
+local FR = {
+    ["Mode Status:"] = "État :",
+    ["Pull Mode:"] = "Mode de pull :",
+    ["Current State:"] = "Action :",
+    ["Next Boss:"] = "Boss suivant :",
+    ["Warning:"] = "Alerte :",
+    ["Dungeon Bosses"] = "Boss du donjon",
+    ["On"] = "On",
+    ["Off"] = "Off",
+    ["Skip"] = "Passer",
+    ["Pause"] = "Pause",
+    ["Resume"] = "Reprendre",
+    ["Pull:"] = "Pull :",
+    ["Tiny"] = "Mini",
+    ["Default"] = "Défaut",
+    ["Inactive"] = "Inactif",
+    ["None"] = "Aucun",
+    ["OFF"] = "OFF",
+    ["ON"] = "ON",
+    ["PAUSED"] = "EN PAUSE",
+    ["Active"] = "Actif",
+    ["Paused"] = "En pause",
+    ["Clearing"] = "Nettoyage en cours",
+    ["Advanced Pull"] = "Pull avancé",
+    ["Advancing"] = "Progression",
+    ["Plotting Route"] = "Calcul du trajet",
+    ["Closing on Boss"] = "Approche du boss",
+    ["Closing In"] = "Approche",
+    ["Recovering / Repathing"] = "Récupération / nouveau trajet",
+    ["Repathing"] = "Nouveau trajet",
+    ["Party Recovering / Resting"] = "Le groupe récupère / se repose",
+    ["Resting"] = "Repos",
+    ["Collecting Loot"] = "Ramasse le butin",
+    ["Looting"] = "Butin",
+    ["Blocked by Door"] = "Bloqué par une porte",
+    ["Door Blocked"] = "Porte bloquée",
+    ["Route Blocked"] = "Trajet bloqué",
+    ["Blocked"] = "Bloqué",
+    ["Clearing Path (Trash)"] = "Nettoie le chemin (trash)",
+    ["Clearing Trash"] = "Nettoie le trash",
+    ["Engaging Boss!"] = "Engage le boss !",
+    ["Boss Fight"] = "Combat de boss",
+    ["Idle / Waiting"] = "Inactif / en attente",
+    ["Idle"] = "Inactif",
+    ["Pulling to Camp"] = "Pull vers le camp",
+    ["Holding (%s); boss progress saved."] = "En attente (%s) ; progression des boss conservée.",
+    ["Alive"] = "Vivant",
+    ["Dead"] = "Mort",
+    ["Skipped"] = "Passé",
+    ["Missing"] = "Absent",
+    ["Loading boss list..."] = "Chargement de la liste des boss...",
+    ["Waiting for patrol"] = "Attend la patrouille",
+    ["Pull Mode"] = "Mode de pull",
+    ["Click to cycle: Leeroy / Advanced / Dynamic"] = "Clic pour changer : Leeroy / Advanced / Dynamic",
+    ["Left-click to start the clear"] = "Clic gauche pour lancer le nettoyage",
+    ["Left-click to pause"] = "Clic gauche pour mettre en pause",
+    ["Left-click to resume"] = "Clic gauche pour reprendre",
+    ["Right-click to expand the window"] = "Clic droit pour agrandir la fenêtre",
+    ["Left-click to toggle the window."] = "Clic gauche pour afficher ou cacher la fenêtre.",
+    ["Drag to reposition this button."] = "Glisser pour déplacer ce bouton.",
+    ["cannot send bot commands right now."] = "impossible d'envoyer des ordres aux bots pour l'instant.",
+    ["Tank bot is no longer in the group \226\128\148 dungeon clear turned off."] = "Le bot tank n'est plus dans le groupe — nettoyage arrêté.",
+    ["Autonomous dungeon-clearing companion for mod-dungeon-clear."] = "Le tank bot nettoie les donjons tout seul ; cette page explique les commandes.",
+    ["Commands & Controls"] = "Commandes",
+    ["Open Dungeon Clear"] = "Ouvrir Dungeon Clear",
+    ["Dungeon Clear - Settings"] = "Dungeon Clear - Réglages",
+    ["Reset All to Default"] = "Tout remettre par défaut",
+    ["Poor"] = "Médiocre",
+    ["Common"] = "Commun",
+    ["Uncommon"] = "Inhabituel",
+    ["Rare"] = "Rare",
+    ["Epic"] = "Épique",
+    ["Legendary"] = "Légendaire",
+    ["Artifact"] = "Artefact",
+    ["Prevent Bot Release"] = "Empêcher la libération des bots",
+    ["Dead bots stay as a corpse to be resurrected instead of releasing to the graveyard."] = "Les bots morts restent sur place pour être ressuscités au lieu de libérer leur esprit.",
+    ["Combat Regroup"] = "Regroupement en combat",
+    ["Keep followers grouped on the tank during a fight, not just on the route \226\128\148 a healer that drifts out of line of sight closes back in."] = "Garde le groupe près du tank aussi en combat, pas seulement sur le trajet — un soigneur qui perd la ligne de vue revient.",
+    ["Party Max Spread (yd)"] = "Écart max. du groupe (m)",
+    ["How far the tank may lead the party before it holds to let everyone catch up."] = "Distance d'avance du tank avant qu'il attende que tout le monde suive.",
+    ["Minimum Loot Quality"] = "Qualité minimale du butin",
+    ["Skip corpses whose best item is below this rarity. Quest items always loot."] = "Ignore les corps dont le meilleur objet est sous cette rareté. Les objets de quête sont toujours ramassés.",
+    ["Ignore Chests"] = "Ignorer les coffres",
+    ["Don't stop for treasure chests or other world objects while clearing \226\128\148 only loot creature corpses."] = "Ne s'arrête pas pour les coffres ou autres objets — ne fouille que les corps des créatures.",
+    ["Rest Health %"] = "Repos : vie %",
+    ["Health the party eats up to between pulls, overriding the server's AiPlayerbot.AlmostFullHealth for this run. 0 = use the server default."] = "Vie jusqu'à laquelle le groupe mange entre deux pulls, à la place de AiPlayerbot.AlmostFullHealth pour ce donjon. 0 = valeur du serveur.",
+    ["Rest Mana %"] = "Repos : mana %",
+    ["Mana the party drinks up to between pulls, overriding the server's AiPlayerbot.HighMana for this run. 0 = use the server default. Ignored while Smart Rest is on."] = "Mana jusqu'à laquelle le groupe boit entre deux pulls, à la place de AiPlayerbot.HighMana pour ce donjon. 0 = valeur du serveur. Ignoré avec le repos intelligent.",
+    ["Smart Rest"] = "Repos intelligent",
+    ["Push without stopping to eat or drink until someone falls below a trigger, then the whole party rests to FULL health and mana. Off = classic rest-to-target behavior (Rest Health/Mana % above)."] = "Avance sans manger ni boire jusqu'à ce qu'un membre passe sous un seuil, puis tout le groupe se repose jusqu'au MAXIMUM de vie et de mana. Off = repos classique (Repos : vie/mana % ci-dessus).",
+    ["Smart Rest: Health Trigger %"] = "Repos intelligent : seuil de vie %",
+    ["Any member below this health stops the party for a full rest. 0 disables the health trigger."] = "Un membre sous cette vie arrête le groupe pour un repos complet. 0 désactive ce seuil.",
+    ["Smart Rest: DPS/Tank Mana Trigger %"] = "Repos intelligent : seuil de mana DPS/tank %",
+    ["A DPS or tank mana user below this stops the party for a full rest. 0 disables."] = "Un DPS ou tank à mana sous ce seuil arrête le groupe pour un repos complet. 0 désactive.",
+    ["Smart Rest: Healer Mana Trigger %"] = "Repos intelligent : seuil de mana soigneur %",
+    ["A healer below this mana stops the party for a full rest. 0 disables."] = "Un soigneur sous ce mana arrête le groupe pour un repos complet. 0 désactive.",
+    ["Wait at Boss"] = "Attendre au boss",
+    ["Pause the run right before every boss pull and wait for you \226\128\148 hit Resume (or the tiny-mode dot) when your party is ready. Each boss waits once per run."] = "Met le nettoyage en pause juste avant chaque boss et vous attend — cliquez Reprendre (ou le point du mode mini) quand le groupe est prêt. Une fois par boss et par donjon.",
+    ["Desired maximum mobs per pull"] = "Nombre max. souhaité de monstres par pull",
+    ["Dynamic pull only. The party's comfortable simultaneous-mob ceiling: the tank Leeroys a pack at or under this estimated aggro count, and pulls one above it back to camp."] = "Pull Dynamic seulement. Le nombre de monstres que le groupe gère à la fois : le tank charge un groupe jusqu'à ce nombre et ramène au camp ceux qui le dépassent.",
+    ["Pull: Party Lag (yd)"] = "Pull : retard du groupe (m)",
+    ["Dynamic pull only. How far back the party trails while the tank scouts the next pack, so it reaches aggro range alone to decide Leeroy vs pull."] = "Pull Dynamic seulement. Distance à laquelle le groupe suit pendant que le tank observe le groupe suivant, pour qu'il arrive seul à portée d'aggro et choisisse.",
+}
+local function Language()
+    if CoACompanionBots_Language then return CoACompanionBots_Language() end
+    return (GetLocale() == "frFR") and "fr" or "en"
+end
+local function T(text)
+    if Language() == "fr" and FR[text] then return FR[text] end
+    return text
+end
+local labels = {}
+local function Label(widget, text)
+    widget:SetText(T(text))
+    table.insert(labels, { widget, text })
+end
 
 -- DB Setup
 DungeonClearDB = DungeonClearDB or {
@@ -42,29 +162,6 @@ local function GetInstanceKey()
 end
 local UpdateFrameHeight, UpdateLayout
 local pauseBtn
-local spectateBtn
-local spectatePrevBtn, spectateNextBtn  -- seat cycling (< / >) on the same row
-local spectateAvailable        -- server allows the spectator camera? (SPECTATE msg)
-local ApplySpectateAvailability -- enable/disable the Spectate button to match
-local spectateResetBtn         -- ends the camera and hands control back to you
--- What the spectator camera is doing. The server never tells the addon, so this
--- is modelled from the commands we send -- the one source that is always there.
--- PLAYER_CONTROL_LOST/GAINED only correct it when this server happens to raise
--- them; they cannot be relied on, because a module that hands your character to
--- the bot AI can leave you unable to move without ever sending the client a
--- control update.
---
---   false     nothing running -- the camera is on your own character
---   "free"    free-flying camera
---   "follow"  riding a bot
---
--- The distinction earns its keep in the reset: a bare `spectate` toggles the
--- mode you are IN, so ending the follow cam takes two (the first only hands over
--- to the free camera) while the free camera ends on one. Knowing which we are in
--- is what makes one click enough without ever sending a toggle too many.
-local cameraState = false
-local UpdateResetBtnState      -- greys the reset button in/out with the state
-local SetCameraState           -- single place that moves cameraState
 local RefreshStatusHeight      -- re-measure the Warning row, then resize to fit
 local pullLabel          -- "Pull:" caption left of the segmented control
 local pullSegs = {}      -- [0]=Off [1]=On [2]=Dynamic segment buttons (full mode)
@@ -176,12 +273,12 @@ statusFrame:SetBackdropBorderColor(0.15, 0.17, 0.22, 0.8)
 -- Status fields
 local statusLabel = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 statusLabel:SetPoint("TOPLEFT", statusFrame, "TOPLEFT", 10, -10)
-statusLabel:SetText("Mode Status:")
+Label(statusLabel, "Mode Status:")
 statusLabel:SetTextColor(0.8, 0.8, 0.8)
 
 local statusVal = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 statusVal:SetPoint("LEFT", statusLabel, "RIGHT", 5, 0)
-statusVal:SetText("OFF")
+statusVal:SetText(T("OFF"))
 statusVal:SetTextColor(0.5, 0.5, 0.5)
 
 -- Pull-mode readout. Mirrors the segmented control's active state and, in
@@ -189,17 +286,17 @@ statusVal:SetTextColor(0.5, 0.5, 0.5)
 -- crammed into the Dyn segment label, where it overflowed the button.
 local pullModeLabel = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 pullModeLabel:SetPoint("TOPLEFT", statusLabel, "BOTTOMLEFT", 0, -8)
-pullModeLabel:SetText("Pull Mode:")
+Label(pullModeLabel, "Pull Mode:")
 pullModeLabel:SetTextColor(0.8, 0.8, 0.8)
 
 local pullModeVal = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 pullModeVal:SetPoint("LEFT", pullModeLabel, "RIGHT", 5, 0)
-pullModeVal:SetText("Dynamic")
+pullModeVal:SetText(T("Dynamic"))
 pullModeVal:SetTextColor(0.6, 0.6, 0.6)
 
 local stateLabel = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 stateLabel:SetPoint("TOPLEFT", pullModeLabel, "BOTTOMLEFT", 0, -8)
-stateLabel:SetText("Current State:")
+Label(stateLabel, "Current State:")
 stateLabel:SetTextColor(0.8, 0.8, 0.8)
 
 local stateVal = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -210,7 +307,7 @@ local stateVal = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight
 stateVal:SetPoint("TOPLEFT", stateLabel, "TOPRIGHT", 5, 0)
 stateVal:SetWidth(196)
 stateVal:SetJustifyH("LEFT")
-stateVal:SetText("Inactive")
+stateVal:SetText(T("Inactive"))
 stateVal:SetTextColor(0.6, 0.6, 0.6)
 
 -- Free-text detail sub-line under the state (who we're waiting on, what we're
@@ -233,7 +330,7 @@ local targetLabel = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal
 -- with margin; everything below shifts down the same 10px (see the matching
 -- statusFrame / frame height bumps) so no new overlap is introduced.
 targetLabel:SetPoint("TOPLEFT", stateLabel, "BOTTOMLEFT", 0, -44)
-targetLabel:SetText("Next Boss:")
+Label(targetLabel, "Next Boss:")
 targetLabel:SetTextColor(0.8, 0.8, 0.8)
 
 local targetVal = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
@@ -245,12 +342,12 @@ targetVal:SetPoint("LEFT", targetLabel, "RIGHT", 5, 0)
 targetVal:SetWidth(210)
 targetVal:SetJustifyH("LEFT")
 targetVal:SetWordWrap(false)
-targetVal:SetText("None")
+targetVal:SetText(T("None"))
 targetVal:SetTextColor(1, 1, 1)
 
 local stallLabel = statusFrame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 stallLabel:SetPoint("TOPLEFT", targetLabel, "BOTTOMLEFT", 0, -8)
-stallLabel:SetText("Warning:")
+Label(stallLabel, "Warning:")
 stallLabel:SetTextColor(0.9, 0.2, 0.2)
 stallLabel:Hide()
 
@@ -323,7 +420,7 @@ tinyIndicator:Hide()
 
 local tinyText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 tinyText:SetPoint("LEFT", tinyIndicator, "RIGHT", 6, 0)
-tinyText:SetText("Off")
+tinyText:SetText(T("Off"))
 tinyText:Hide()
 
 -- Click target over the tiny circle; created after SendDcCommand is defined so
@@ -332,21 +429,21 @@ local tinyToggle
 
 -- Compact state -> (label, color) for the tiny line
 local function FormatStateTiny(state)
-    if state == "paused" then return "Paused", {0.9, 0.8, 0.2}
-    elseif state == "pulling" then return "Pulling to Camp", {0.3, 0.8, 1}
-    elseif state == "moving" then return "Advancing", {0.2, 0.7, 1}
-    elseif state == "pathing" then return "Plotting Route", {0.4, 0.7, 0.9}
-    elseif state == "pursuing" then return "Closing In", {0.3, 0.8, 1}
-    elseif state == "recovering" then return "Repathing", {0.9, 0.6, 0.2}
-    elseif state == "resting" then return "Resting", {0.9, 0.8, 0.2}
-    elseif state == "looting" then return "Looting", {0.9, 0.6, 0.1}
-    elseif state == "door_blocked" then return "Door Blocked", {0.9, 0.2, 0.2}
-    elseif state == "stalled" then return "Blocked", {0.9, 0.2, 0.2}
-    elseif state == "fighting_trash" then return "Clearing Trash", {0.8, 0.3, 0.9}
-    elseif state == "fighting_boss" then return "Boss Fight", {1, 0.2, 0.2}
-    elseif state == "idle" then return "Idle", {0.6, 0.6, 0.6}
+    if state == "paused" then return T("Paused"), {0.9, 0.8, 0.2}
+    elseif state == "pulling" then return T("Pulling to Camp"), {0.3, 0.8, 1}
+    elseif state == "moving" then return T("Advancing"), {0.2, 0.7, 1}
+    elseif state == "pathing" then return T("Plotting Route"), {0.4, 0.7, 0.9}
+    elseif state == "pursuing" then return T("Closing In"), {0.3, 0.8, 1}
+    elseif state == "recovering" then return T("Repathing"), {0.9, 0.6, 0.2}
+    elseif state == "resting" then return T("Resting"), {0.9, 0.8, 0.2}
+    elseif state == "looting" then return T("Looting"), {0.9, 0.6, 0.1}
+    elseif state == "door_blocked" then return T("Door Blocked"), {0.9, 0.2, 0.2}
+    elseif state == "stalled" then return T("Blocked"), {0.9, 0.2, 0.2}
+    elseif state == "fighting_trash" then return T("Clearing Trash"), {0.8, 0.3, 0.9}
+    elseif state == "fighting_boss" then return T("Boss Fight"), {1, 0.2, 0.2}
+    elseif state == "idle" then return T("Idle"), {0.6, 0.6, 0.6}
     end
-    return "Active", {0.8, 0.8, 0.8}
+    return T("Active"), {0.8, 0.8, 0.8}
 end
 
 local function RgbToHex(c)
@@ -359,6 +456,7 @@ local function UpdateTinyWidth()
     -- + pull caption + gap(2) + action text + pad(12)
     local w = 10 + 16 + 6 + 16 + 4 + (tinyPullText and tinyPullText:GetStringWidth() or 0)
         + 2 + (tinyText:GetStringWidth() or 0) + 12
+        + 8 + 5 * (18 + 2)  -- the bot orders (TINY_ORDERS)
     frame:SetWidth(math.max(170, w))
 end
 
@@ -371,12 +469,12 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
     if not enabled or enabled == "0" then
         isDCOn = false
         isPaused = false
-        statusVal:SetText("OFF")
+        statusVal:SetText(T("OFF"))
         statusVal:SetTextColor(0.5, 0.5, 0.5)
-        stateVal:SetText("Inactive")
+        stateVal:SetText(T("Inactive"))
         stateVal:SetTextColor(0.6, 0.6, 0.6)
         detailVal:SetText("")
-        targetVal:SetText("None")
+        targetVal:SetText(T("None"))
         targetVal:SetTextColor(0.6, 0.6, 0.6)
         stallLabel:Hide()
         stallVal:Hide()
@@ -384,10 +482,10 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
     else
         isDCOn = true
         if isPaused then
-            statusVal:SetText("PAUSED")
+            statusVal:SetText(T("PAUSED"))
             statusVal:SetTextColor(0.9, 0.8, 0.2) -- Yellow
         else
-            statusVal:SetText("ON")
+            statusVal:SetText(T("ON"))
             statusVal:SetTextColor(0.1, 0.9, 0.1) -- Green
         end
 
@@ -395,43 +493,43 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
         local stateText = state or "Idle"
         local stateColor = {0.8, 0.8, 0.8}
         if state == "paused" then
-            stateText = "Paused"
+            stateText = T("Paused")
             stateColor = {0.9, 0.8, 0.2} -- Yellow
         elseif state == "pulling" then
-            stateText = "Advanced Pull"
+            stateText = T("Advanced Pull")
             stateColor = {0.3, 0.8, 1} -- Light blue
         elseif state == "moving" then
-            stateText = "Advancing"
+            stateText = T("Advancing")
             stateColor = {0.2, 0.7, 1} -- Light blue
         elseif state == "pathing" then
-            stateText = "Plotting Route"
+            stateText = T("Plotting Route")
             stateColor = {0.4, 0.7, 0.9} -- Blue
         elseif state == "pursuing" then
-            stateText = "Closing on Boss"
+            stateText = T("Closing on Boss")
             stateColor = {0.3, 0.8, 1} -- Light blue
         elseif state == "recovering" then
-            stateText = "Recovering / Repathing"
+            stateText = T("Recovering / Repathing")
             stateColor = {0.9, 0.6, 0.2} -- Amber
         elseif state == "resting" then
-            stateText = "Party Recovering / Resting"
+            stateText = T("Party Recovering / Resting")
             stateColor = {0.9, 0.8, 0.2} -- Yellow
         elseif state == "looting" then
-            stateText = "Collecting Loot"
+            stateText = T("Collecting Loot")
             stateColor = {0.9, 0.6, 0.1} -- Orange
         elseif state == "door_blocked" then
-            stateText = "Blocked by Door"
+            stateText = T("Blocked by Door")
             stateColor = {0.9, 0.2, 0.2} -- Red
         elseif state == "stalled" then
-            stateText = "Route Blocked"
+            stateText = T("Route Blocked")
             stateColor = {0.9, 0.2, 0.2} -- Red
         elseif state == "fighting_trash" then
-            stateText = "Clearing Path (Trash)"
+            stateText = T("Clearing Path (Trash)")
             stateColor = {0.8, 0.3, 0.9} -- Purple
         elseif state == "fighting_boss" then
-            stateText = "Engaging Boss!"
+            stateText = T("Engaging Boss!")
             stateColor = {1, 0.1, 0.1} -- Crimson
         elseif state == "idle" then
-            stateText = "Idle / Waiting"
+            stateText = T("Idle / Waiting")
             stateColor = {0.6, 0.6, 0.6}
         end
         stateVal:SetText(stateText)
@@ -442,12 +540,12 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
             -- tank can't open) and can be a long sentence, so surface it on the
             -- wrapping sub-line rather than the fixed-width state label above.
             local reason = (detail and detail ~= "") and detail or "holding position"
-            detailVal:SetText("Holding (" .. reason .. "); boss progress saved.")
+            detailVal:SetText(string.format(T("Holding (%s); boss progress saved."), reason))
         else
             detailVal:SetText(detail or "")
         end
 
-        targetVal:SetText(targetName or "None")
+        targetVal:SetText(targetName or T("None"))
         targetVal:SetTextColor(1, 0.82, 0) -- Gold
 
         if stallReason and stallReason ~= "" then
@@ -466,7 +564,7 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
     -- Update the tiny single-line display: circle + status + boss
     if not enabled or enabled == "0" then
         tinyIndicator:SetTexture("Interface\\FriendsFrame\\StatusIcon-Offline")
-        tinyText:SetText("|cff999999Off|r")
+        tinyText:SetText("|cff999999" .. T("Off") .. "|r")
     else
         if isPaused then
             -- Yellow "away" dot signals a held/paused clear.
@@ -501,10 +599,10 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
     -- Pause/Resume button: label reflects current state; disabled when DC is off.
     if pauseBtn then
         if not isDCOn then
-            pauseBtn:SetText("Pause")
+            pauseBtn:SetText(T("Pause"))
             pauseBtn:Disable()
         else
-            pauseBtn:SetText(isPaused and "Resume" or "Pause")
+            pauseBtn:SetText(isPaused and T("Resume") or T("Pause"))
             pauseBtn:Enable()
         end
     end
@@ -555,7 +653,7 @@ local function SendDcCommand(subCmd, param, silent)
     if me and me ~= "" then
         SendAddonMessage("DC", payload, "WHISPER", me)
     elseif not silent and param ~= "addon" then
-        DEFAULT_CHAT_FRAME:AddMessage("|cffff3333DungeonClear: cannot send bot commands right now.|r")
+        DEFAULT_CHAT_FRAME:AddMessage("|cffff3333Dungeon Clear: " .. T("cannot send bot commands right now.") .. "|r")
     end
 end
 
@@ -564,7 +662,7 @@ end
 local onBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 onBtn:SetSize(68, 24)
 onBtn:SetPoint("TOPLEFT", statusFrame, "BOTTOMLEFT", 0, -8)
-onBtn:SetText("On")
+Label(onBtn, "On")
 onBtn:SetScript("OnClick", function()
     SendDcCommand("on")
     -- The leader tank is elected on "on"; push the player's overrides right
@@ -575,13 +673,13 @@ end)
 local offBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 offBtn:SetSize(68, 24)
 offBtn:SetPoint("LEFT", onBtn, "RIGHT", 11, 0)
-offBtn:SetText("Off")
+Label(offBtn, "Off")
 offBtn:SetScript("OnClick", function() SendDcCommand("off") end)
 
 local skipBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 skipBtn:SetSize(68, 24)
 skipBtn:SetPoint("LEFT", offBtn, "RIGHT", 11, 0)
-skipBtn:SetText("Skip")
+Label(skipBtn, "Skip")
 skipBtn:SetScript("OnClick", function() SendDcCommand("skip") end)
 
 -- Pause/Resume toggle. Label + enabled state are driven by UpdateStatusUI.
@@ -593,7 +691,7 @@ skipBtn:SetScript("OnClick", function() SendDcCommand("skip") end)
 pauseBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
 pauseBtn:SetSize(68, 24)
 pauseBtn:SetPoint("LEFT", skipBtn, "RIGHT", 11, 0)
-pauseBtn:SetText("Pause")
+pauseBtn:SetText(T("Pause"))
 pauseBtn:SetScript("OnClick", function()
     SendDcCommand("pause", isPaused and "resume" or "pause")
 end)
@@ -605,7 +703,7 @@ end)
 -- is wired through but is a no-op stub server-side for now.
 pullLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 pullLabel:SetPoint("TOPLEFT", onBtn, "BOTTOMLEFT", 2, -14)
-pullLabel:SetText("Pull:")
+Label(pullLabel, "Pull:")
 pullLabel:SetTextColor(0.8, 0.8, 0.8)
 
 local PULL_SEG_W = 86
@@ -623,185 +721,6 @@ for i = 0, 2 do
     end)
     pullSegs[i] = seg
 end
-
--- Spectate toggle on its own row: detaches the player into a free-flying
--- camera while their character keeps running under bot AI (server-side
--- possession of an invisible dummy). Stateless label v1 — the server messages
--- confirm on/off. Independent of DC on/off, but the server can disable the
--- feature entirely (DungeonClear.SpectateEnable = 0): when it does, the SPECTATE
--- message flips spectateAvailable false and the button greys out (see
--- ApplySpectateAvailability). Assume available until the server says otherwise.
-spectateBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-spectateBtn:SetSize(100, 24)
--- The pull-row segments span -8..-32 below onBtn (24px buttons centered on
--- the label); start this row at -40 to keep the 8px row gap.
-spectateBtn:SetPoint("TOPLEFT", onBtn, "BOTTOMLEFT", 0, -40)
-spectateBtn:SetText("Spectate")
--- Left-click = the free-flying camera. Right-click (or shift-click) = follow
--- cam: the view rides the run's tank instead of flying free, which is what you
--- want when watching rather than exploring. Both are the same server toggle
--- family, so a second click of either ends the camera.
-spectateBtn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-spectateBtn:SetScript("OnClick", function(self, button)
-    if button == "RightButton" or IsShiftKeyDown() then
-        SendDcCommand("spectate", "follow")
-        SetCameraState("follow")
-    else
-        -- A bare toggle means different things from different seats: from no
-        -- camera it starts the free one, from the follow cam it hands over TO
-        -- the free one, and only from the free camera does it actually end.
-        SendDcCommand("spectate")
-        if cameraState == "free" then
-            SetCameraState(false)
-        else
-            SetCameraState("free")
-        end
-    end
-end)
-
--- Grey out and disable the Spectate button when the server has the feature
--- switched off, so the player can't click into a refusal. A disabled
--- UIPanelButtonTemplate is automatically dimmed and unclickable; the tooltip
--- explains why.
-spectateAvailable = true
-ApplySpectateAvailability = function()
-    if not spectateBtn then return end
-    -- The cycle buttons are the same feature; grey them out with it, or they
-    -- would click into the same refusal the Spectate button is greyed to avoid.
-    for _, b in ipairs({ spectateBtn, spectatePrevBtn, spectateNextBtn }) do
-        if b then
-            if spectateAvailable then b:Enable() else b:Disable() end
-        end
-    end
-    -- The reset has a second condition (is a camera even running?), so it goes
-    -- through its own rule rather than being flipped with the rest of the row.
-    if UpdateResetBtnState then UpdateResetBtnState() end
-end
-
-spectateBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    if not spectateAvailable then
-        GameTooltip:SetText("Spectator mode disabled", 1, 1, 1)
-        GameTooltip:AddLine("This server has turned off the spectator camera.",
-            0.8, 0.8, 0.8, true)
-        GameTooltip:Show()
-        return
-    end
-    GameTooltip:SetText("Spectate", 1, 1, 1)
-    GameTooltip:AddLine("Left-click: free-flying camera.", 0.8, 0.8, 0.8, true)
-    GameTooltip:AddLine("Right-click: follow cam \226\128\148 your view rides the tank.",
-        0.8, 0.8, 0.8, true)
-    GameTooltip:Show()
-end)
-spectateBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
--- Seat cycling, on the same row as Spectate. The camera can sit on ANY bot in
--- the instance, not just the tank — watch the healer through a wipe, a DPS
--- through a burn — and clicking beats typing a randomised bot name. From no
--- camera at all these also start one (server side treats a cycle from cold as
--- "take the default seat"), so this row is a complete spectator control.
-spectatePrevBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-spectatePrevBtn:SetSize(30, 24)
-spectatePrevBtn:SetPoint("LEFT", spectateBtn, "RIGHT", 6, 0)
-spectatePrevBtn:SetText("|cffffd100<|r")
-spectatePrevBtn:SetScript("OnClick", function()
-    SendDcCommand("spectate", "prev")
-    SetCameraState("follow")  -- cycling from cold starts a follow cam too
-end)
-spectatePrevBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText("Previous bot", 1, 1, 1)
-    GameTooltip:AddLine("Move the camera to the previous bot in the instance.",
-        0.8, 0.8, 0.8, true)
-    GameTooltip:Show()
-end)
-spectatePrevBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
-spectateNextBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-spectateNextBtn:SetSize(30, 24)
-spectateNextBtn:SetPoint("LEFT", spectatePrevBtn, "RIGHT", 4, 0)
-spectateNextBtn:SetText("|cffffd100>|r")
-spectateNextBtn:SetScript("OnClick", function()
-    SendDcCommand("spectate", "next")
-    SetCameraState("follow")
-end)
-spectateNextBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText("Next bot", 1, 1, 1)
-    GameTooltip:AddLine("Move the camera to the next bot in the instance. " ..
-        "Starts the follow cam if it isn't running.", 0.8, 0.8, 0.8, true)
-    GameTooltip:Show()
-end)
-spectateNextBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
-
--- Way back: ends whatever camera is running and returns you to your own body.
--- It gets its own button because the exit was not discoverable -- nothing on
--- this row said how to get out, and while the camera rides a bot your character
--- does not answer to the keyboard, so being stuck there is the worst state the
--- panel can leave you in. Flush right on the spectate row, set apart from the
--- < > pair by a wider gap so it reads as the exit rather than a third seat
--- control.
-spectateResetBtn = CreateFrame("Button", nil, frame, "UIPanelButtonTemplate")
-spectateResetBtn:SetSize(110, 24)
-spectateResetBtn:SetPoint("TOPRIGHT", pauseBtn, "BOTTOMRIGHT", 0, -40)
-spectateResetBtn:SetText("Reset Camera")
-
--- Greyed out whenever no camera is running, so the button can only ever end one.
-UpdateResetBtnState = function()
-    if not spectateResetBtn then return end
-    if spectateAvailable ~= false and cameraState ~= false then
-        spectateResetBtn:Enable()
-    else
-        spectateResetBtn:Disable()
-    end
-end
-
-SetCameraState = function(state)
-    cameraState = state
-    UpdateResetBtnState()
-end
-
--- Apply the starting state now, or the button would sit there looking clickable
--- until something first moved the camera.
-UpdateResetBtnState()
-
--- Ending the follow cam takes two toggles, and they cannot go out back to back:
--- the first has to reach the server and hand the camera over before the second
--- means anything. So the reset sends one now and queues this one a second later.
-local secondToggle = CreateFrame("Frame")
-local secondElapsed = 0
-secondToggle:Hide()
-secondToggle:SetScript("OnUpdate", function(self, elap)
-    secondElapsed = secondElapsed + elap
-    if secondElapsed < 1.0 then return end
-    self:Hide()
-    SendDcCommand("spectate")
-end)
-
-spectateResetBtn:SetScript("OnClick", function()
-    -- The whole contract of this button: it always leaves the camera on your own
-    -- character, and never takes it away. With nothing running there is nothing
-    -- to end, and a toggle here would START a camera -- so it does nothing at
-    -- all. Same rule the greying-out uses, belt and braces.
-    if cameraState == false then return end
-
-    -- Only the follow cam needs the follow-up; from the free camera a second
-    -- toggle would switch a fresh camera back on.
-    local needsSecond = (cameraState == "follow")
-    SetCameraState(false)
-    SendDcCommand("spectate")
-    secondElapsed = 0
-    if needsSecond then secondToggle:Show() end
-end)
-
-spectateResetBtn:SetScript("OnEnter", function(self)
-    GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-    GameTooltip:SetText("Reset Camera", 1, 1, 1)
-    GameTooltip:AddLine("Ends the spectator camera and hands control of your " ..
-        "own character back to you.", 0.8, 0.8, 0.8, true)
-    GameTooltip:Show()
-end)
-spectateResetBtn:SetScript("OnLeave", function() GameTooltip:Hide() end)
 
 -- Invisible click target over the tiny circle. Off -> start DC; running ->
 -- toggle pause/resume. Only shown in tiny mode (see UpdateLayout). Sits over
@@ -830,12 +749,12 @@ tinyToggle:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
     if not isDCOn then
         GameTooltip:AddLine("Dungeon Clear")
-        GameTooltip:AddLine("Left-click to start the clear", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(T("Left-click to start the clear"), 0.8, 0.8, 0.8, true)
     else
-        GameTooltip:AddLine(isPaused and "Paused" or "Clearing")
-        GameTooltip:AddLine(isPaused and "Left-click to resume" or "Left-click to pause", 0.8, 0.8, 0.8, true)
+        GameTooltip:AddLine(isPaused and T("Paused") or T("Clearing"))
+        GameTooltip:AddLine(isPaused and T("Left-click to resume") or T("Left-click to pause"), 0.8, 0.8, 0.8, true)
     end
-    GameTooltip:AddLine("Right-click to expand the window", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(T("Right-click to expand the window"), 0.8, 0.8, 0.8, true)
     GameTooltip:Show()
 end)
 tinyToggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -854,7 +773,7 @@ tinyPullDot:SetTexture("Interface\\FriendsFrame\\StatusIcon-Offline")
 
 tinyPullText = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 tinyPullText:SetPoint("LEFT", tinyPullDot, "RIGHT", 4, 0)
-tinyPullText:SetText("Off")
+tinyPullText:SetText(T("Off"))
 
 -- The action/boss status text now trails the pull caption.
 tinyText:ClearAllPoints()
@@ -880,14 +799,53 @@ tinyPullToggle:SetScript("OnClick", function(self, button)
 end)
 tinyPullToggle:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_TOP")
-    GameTooltip:AddLine("Pull Mode")
-    GameTooltip:AddLine("Click to cycle: Leeroy / Advanced / Dynamic", 0.8, 0.8, 0.8, true)
+    GameTooltip:AddLine(T("Pull Mode"))
+    GameTooltip:AddLine(T("Click to cycle: Leeroy / Advanced / Dynamic"), 0.8, 0.8, 0.8, true)
     GameTooltip:Show()
 end)
 tinyPullToggle:SetScript("OnLeave", function() GameTooltip:Hide() end)
 tinyPullDot:Hide()
 tinyPullText:Hide()
 tinyPullToggle:Hide()
+
+-- Bot orders in the tiny view, the same as the bar's first five buttons (SquidBotsLite_Order): the bots can be
+-- led from this one line without the bar. Shown only in tiny mode, after the status text.
+local TINY_ORDERS = {
+    { "follow", "Interface\\Icons\\Ability_Hunter_Pathfinding", "FOLLOW", "TIP_FOLLOW" },
+    { "stay", "Interface\\Icons\\Spell_Nature_TimeStop", "STAY", "TIP_STAY" },
+    { "attack", "Interface\\Icons\\Ability_DualWield", "ATTACK", "TIP_ATTACK" },
+    { "passive", "Interface\\Icons\\Spell_Nature_Sleep", "TOGGLE_PASSIVE", "TIP_ACTIVE" },
+    { "pull", "Interface\\Icons\\Ability_Marksmanship", "TOGGLE_PULL", "TIP_PULL_ON" },
+}
+local TINY_ORDER_SIZE, TINY_ORDER_GAP = 18, 2
+local tinyOrders = {}
+for i, def in ipairs(TINY_ORDERS) do
+    local b = CreateFrame("Button", nil, frame)
+    b:SetSize(TINY_ORDER_SIZE, TINY_ORDER_SIZE)
+    if i == 1 then
+        b:SetPoint("LEFT", tinyText, "RIGHT", 8, 0)
+    else
+        b:SetPoint("LEFT", tinyOrders[i - 1], "RIGHT", TINY_ORDER_GAP, 0)
+    end
+    local icon = b:CreateTexture(nil, "ARTWORK")
+    icon:SetAllPoints()
+    icon:SetTexture(def[2])
+    icon:SetTexCoord(0.07, 0.93, 0.07, 0.93)
+    b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
+    b:SetScript("OnClick", function()
+        if SquidBotsLite_Order then SquidBotsLite_Order(def[1]) end
+    end)
+    b:SetScript("OnEnter", function(self)
+        local text = CoACompanionBots_Text or function(key) return key end
+        GameTooltip:SetOwner(self, "ANCHOR_TOP")
+        GameTooltip:SetText(text(def[3]))
+        GameTooltip:AddLine(text(def[4]), 1, 1, 1, true)
+        GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    b:Hide()
+    tinyOrders[i] = b
+end
 
 -- Style the full-mode segments + tiny cycle button to the current pull state.
 -- Active segment: locked highlight + accent text. Inactive: dim grey. The
@@ -905,7 +863,7 @@ UpdatePullControls = function()
     if pullModeVal then
         local text = PullStates[pullSetting].seg
         if pullSetting == 2 then
-            text = "Dynamic" .. (verdict and (" (" .. verdict.full .. ")") or "")
+            text = "Dynamic" .. (verdict and (" (" .. T(verdict.full) .. ")") or "")
         end
         pullModeVal:SetText(text)
         if not isDCOn then
@@ -957,7 +915,7 @@ UpdatePullControls = function()
         local label = PullStates[pullSetting].seg
         local color = PullStates[pullSetting].color
         if verdict then
-            label = label .. ": " .. verdict.full
+            label = label .. ": " .. T(verdict.full)
             color = verdict.color
         end
         local dim = isDCOn and 1.0 or 0.6
@@ -990,10 +948,9 @@ end
 
 -- Boss List Label
 local listLabel = frame:CreateFontString(nil, "OVERLAY", "GameFontNormal")
--- Below the pull + spectate rows: onBtn bottom, minus the 8px gap + 24px
--- segment row + 8px gap + 24px spectate row + 12px.
-listLabel:SetPoint("TOPLEFT", onBtn, "BOTTOMLEFT", 0, -76)
-listLabel:SetText("Dungeon Bosses")
+-- Below the pull row: onBtn bottom, minus the 8px gap + 24px segment row + 12px.
+listLabel:SetPoint("TOPLEFT", onBtn, "BOTTOMLEFT", 0, -44)
+Label(listLabel, "Dungeon Bosses")
 listLabel:SetTextColor(0.24, 0.60, 1.0)
 
 -- Boss List Scroll Frame container
@@ -1160,7 +1117,7 @@ RedrawBossList = function()
         row.eventNoteFull = nil
         row.text:ClearAllPoints()
         row.text:SetPoint("LEFT", row, "LEFT", 8, 0)
-        row.text:SetText("Loading boss list...")
+        row.text:SetText(T("Loading boss list..."))
         row.text:SetTextColor(0.6, 0.6, 0.6)
         row.sub:Hide()
         row.status:SetText("")
@@ -1228,20 +1185,20 @@ RedrawBossList = function()
             end
 
             -- Style status color
-            local statusLabelText = "Alive"
+            local statusLabelText = T("Alive")
             local statusColor = {0.1, 0.9, 0.1}
             local showGo = true
 
             if boss.status == "dead" then
-                statusLabelText = "Dead"
+                statusLabelText = T("Dead")
                 statusColor = {0.6, 0.6, 0.6}
                 showGo = false
             elseif boss.status == "skipped" then
-                statusLabelText = "Skipped"
+                statusLabelText = T("Skipped")
                 statusColor = {0.9, 0.7, 0.1}
                 showGo = true
             elseif boss.status == "missing" then
-                statusLabelText = "Missing"
+                statusLabelText = T("Missing")
                 statusColor = {0.5, 0.5, 0.7}
                 showGo = true
             end
@@ -1283,7 +1240,7 @@ end
 local tinyBtn = CreateFrame("Button", "DungeonClearTinyButton", frame, "UIPanelButtonTemplate")
 tinyBtn:SetSize(40, 20)
 tinyBtn:SetPoint("RIGHT", closeBtn, "LEFT", 2, 0)
-tinyBtn:SetText("Tiny")
+Label(tinyBtn, "Tiny")
 
 local toggleBossesBtn = CreateFrame("Button", "DungeonClearToggleBossesButton", frame)
 toggleBossesBtn:SetSize(24, 24)
@@ -1328,10 +1285,10 @@ end
 
 -- The stack hanging off the action row's bottom, read from the anchors that
 -- actually place it rather than baked into the height constants:
---   76   onBtn bottom -> boss-list caption top (the pull row + the spectate row)
+--   44   onBtn bottom -> boss-list caption top (the pull row)
 --   +    the caption's own height
 --   4    caption -> list container, then the 205px container itself
-local LIST_GAP, LIST_PAD, LIST_H, TOGGLE_H = 76, 4, 205, 24
+local LIST_GAP, LIST_PAD, LIST_H, TOGGLE_H = 44, 4, 205, 24
 
 local function BelowActionRow()
     local capH = listLabel:GetHeight()
@@ -1376,10 +1333,6 @@ UpdateLayout = function()
         if pauseBtn then pauseBtn:Hide() end
         if pullLabel then pullLabel:Hide() end
         for i = 0, 2 do if pullSegs[i] then pullSegs[i]:Hide() end end
-        if spectateBtn then spectateBtn:Hide() end
-        if spectatePrevBtn then spectatePrevBtn:Hide() end
-        if spectateNextBtn then spectateNextBtn:Hide() end
-        if spectateResetBtn then spectateResetBtn:Hide() end
         listLabel:Hide()
         toggleBossesBtn:Hide()
         scrollContainer:Hide()
@@ -1391,7 +1344,9 @@ UpdateLayout = function()
         if tinyPullDot then tinyPullDot:Show() end
         if tinyPullText then tinyPullText:Show() end
         if tinyPullToggle then tinyPullToggle:Show() end
+        for _, b in ipairs(tinyOrders) do b:Show() end
     else
+        for _, b in ipairs(tinyOrders) do b:Hide() end
         tinyIndicator:Hide()
         tinyText:Hide()
         if tinyToggle then tinyToggle:Hide() end
@@ -1402,17 +1357,13 @@ UpdateLayout = function()
         header:Show()
         closeBtn:Show()
         tinyBtn:Show()
-        tinyBtn:SetText("Tiny")
+        tinyBtn:SetText(T("Tiny"))
         onBtn:Show()
         offBtn:Show()
         skipBtn:Show()
         if pauseBtn then pauseBtn:Show() end
         if pullLabel then pullLabel:Show() end
         for i = 0, 2 do if pullSegs[i] then pullSegs[i]:Show() end end
-        if spectateBtn then spectateBtn:Show() end
-        if spectatePrevBtn then spectatePrevBtn:Show() end
-        if spectateNextBtn then spectateNextBtn:Show() end
-        if spectateResetBtn then spectateResetBtn:Show() end
         listLabel:Show()
         toggleBossesBtn:Show()
         statusFrame:Show()
@@ -1464,13 +1415,6 @@ eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
 eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
 eventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
 eventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
--- Corrective only, for the camera state the addon models from its own commands:
--- the spectator camera takes control of our character away and hands it back, so
--- these let the "Reset Camera" button tell a camera that is still running from
--- one that has already been released (a typed `.dc spectate`, or the server
--- dropping it on its own). Not every server raises them -- see cameraState.
-eventFrame:RegisterEvent("PLAYER_CONTROL_LOST")
-eventFrame:RegisterEvent("PLAYER_CONTROL_GAINED")
 
 -- Request the boss list from the tank bot. The server's "dungeon bosses" value
 -- returns empty (and caches that for ~5s) whenever the bot isn't fully in the
@@ -1613,12 +1557,6 @@ local function OnAddonMessage(prefix, message, channel, sender)
         -- One player-facing setting's effective value + schema (key, value, min,
         -- max, type, overridden). Renders/refreshes its control in the panel.
         if HandleSettingsLine then HandleSettingsLine(parts) end
-    elseif parts[1] == "SPECTATE" then
-        -- Server tells us whether the spectator camera is enabled (DungeonClear.
-        -- SpectateEnable). Grey out / disable the button when it's off so a click
-        -- can't run into a refusal. Sent in answer to our status poll.
-        spectateAvailable = (parts[2] ~= "0")
-        if ApplySpectateAvailability then ApplySpectateAvailability() end
     elseif parts[1] == "SYNCEND" then
         if OnSettingsSyncBoundary then OnSettingsSyncBoundary("end") end
     elseif parts[1] == "CHAT" then
@@ -1635,7 +1573,7 @@ local function OnAddonMessage(prefix, message, channel, sender)
         -- (one-shot, since this flips isDCOn false) and say so once.
         if isDCOn then
             UpdateStatusUI("0", nil, "off", nil)
-            DEFAULT_CHAT_FRAME:AddMessage("|cffff3333[DC] Tank bot is no longer in the group \226\128\148 dungeon clear turned off.|r")
+            DEFAULT_CHAT_FRAME:AddMessage("|cffff3333[DC] " .. T("Tank bot is no longer in the group \226\128\148 dungeon clear turned off.") .. "|r")
         end
     end
 end
@@ -1656,6 +1594,7 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
             DungeonClearDB.schema = DungeonClearDB.schema or {}
             DungeonClearDB.schemaOrder = DungeonClearDB.schemaOrder or {}
             if BuildSettingsFromCache then BuildSettingsFromCache() end
+            CoACompanionBots_DcApplyTexts()
 
             -- Restore layout
             frame:ClearAllPoints()
@@ -1719,16 +1658,6 @@ eventFrame:SetScript("OnEvent", function(self, event, ...)
         if frame:IsVisible() and isDCOn then
             SendDcCommand("status", "addon")
         end
-    elseif event == "PLAYER_CONTROL_LOST" then
-        -- Corrective only: catches a camera started outside this panel (a typed
-        -- `.dc spectate`). If we already track a mode, that one is more precise
-        -- than the guess this could make, so it is left alone.
-        if not cameraState then SetCameraState("free") end
-    elseif event == "PLAYER_CONTROL_GAINED" then
-        -- The camera let go for real. Cancel a queued second toggle -- it was
-        -- meant to finish the job, and now it would only start a new camera.
-        secondToggle:Hide()
-        SetCameraState(false)
     end
 end)
 
@@ -1754,7 +1683,7 @@ end)
 -- window exactly like typing /dc. No settings live here; all controls stay in
 -- the floating window.
 local optionsPanel = CreateFrame("Frame", "DungeonClearOptionsPanel", UIParent)
-optionsPanel.name = "DungeonClear"
+optionsPanel.name = "CoA Companion: Dungeon Clear"
 
 local optTitle = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 optTitle:SetPoint("TOPLEFT", optionsPanel, "TOPLEFT", 16, -16)
@@ -1763,30 +1692,32 @@ optTitle:SetTextColor(0.24, 0.60, 1.0) -- match the main window header
 
 local optSubtitle = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 optSubtitle:SetPoint("TOPLEFT", optTitle, "BOTTOMLEFT", 0, -4)
-optSubtitle:SetText("Autonomous dungeon-clearing companion for mod-dungeon-clear.")
+Label(optSubtitle, "Autonomous dungeon-clearing companion for mod-dungeon-clear.")
 optSubtitle:SetTextColor(0.6, 0.6, 0.6)
 
 local optOverview = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 optOverview:SetPoint("TOPLEFT", optSubtitle, "BOTTOMLEFT", 0, -14)
 optOverview:SetWidth(560)
 optOverview:SetJustifyH("LEFT")
-optOverview:SetText(
+local OPT_OVERVIEW =
     "A mod-playerbots tank bot walks your party from boss to boss, clearing trash and " ..
     "pathing the route on its own. This addon is the front-end for that mode: it gives you " ..
     "one-click On / Off / Skip / Pause-Resume control, a live status readout (what the bot " ..
     "is doing and which boss it's heading for), and a boss list with a per-boss \"Go\" button. " ..
-    "You must be in a party that contains a tank bot \226\128\148 the addon only relays commands.")
+    "You must be in a party that contains a tank bot \226\128\148 the addon only relays commands."
+FR[OPT_OVERVIEW] = "Un bot tank de Playerbots mène votre groupe de boss en boss, nettoie le trash et trouve seul son chemin. Cette partie de CoA Companion le pilote : On / Off / Passer / Pause-Reprise en un clic, l'état en direct (ce que fait le bot et le boss visé) et la liste des boss avec un bouton « Go » par boss. Le groupe doit contenir un bot tank — l'addon ne fait que transmettre les ordres."
+Label(optOverview, OPT_OVERVIEW)
 
 local optCmdHeader = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 optCmdHeader:SetPoint("TOPLEFT", optOverview, "BOTTOMLEFT", 0, -18)
-optCmdHeader:SetText("Commands & Controls")
+Label(optCmdHeader, "Commands & Controls")
 optCmdHeader:SetTextColor(0.24, 0.60, 1.0)
 
 local optCmdList = optionsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
 optCmdList:SetPoint("TOPLEFT", optCmdHeader, "BOTTOMLEFT", 0, -8)
 optCmdList:SetWidth(560)
 optCmdList:SetJustifyH("LEFT")
-optCmdList:SetText(
+local OPT_COMMANDS =
     "|cffffd100/dc|r  \226\128\148  Toggle the main window (always reopens in full mode).\n" ..
     "|cffffd100On / Off|r  \226\128\148  Start or stop the autonomous clear.\n" ..
     "|cffffd100Skip|r  \226\128\148  Skip the current boss / objective and move to the next.\n" ..
@@ -1797,22 +1728,18 @@ optCmdList:SetText(
     "pack (charges in) but uses the careful |cff4db3ffAdvanced|r pull when packs are bunched in a room. The live " ..
     "choice shows on the Dyn control. " ..
     "|cff8c8c8cOff|r: walk up and fight in place.\n" ..
-    "|cffffd100Spectate|r  \226\128\148  Left-click detaches you into a free-flying camera while your " ..
-    "character keeps running under bot AI. Right-click instead rides the tank (follow cam), handing off " ..
-    "if it dies. Click again (or |cffffd100.dc spectate|r) to return to your body.\n" ..
-    "|cffffd100< >|r (next to Spectate)  \226\128\148  Move the camera to any other bot in the instance, " ..
-    "tank or not \226\128\148 healer during a wipe, DPS during a burn. Also starts the follow cam if it " ..
-    "isn't running. |cffffd100.dc spectate next/prev/list|r, or " ..
-    "|cffffd100.dc spectate follow <name>|r to jump straight to one.\n" ..
     "|cffffd100Go|r (per boss row)  \226\128\148  Send the tank straight to that boss (turns the clear on first).\n" ..
-    "|cffffd100Tiny|r  \226\128\148  Collapse the window to a single-line, movable readout.\n" ..
+    "|cffffd100Tiny|r  \226\128\148  Collapse the window to a single-line, movable readout, with the bot orders " ..
+    "(follow, stay, target, passive, auto pull).\n" ..
     "|cffffd100Settings|r (sub-page)  \226\128\148  Override the server defaults (loot quality, rest %, " ..
-    "party spread, pull tuning, …) for your own runs. Saved per character and re-applied each run.")
+    "party spread, pull tuning, …) for your own runs. Saved per character and re-applied each run."
+FR[OPT_COMMANDS] = "|cffffd100/dc|r  —  Affiche ou cache la fenêtre (toujours en mode complet).\n|cffffd100On / Off|r  —  Lance ou arrête le nettoyage autonome.\n|cffffd100Passer|r  —  Passe le boss ou l'objectif actuel.\n|cffffd100Pause / Reprendre|r  —  Le tank s'arrête sans finir le nettoyage, puis reprend.\n|cffffd100Pull : Off / On / Dynamic|r  —  |cff33d94dOn|r : le tank va chercher un groupe et le ramène là où attend le groupe avant le combat. |cff4db3ffDynamic|r : le tank choisit pour chaque groupe — il |cffffa61acharge|r un groupe isolé, mais utilise le pull |cff4db3ffAdvanced|r quand les monstres sont nombreux. |cff8c8c8cOff|r : avance et combat sur place.\n|cffffd100Go|r (par boss)  —  Envoie le tank directement à ce boss (lance le nettoyage d'abord).\n|cffffd100Mini|r  —  Réduit la fenêtre à une ligne, avec les ordres aux bots (suivre, rester, cible, passif, pull auto).\n|cffffd100Réglages|r (sous-page)  —  Remplace les valeurs du serveur (qualité du butin, repos, écart, pulls...) pour vos propres donjons. Conservés par personnage et renvoyés à chaque donjon."
+Label(optCmdList, OPT_COMMANDS)
 
 local openBtn = CreateFrame("Button", nil, optionsPanel, "UIPanelButtonTemplate")
 openBtn:SetSize(160, 24)
 openBtn:SetPoint("TOPLEFT", optCmdList, "BOTTOMLEFT", 0, -20)
-openBtn:SetText("Open DungeonClear")
+Label(openBtn, "Open Dungeon Clear")
 openBtn:SetScript("OnClick", function()
     -- Mirror the /dc (no-arg) open branch: always reopen in full (non-tiny) mode.
     DungeonClearDB.tinyMode = false
@@ -1903,7 +1830,7 @@ local QualityInfo = {
 }
 local function QualityText(v)
     local info = QualityInfo[v] or QualityInfo[0]
-    return "|c" .. info.hex .. info.name .. "|r"
+    return "|c" .. info.hex .. T(info.name) .. "|r"
 end
 
 -- Setting type ids mirror DcType in the server registry.
@@ -1964,24 +1891,26 @@ settingsPanel.parent = optionsPanel.name  -- nests under "DungeonClear"
 
 local setTitle = settingsPanel:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
 setTitle:SetPoint("TOPLEFT", settingsPanel, "TOPLEFT", 16, -16)
-setTitle:SetText("Dungeon Clear - Settings")
+Label(setTitle, "Dungeon Clear - Settings")
 setTitle:SetTextColor(0.24, 0.60, 1.0)
 
 local setIntro = settingsPanel:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
 setIntro:SetPoint("TOPLEFT", setTitle, "BOTTOMLEFT", 0, -4)
 setIntro:SetWidth(580)
 setIntro:SetJustifyH("LEFT")
-setIntro:SetText(
+local SET_INTRO =
     "These override the server defaults for your own dungeon runs. Changes apply " ..
     "immediately and are saved per character. You must be in a party with a tank " ..
-    "bot for them to take effect; \"Default\" reverts a setting to the server value.")
+    "bot for them to take effect; \"Default\" reverts a setting to the server value."
+FR[SET_INTRO] = "Ces réglages remplacent les valeurs du serveur pour vos propres donjons. Ils s'appliquent tout de suite et sont conservés par personnage. Il faut un bot tank dans le groupe ; « Défaut » remet la valeur du serveur."
+Label(setIntro, SET_INTRO)
 setIntro:SetTextColor(0.6, 0.6, 0.6)
 
 -- Reset-everything-to-server-default button.
 local resetAllBtn = CreateFrame("Button", nil, settingsPanel, "UIPanelButtonTemplate")
 resetAllBtn:SetSize(150, 22)
 resetAllBtn:SetPoint("TOPLEFT", setIntro, "BOTTOMLEFT", 0, -10)
-resetAllBtn:SetText("Reset All to Default")
+Label(resetAllBtn, "Reset All to Default")
 resetAllBtn:SetScript("OnClick", function()
     DungeonClearDB.settings = {}
     SendDcCommand("reset", "", true)  -- empty key = clear the whole run
@@ -2045,15 +1974,15 @@ local function CreateSettingRow(key, stype)
 
     row.label = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
     row.label:SetPoint("TOPLEFT", row, "TOPLEFT", 4, -2)
-    row.label:SetText(meta.label or key)
+    row.label:SetText(T(meta.label or key))
     row.label:SetTextColor(0.92, 0.92, 0.92)
 
     if meta.desc then
         row:EnableMouse(true)
         row:SetScript("OnEnter", function(self)
             GameTooltip:SetOwner(self, "ANCHOR_TOPLEFT")
-            GameTooltip:SetText(meta.label or key, 1, 1, 1)
-            GameTooltip:AddLine(meta.desc, 0.8, 0.8, 0.8, true)
+            GameTooltip:SetText(T(meta.label or key), 1, 1, 1)
+            GameTooltip:AddLine(T(meta.desc), 0.8, 0.8, 0.8, true)
             GameTooltip:Show()
         end)
         row:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2063,7 +1992,7 @@ local function CreateSettingRow(key, stype)
     row.defBtn = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
     row.defBtn:SetSize(64, 18)
     row.defBtn:SetPoint("TOPRIGHT", row, "TOPRIGHT", -2, -2)
-    row.defBtn:SetText("Default")
+    row.defBtn:SetText(T("Default"))
     row.defBtn:SetScript("OnClick", function()
         DungeonClearDB.settings[key] = nil
         SendDcCommand("reset", key, true)
@@ -2266,7 +2195,7 @@ local function ToggleMainWindow()
     end
 end
 
-local minimapButton = CreateFrame("Button", "DungeonClearMinimapButton", Minimap)
+local minimapButton = CreateFrame("Button", "CoACompanionBotsMinimapButton", Minimap)
 minimapButton:SetFrameStrata("MEDIUM")
 minimapButton:SetFrameLevel(8)
 minimapButton:SetSize(31, 31)
@@ -2306,14 +2235,17 @@ minimapButton:SetScript("OnDragStop", function(self)
 end)
 
 minimapButton:SetScript("OnClick", function(self, button)
-    ToggleMainWindow()
+    if button == "RightButton" or not CoACompanionBots_ToggleBar then
+        ToggleMainWindow()
+    else
+        CoACompanionBots_ToggleBar()
+    end
 end)
 
 minimapButton:SetScript("OnEnter", function(self)
     GameTooltip:SetOwner(self, "ANCHOR_LEFT")
-    GameTooltip:AddLine("Dungeon Clear")
-    GameTooltip:AddLine("Left-click to toggle the window.", 1, 1, 1)
-    GameTooltip:AddLine("Drag to reposition this button.", 1, 1, 1)
+    GameTooltip:AddLine("CoA Companion")
+    GameTooltip:AddLine(CoACompanionBots_Text and CoACompanionBots_Text("MM_TIP") or T("Left-click to toggle the window."), 1, 1, 1, true)
     GameTooltip:Show()
 end)
 minimapButton:SetScript("OnLeave", function() GameTooltip:Hide() end)
@@ -2332,6 +2264,27 @@ mmLoader:SetScript("OnEvent", function(self, _, name)
         self:UnregisterEvent("ADDON_LOADED")
     end
 end)
+
+CoACompanionBots_ToggleDungeonClear = ToggleMainWindow
+
+function CoACompanionBots_DcCommand(command, param)
+    SendDcCommand(command, param)
+    -- The leader tank is elected on "on": the player's overrides go right after, as from the window.
+    if command == "on" and PushSettings then PushSettings() end
+end
+
+function CoACompanionBots_DcTogglePause()
+    if not isDCOn then return end
+    SendDcCommand("pause", isPaused and "resume" or "pause")
+end
+
+function CoACompanionBots_DcApplyTexts()
+    for _, entry in ipairs(labels) do entry[1]:SetText(T(entry[2])) end
+    -- The live readouts (state, boss, pause) come back with the next STATUS in the new language.
+    if frame:IsVisible() then SendDcCommand("status", "addon") end
+    if UpdateLayout then UpdateLayout() end
+    if RedrawBossList then RedrawBossList() end
+end
 
 -- Slash Command Registration
 SLASH_DUNGEONCLEAR1 = "/dc"
@@ -2355,4 +2308,4 @@ SlashCmdList["DUNGEONCLEAR"] = function(msg)
 end
 
 -- Print loaded notice
-DEFAULT_CHAT_FRAME:AddMessage("|cff3da6ffDungeonClear Addon v3.1 loaded.|r Type /dc to toggle window, or see Interface > AddOns > DungeonClear.")
+-- CoA Companion announces itself once (SquidBotsLite.lua); /dc opens this window.

@@ -1,4 +1,4 @@
--- SquidBots Lite: the minimal take. No window: a thin bar of orders (a Release button joins it while
+-- CoA Companion (bots part, from SquidBots Lite): the minimal take. No window: a thin bar of orders (a Release button joins it while
 -- a bot lies dead) and "Bots" to recruit, the bots' roles and alerts drawn on the game's own party
 -- frames, and the offers bots whisper as small toasts above the bar, each with an Invite button.
 
@@ -60,6 +60,11 @@ local STRINGS = {
 		ALTS_LINKED = "linked account", ALTS_FROM_LINKED = "From a linked account: logged in with it, it stays listed here.",
 		M_SHEET = "Bot sheet (gear, bags, quests)", M_STATS = "Stats (bags, money, xp)", M_GEAR = "Best gear", M_HEAL_ME = "Heal only me", M_HEAL_ALL = "Heal the whole group",
 		SUMMON = "Regroup", TIP_SUMMON = "Bots teleport next to you. Handy when one is stuck.",
+		CLEAR = "Clear", TIP_CLEAR = "Dungeon Clear: the tank bot leads the group through this dungeon on its own. Click for the window, right click for its orders.",
+		DC_ON = "Start the clear", DC_OFF = "Stop the clear", DC_PAUSE = "Pause / resume", DC_SKIP = "Skip this boss",
+		DC_PULL = "Pull mode", DC_WINDOW = "Dungeon Clear window",
+		MM_TIP = "Left click: show or hide the bot bar. Right click: Dungeon Clear. Drag to move this button.",
+		OLD_ADDONS = "SquidBots Lite or DungeonClear is still enabled beside CoA Companion, which replaces both: disable them in the AddOns list and reload.",
 		RELEASE = "Release", TIP_RELEASE = "Shown when a bot is dead: dead bots release their spirit and run back to their body.",
 		ROLE_ORDERS = "Orders by role", R_TANK_ATTACK = "Tank: attack my target", R_DPS_ATTACK = "Damage: attack my target",
 		R_HEAL_FOLLOW = "Healers: follow me", R_HEAL_STAY = "Healers: stay here", R_MELEE_FLEE = "Melee: back to me, hold fire",
@@ -79,7 +84,7 @@ local STRINGS = {
 		BALANCE_DONE = "Group: %s.", BALANCE_MISSING = "No bot in the group can play %s.",
 		BALANCE_WAIT = "Asking the bots for their specializations...", BALANCE_RAID = "In a raid, the raid command already sets the roles: pick specializations bot by bot.",
 		SPECS_NOT_BOT = "not a bot", SPEC_ASK = "Ask the bot", TIP_ROLE = "Switch to %s.", TIP_NO_ROLE = "No specialization of this role.",
-		HELP = "SquidBots Lite: /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (GM only), /sbl reset. Key bindings: Esc > Key Bindings > SquidBots Lite.",
+		HELP = "CoA Companion: /coa or /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (GM only), /sbl reset; /dc for Dungeon Clear. Key bindings: Esc > Key Bindings > CoA Companion.",
 		SCALE_SET = "SquidBots Lite bar size: %s (this character).", SCALE_BAD = "Bar size: a number from 0.5 to 2, for example /sbl scale 1.2",
 		LANG_SET = "SquidBots Lite language: English.", CHANNEL_SET = "SquidBots Lite asks in: %s",
 	},
@@ -138,6 +143,11 @@ local STRINGS = {
 		ALTS_LINKED = "compte lié", ALTS_FROM_LINKED = "D'un compte lié : connecté une fois d'ici, il reste dans la liste.",
 		M_SHEET = "Fiche du bot (équipement, sacs, quêtes)", M_STATS = "Stats (sacs, argent, xp)", M_GEAR = "Meilleur équipement", M_HEAL_ME = "Ne soigner que moi", M_HEAL_ALL = "Soigner tout le groupe",
 		SUMMON = "Rappel", TIP_SUMMON = "Les bots se téléportent près de vous. Pratique quand l'un d'eux est coincé.",
+		CLEAR = "Nettoyer", TIP_CLEAR = "Dungeon Clear : le bot tank mène seul le groupe à travers ce donjon. Clic pour la fenêtre, clic droit pour ses ordres.",
+		DC_ON = "Lancer le nettoyage", DC_OFF = "Arrêter le nettoyage", DC_PAUSE = "Pause / reprise", DC_SKIP = "Passer ce boss",
+		DC_PULL = "Mode de pull", DC_WINDOW = "Fenêtre Dungeon Clear",
+		MM_TIP = "Clic gauche : afficher ou cacher la barre des bots. Clic droit : Dungeon Clear. Glisser pour déplacer ce bouton.",
+		OLD_ADDONS = "SquidBots Lite ou DungeonClear est encore activé à côté de CoA Companion, qui remplace les deux : désactivez-les dans la liste des AddOns et rechargez.",
 		RELEASE = "Libérer", TIP_RELEASE = "Visible quand un bot est mort : les bots morts libèrent leur esprit et rejoignent leur corps.",
 		ROLE_ORDERS = "Ordres par rôle", R_TANK_ATTACK = "Tank : attaquer ma cible", R_DPS_ATTACK = "DPS : attaquer ma cible",
 		R_HEAL_FOLLOW = "Soigneurs : me suivre", R_HEAL_STAY = "Soigneurs : rester ici", R_MELEE_FLEE = "Corps à corps : revenir sans attaquer",
@@ -157,7 +167,7 @@ local STRINGS = {
 		BALANCE_DONE = "Groupe : %s.", BALANCE_MISSING = "Aucun bot du groupe ne peut jouer %s.",
 		BALANCE_WAIT = "Demande de leurs spécialisations aux bots...", BALANCE_RAID = "En raid, la commande de raid répartit déjà les rôles : choisissez les spécialisations bot par bot.",
 		SPECS_NOT_BOT = "pas un bot", SPEC_ASK = "Demander au bot", TIP_ROLE = "Passer en %s.", TIP_NO_ROLE = "Aucune spécialisation de ce rôle.",
-		HELP = "SquidBots Lite : /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (MJ), /sbl reset. Raccourcis : Échap > Raccourcis > SquidBots Lite.",
+		HELP = "CoA Companion : /coa ou /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (MJ), /sbl reset ; /dc pour Dungeon Clear. Raccourcis : Échap > Raccourcis > CoA Companion.",
 		SCALE_SET = "Taille de la barre SquidBots Lite : %s (ce personnage).", SCALE_BAD = "Taille de la barre : un nombre de 0,5 à 2, par exemple /sbl scale 1.2",
 		LANG_SET = "Langue de SquidBots Lite : français.", CHANNEL_SET = "SquidBots Lite demande dans : %s",
 	},
@@ -184,7 +194,8 @@ local MAX_TOASTS = 8
 -- Captions in a smaller font than the game's small text, and buttons spaced by the widest caption of the
 -- current language (measured in game): English "Dungeon" needs more room than French "Donjon".
 local CAPTION_SIZE, CAPTION_GAP, MIN_STEP, FALLBACK_STEP = 8, 3, 37, 52
-local BAR_ORDER = { "follow", "stay", "attack", "passive", "pull", "dungeon", "summon", "alts", "recruit", "release" }
+-- "clear" (Dungeon Clear) only shows inside a dungeon or a raid, and takes no room elsewhere.
+local BAR_ORDER = { "follow", "stay", "attack", "passive", "pull", "dungeon", "clear", "summon", "alts", "recruit", "release" }
 -- A member of unknown role is asked "co ?" this long after it shows up (a lfg recruit announces
 -- its role on its own first), and the "Strategies: ..." answer is hidden for PROBE_WINDOW seconds.
 local PROBE_DELAY, PROBE_WINDOW, PROBE_RETRY = 3, 10, 30
@@ -209,7 +220,7 @@ local state = { order = "follow", passive = false, autoPull = true }
 local bar, buttons, overlays, toastFrames = nil, {}, {}, {}
 
 local function Print(text)
-	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Lite|r: " .. text)
+	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffCoA Companion|r: " .. text)
 end
 
 local function SetLanguage(lang)
@@ -219,7 +230,7 @@ local function SetLanguage(lang)
 	SquidBotsLiteDB.lang = lang
 	L = STRINGS[lang]
 	-- Names shown in the game's Key Bindings window (the bindings themselves are in Bindings.xml).
-	BINDING_HEADER_SQUIDBOTSLITE = "SquidBots Lite"
+	BINDING_HEADER_SQUIDBOTSLITE = "CoA Companion"
 	for _, binding in ipairs(BINDINGS) do
 		_G["BINDING_NAME_SQUIDBOTSLITE_" .. string.upper(binding[1])] = L[binding[2]]
 	end
@@ -403,6 +414,22 @@ local function SendOrder(...)
 		Highlight()
 	end
 	return SendGroup(...)
+end
+
+-- Dungeon Clear's orders, sent through its own addon channel (DungeonClear.lua).
+local function ClearMenu()
+	local function dc(command, param) return function() CoACompanionBots_DcCommand(command, param) end end
+	return {
+		{ text = L.CLEAR, isTitle = true, notCheckable = true },
+		{ text = L.DC_ON, notCheckable = true, func = dc("on") },
+		{ text = L.DC_OFF, notCheckable = true, func = dc("off") },
+		{ text = L.DC_PAUSE, notCheckable = true, func = function() CoACompanionBots_DcTogglePause() end },
+		{ text = L.DC_SKIP, notCheckable = true, func = dc("skip") },
+		{ text = L.DC_PULL .. ": Leeroy", notCheckable = true, func = dc("pull", "off") },
+		{ text = L.DC_PULL .. ": Advanced", notCheckable = true, func = dc("pull", "on") },
+		{ text = L.DC_PULL .. ": Dynamic", notCheckable = true, func = dc("pull", "dynamic") },
+		{ text = L.DC_WINDOW, notCheckable = true, func = function() CoACompanionBots_ToggleDungeonClear() end },
+	}
 end
 
 local function ProfileMenu()
@@ -1137,6 +1164,7 @@ local function BarButton(key, icon, label, tip, onClick)
 	button:SetScript("OnClick", function(self, mouse)
 		-- Right click anywhere on the bar: the profiles (farm, strict follow, dungeon...).
 		if mouse == "RightButton" then
+			if self.onRightClick then return self.onRightClick(self) end
 			ShowMenu(ProfileMenu())
 		else
 			onClick(self, mouse)
@@ -1146,7 +1174,7 @@ local function BarButton(key, icon, label, tip, onClick)
 		GameTooltip:SetOwner(self, "ANCHOR_TOP")
 		GameTooltip:SetText(L[self.label])
 		GameTooltip:AddLine(L[self.tip], 1, 1, 1, true)
-		GameTooltip:AddLine(L.TIP_PROFILES, 0.6, 0.6, 0.6, true)
+		if not self.onRightClick then GameTooltip:AddLine(L.TIP_PROFILES, 0.6, 0.6, 0.6, true) end
 		GameTooltip:AddLine(L.TIP_MOVE, 0.6, 0.6, 0.6, true)
 		GameTooltip:Show()
 	end)
@@ -1167,8 +1195,12 @@ local function LayoutBar()
 		measure:SetText(text)
 		return measure:GetStringWidth() or 0
 	end
+	local order = {}
+	for _, key in ipairs(BAR_ORDER) do
+		if key ~= "clear" or buttons.clear:IsShown() then table.insert(order, key) end
+	end
 	local widths = {}
-	for i, key in ipairs(BAR_ORDER) do
+	for i, key in ipairs(order) do
 		local button = buttons[key]
 		widths[i] = key == "passive" and math.max(Width(L.ACTIVE), Width(L.PASSIVE))
 			or key == "pull" and math.max(Width(L.PULL_ON), Width(L.PULL_OFF)) or Width(L[button.label])
@@ -1179,14 +1211,15 @@ local function LayoutBar()
 		step = math.max(step, (widths[i] + widths[i + 1]) / 2)
 	end
 	step = step > 0 and math.max(MIN_STEP, math.ceil(step) + CAPTION_GAP) or FALLBACK_STEP
-	for i, key in ipairs(BAR_ORDER) do
+	for i, key in ipairs(order) do
 		buttons[key]:ClearAllPoints()
 		buttons[key]:SetPoint("TOPLEFT", 3 + (i - 1) * step, 0)
 	end
-	bar:SetWidth(#BAR_ORDER * step)
+	bar:SetWidth(#order * step)
 end
 
 local function RefreshTexts()
+	if CoACompanionBots_DcApplyTexts then CoACompanionBots_DcApplyTexts() end
 	for _, button in pairs(buttons) do
 		button.caption:SetText(L[button.label])
 	end
@@ -1238,6 +1271,10 @@ local function BuildBar()
 		{ "dungeon", "Interface\\Icons\\Achievement_Dungeon_ClassicDungeonMaster", "DUNGEON", "TIP_DUNGEON", function()
 			if SendOrder("co -wait for attack,+avoid aoe", "follow") then SetOrder("dungeon") end
 		end },
+		-- Dungeon Clear (DungeonClear.lua): its window on a left click, its orders on a right click.
+		{ "clear", "Interface\\Icons\\inv_misc_enggizmos_17", "CLEAR", "TIP_CLEAR", function()
+			if CoACompanionBots_ToggleDungeonClear then CoACompanionBots_ToggleDungeonClear() end
+		end },
 		{ "summon", "Interface\\Icons\\Spell_Arcane_PortalDalaran", "SUMMON", "TIP_SUMMON", function()
 			SendGroup("summon")
 		end },
@@ -1257,11 +1294,23 @@ local function BuildBar()
 		BarButton(def[1], def[2], def[3], def[4], def[5])
 	end
 	buttons.release:Hide()
+	buttons.clear:Hide()
+	buttons.clear.onRightClick = function() ShowMenu(ClearMenu()) end
 	RefreshTexts()
 	Highlight()
 	if SquidBotsLiteCharDB.hidden then
 		bar:Hide()
 	end
+end
+
+-- The Clear button belongs to dungeons and raids, where Dungeon Clear runs; elsewhere it takes no room.
+local function RefreshClear()
+	local inInstance, kind = IsInInstance()
+	local wanted = (inInstance and (kind == "party" or kind == "raid") and CoACompanionBots_DcCommand ~= nil) and true or false
+	local shown = buttons.clear:IsShown() and true or false
+	if wanted == shown then return end
+	if wanted then buttons.clear:Show() else buttons.clear:Hide() end
+	LayoutBar()
 end
 
 local function RefreshRelease()
@@ -2282,7 +2331,7 @@ versionWatch:SetScript("OnEvent", function(self, _, message)
 	if not server then return end
 	self:UnregisterEvent("CHAT_MSG_SYSTEM")
 	server = server:gsub("%.$", "")
-	local mine = GetAddOnMetadata("SquidBotsLite", "Version") or "0"
+	local mine = GetAddOnMetadata("CoACompanionBots", "X-SquidBots-Version") or "0"
 	if L and IsOlder(mine:match("^[%d%.]+") or mine, server) then
 		Print(string.format(L.OUTDATED, mine, server))
 	end
@@ -2292,7 +2341,7 @@ local events = CreateFrame("Frame")
 events:RegisterEvent("ADDON_LOADED")
 events:RegisterEvent("PLAYER_LOGIN")
 events:SetScript("OnEvent", function(self, event, arg1, arg2)
-	if event == "ADDON_LOADED" and arg1 == "SquidBotsLite" then
+	if event == "ADDON_LOADED" and arg1 == "CoACompanionBots" then
 		SquidBotsLiteDB = SquidBotsLiteDB or {}
 		if not SquidBotsLiteCharDB then
 			-- First load on this character since 2.0: start from the account-wide place and state of 1.9.
@@ -2300,6 +2349,7 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 		end
 		SetLanguage(SquidBotsLiteDB.lang)
 	elseif event == "PLAYER_LOGIN" then
+		if IsAddOnLoaded("SquidBotsLite") or IsAddOnLoaded("DungeonClear") then Print(L.OLD_ADDONS) end
 		BuildBar()
 		BuildOverlays()
 		BuildToasts()
@@ -2319,6 +2369,7 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 			RefreshCompactOverlays()
 			RefreshToasts()
 			RefreshRelease()
+			RefreshClear()
 			ProbeRoles()
 			TickAlts()
 			TickSpecs()
@@ -2338,6 +2389,20 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 	end
 end)
 
+-- For DungeonClear.lua: the bar on the shared minimap button, the bot orders in its tiny view, and the
+-- language the player chose.
+function CoACompanionBots_ToggleBar()
+	if bar then SetBarShown(not bar:IsShown()) end
+end
+
+function CoACompanionBots_Text(key)
+	return L and L[key] or key
+end
+
+function CoACompanionBots_Language()
+	return SquidBotsLiteDB and SquidBotsLiteDB.lang or ((GetLocale() == "frFR") and "fr" or "en")
+end
+
 -- The bot sheet (Manager.lua) asks a bot its specialization the same way.
 function SquidBotsLite_AskSpecs(name)
 	return AskSpecs(name)
@@ -2353,8 +2418,9 @@ function SquidBotsLite_Order(key)
 	if button then button.onClick(button, "LeftButton") end
 end
 
-SLASH_SQUIDBOTSLITE1 = "/sbl"
-SLASH_SQUIDBOTSLITE2 = "/squidlite"
+SLASH_SQUIDBOTSLITE1 = "/coa"
+SLASH_SQUIDBOTSLITE2 = "/sbl"
+SLASH_SQUIDBOTSLITE3 = "/squidlite"
 SlashCmdList["SQUIDBOTSLITE"] = function(message)
 	local command, rest = string.match(message or "", "^(%S*)%s*(.-)$")
 	command = string.lower(command or "")
