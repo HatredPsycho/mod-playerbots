@@ -7,23 +7,14 @@
  * before appending a single context, so NO strategy, action, trigger or value
  * ever reaches a bot's engine, and every hook in this file returns immediately.
  *
- * Drop-in glue against STOCK mod-playerbots. Two scripts:
+ * Glue between Dungeon Clear and the rest of playerbots. Two scripts:
  *
- *  1. WorldScript — on the first world-update tick (guaranteed after
- *     playerbots' OnBeforeWorldInitialized -> PlayerbotAIConfig::Initialize ->
- *     AiObjectContext::BuildAllSharedContexts has built every shared context),
- *     append the four DungeonClear contexts into the engine's shared
- *     registries. Doing it on the first tick (not in our own
- *     OnBeforeWorldInitialized) sidesteps any module hook-ordering race.
- *
- *     CRITICAL: playerbots does NOT use one global registry. Each bot is built
- *     by AiFactory from a PER-CLASS context (WarriorAiObjectContext, …), and
- *     each of those declares its OWN shared static lists. The base
- *     AiObjectContext lists are only the fallback for class 0 (no real bot).
- *     So we must append into all ten class registries — appending into the
- *     base alone reaches no bot (that was the "dc on: unknown action" bug).
- *     The per-class lists are PUBLIC statics, so we touch them directly; only
- *     the base lists are private, reached via AiObjectContextAccess.h.
+ *  1. WorldScript — on the first world-update tick it latches the master switch,
+ *     registers the closing half of the spectator mover window and publishes the
+ *     test-plan sidecar. The four DungeonClear contexts are no longer appended here:
+ *     playerbots' shared context builders (Bot/Engine/BuildShared*Contexts.cpp) add
+ *     them to the base registry, which every class context (Warrior…Coa) builds
+ *     on, so every class gets them, including classes added later.
  *
  *  2. PlayerScript — on login, apply the single "dungeon clear" strategy to a
  *     bot's non-combat engine. It bundles the party-chat keyword listener
@@ -65,22 +56,10 @@
 #include "Playerbots.h"
 #include "PlayerbotAI.h"
 
-#include "AiObjectContextAccess.h"
 #include "DcModuleEnable.h"
 #include "DcStrategyGate.h"
 
 // Per-class context registries — each owns its own shared static lists.
-#include "DKAiObjectContext.h"
-#include "DruidAiObjectContext.h"
-#include "HunterAiObjectContext.h"
-#include "MageAiObjectContext.h"
-#include "PaladinAiObjectContext.h"
-#include "PriestAiObjectContext.h"
-#include "RogueAiObjectContext.h"
-#include "ShamanAiObjectContext.h"
-#include "WarlockAiObjectContext.h"
-#include "WarriorAiObjectContext.h"
-#include "CoaAiObjectContext.h"
 
 #include "BgQueueFill/DcBgQueueFillManager.h"
 #include "DungeonQueueFill/DcDungeonQueueFillManager.h"
@@ -120,23 +99,6 @@ namespace
     // ResetStrategies() fired mid-dungeon (group/talent/LFG/reset), which is why
     // it MUST keep running and not depend on any entry event.
     constexpr uint32 DC_STRATEGY_GATE_SWEEP_MS = 3 * 1000;
-}
-
-namespace
-{
-    // Append a fresh set of DungeonClear contexts into one class's public
-    // shared static lists. Each context carries its own creator map, merged
-    // into that list's `creators` on Add(); every per-bot NamedObjectContextList
-    // holds those by reference, so existing and future bots of this class see
-    // the new actions/strategies/triggers/values immediately.
-    template <class Ctx>
-    void RegisterClassContexts()
-    {
-        Ctx::sharedStrategyContexts.Add(new DungeonClearStrategyContext());
-        Ctx::sharedActionContexts.Add(new DungeonClearActionContext());
-        Ctx::sharedTriggerContexts.Add(new DungeonClearTriggerContext());
-        Ctx::sharedValueContexts.Add(new DungeonClearValueContext());
-    }
 }
 
 // Spectator AI-mover window, opening half. Playerbots drives every bot's AI
@@ -222,26 +184,8 @@ public:
         if (!DcModule::IsEnabled())
             return;
 
-        // All ten class registries — these are what real bots actually use.
-        RegisterClassContexts<WarriorAiObjectContext>();
-        RegisterClassContexts<PaladinAiObjectContext>();
-        RegisterClassContexts<DruidAiObjectContext>();
-        RegisterClassContexts<DKAiObjectContext>();
-        RegisterClassContexts<HunterAiObjectContext>();
-        RegisterClassContexts<MageAiObjectContext>();
-        RegisterClassContexts<PriestAiObjectContext>();
-        RegisterClassContexts<RogueAiObjectContext>();
-        RegisterClassContexts<ShamanAiObjectContext>();
-        RegisterClassContexts<WarlockAiObjectContext>();
-        // Conquest of Azeroth's Playerbots give every custom class (ids 12-32) one context of its own.
-        // Without the DC values there, any CoA bot entering combat crashed in DcRun::Of.
-        RegisterClassContexts<CoaAiObjectContext>();
-
-        // Base registry — only the class-0 fallback uses it, kept for parity.
-        dc_access::SharedStrategyContexts()->Add(new DungeonClearStrategyContext());
-        dc_access::SharedActionContexts()->Add(new DungeonClearActionContext());
-        dc_access::SharedTriggerContexts()->Add(new DungeonClearTriggerContext());
-        dc_access::SharedValueContexts()->Add(new DungeonClearValueContext());
+        // The contexts themselves are registered by playerbots' shared context builders
+        // (Bot/Engine/BuildShared*Contexts.cpp), for every class and the base registry alike.
 
         // NOTE: the DC strategies are deliberately NOT injected into the
         // playerbots default strategy set anymore. They used to be appended to
@@ -265,9 +209,7 @@ public:
         // caps; publish them once the config is final (first world tick).
         DcTestDungeonRegistry::WriteSidecar();
 
-        LOG_INFO("module", "mod-dungeon-clear: registered DungeonClear contexts "
-                           "(strategy/action/trigger/value) into all class "
-                           "registries of mod-playerbots.");
+        LOG_INFO("module", "Dungeon Clear: enabled; its contexts are part of playerbots' shared registries.");
     }
 
     // Stop + join the async pathfinding worker before maps unload (this fires
