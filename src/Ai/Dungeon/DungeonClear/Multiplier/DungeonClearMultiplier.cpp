@@ -383,7 +383,9 @@ float DungeonClearMultiplier::GetValue(Action* action)
 
     // Wander-style autonomous navigation (grind / rpg / travel). This is what
     // drives the bot around the world on its own.
+    Action::Autonomy const autonomy = action->GetAutonomy();
     bool const isWander =
+        autonomy == Action::Autonomy::Wander ||
         name.find("grind") != std::string::npos ||
         name.find("rpg") != std::string::npos ||
         name == "travel" || name.find("travel ") != std::string::npos;
@@ -402,8 +404,8 @@ float DungeonClearMultiplier::GetValue(Action* action)
         name == "attack anything" ||
         name == "move random" ||
         name == "pull action" || name == "pull start" || name == "reach pull" ||
-        // Conquest of Azeroth's Playerbots: the tank's own "coa auto pull" takes the nearest pack in reach.
-        name == "coa auto pull";
+        // Playerbots' own actions say so themselves (Conquest of Azeroth's "coa auto pull", for one).
+        autonomy == Action::Autonomy::Engage;
 
     // FOLLOWER in advanced-pull camp-hold. Followers never set `enabled`, so this
     // sits above the enabled gate below. In pull mode the party holds and
@@ -476,7 +478,8 @@ float DungeonClearMultiplier::GetValue(Action* action)
     // Conquest of Azeroth's Playerbots add "coa catch up", which teleports a bot to the human
     // party leader after 6s more than 35yd away out of combat: on a run it would pull the
     // scouting tank and the camp back to a player who trails behind.
-    if ((dynamic_cast<FollowAction*>(action) || name == "coa catch up") && AI_VALUE(Player*, DcKey::PartyTank))
+    if ((dynamic_cast<FollowAction*>(action) || action->GetAutonomy() == Action::Autonomy::LeaderFollow) &&
+        AI_VALUE(Player*, DcKey::PartyTank))
         return 0.0f;
 
     bool const enabled = DcRun::Of(context).enabled;

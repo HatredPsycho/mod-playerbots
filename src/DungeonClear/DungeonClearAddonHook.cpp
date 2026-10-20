@@ -65,7 +65,8 @@ namespace
     // time the panel reopens or combat toggles.
     void SendSpectateState(Player* player)
     {
-        bool const enabled = DcSettings::GetBool(player, "SpectateEnable");
+        bool const enabled = DcSettings::GetBool(player, "SpectateEnable") &&
+                             DcSpectator::MaySpectate(player->GetSession()->GetSecurity());
         SendAddonPayload(player,
             Acore::StringFormat("DC\tSPECTATE\t{}", enabled ? 1 : 0));
     }
@@ -273,6 +274,11 @@ public:
         // free-flying camera; "follow" rides the run's tank instead.
         if (subCmd == "spectate")
         {
+            if (!DcSpectator::MaySpectate(player->GetSession()->GetSecurity()))
+            {
+                SendAddonError(player, "The spectator camera is for game masters only.");
+                return;
+            }
             std::string whyNot;
             bool ok = true;
             if (param == "follow")

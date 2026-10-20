@@ -366,7 +366,7 @@ public:
             { "go",     HandleGo,     SEC_PLAYER, Console::No },
             { "wing",   HandleWing,   SEC_PLAYER, Console::No },
             { "config", HandleConfig, SEC_PLAYER, Console::No },
-            { "spectate", HandleSpectate, SEC_PLAYER, Console::No },
+            { "spectate", HandleSpectate, SEC_GAMEMASTER, Console::No },
             { "test",   dcTestTable },
             { "lab",    dcLabTable },
             { "dungeonqueuefill", dcQueueFillTable },

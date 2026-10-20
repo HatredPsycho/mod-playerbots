@@ -15,10 +15,13 @@ history with this repository; upstream changes are ported by hand.
 
 | mod-dungeon-clear | mod-playerbots |
 |---|---|
-| `src/` | `src/DungeonClear/` (same tree) |
+| `src/Ai/Dungeon/DungeonClear/` | `src/Ai/Dungeon/DungeonClear/` |
+| `src/BgQueueFill/`, `src/DungeonQueueFill/` | `src/QueueFill/BgQueueFill/`, `src/QueueFill/DungeonQueueFill/` |
+| everything else under `src/` (`Lab/`, `TestRun/`, `Util/`, scripts, command) | `src/DungeonClear/` |
+| `src/AiObjectContextAccess.h` | removed: the contexts are registered in `Bot/Engine/BuildShared*Contexts.cpp` |
 | `src/mod_dungeon_clear_loader.cpp` | `src/DungeonClear/DungeonClearLoader.cpp`, called from `src/Script/playerbots_loader.cpp` |
 | `t/` | `test/dungeon_clear/` (target `dungeon_clear_tests`) |
-| `conf/mod_dungeon_clear.conf.dist` | `conf/mod_dungeon_clear.conf.dist` |
+| `conf/mod_dungeon_clear.conf.dist` | section "DUNGEON CLEAR" of `conf/playerbots.conf.dist` (the old file is a deprecated stub) |
 | `mod-dungeon-clear.cmake` | `mod-playerbots.cmake` |
 | `lab/`, `testdeck/`, `tools/`, `CLAUDE.md` | not taken |
 
@@ -32,6 +35,9 @@ Our commits on top of jrad7/evermore in the `coa` branch, all part of the integr
 - `MoveKnockbackFrom` with four arguments; Windows build of the test target.
 - Registration into `CoaAiObjectContext` (`DungeonClearModule.cpp`).
 - Spell distance through `DC_PB_CONFIG` in the Iron Hall.
+- Since the integration: pull openers and resurrection read from playerbots' CoA class kit
+  (`Ai/Class/Coa/CoaAbilities.h`); `coa auto pull` / `coa catch up` recognised by `Action::GetAutonomy()`
+  instead of by name.
 
 ## Porting upstream changes
 

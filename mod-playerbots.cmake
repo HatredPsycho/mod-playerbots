@@ -1,5 +1,6 @@
 # Dungeon Clear (from mod-dungeon-clear): compile settings for the module library and its test target.
-# Sources live in src/DungeonClear, tests in test/dungeon_clear.
+# Sources live in src/Ai/Dungeon/DungeonClear (the AI), src/QueueFill (dungeon and battleground queue fill)
+# and src/DungeonClear (scripts, command, test runs); tests in test/dungeon_clear.
 # MSVC: force _USE_MATH_DEFINES onto the compiler command line.
 #
 # MSVC's <math.h> only defines M_PI (and the rest of the M_* family) when
@@ -154,6 +155,7 @@ if (BUILD_TESTING)
             "${MOD_PATH}/test/dungeon_clear/TestTestRunRecord.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestRunSelect.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestWatchHop.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestSpectatorAccess.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestRoster.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestRunLiveJson.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestWipeContext.cpp"
@@ -209,7 +211,8 @@ if (BUILD_TESTING)
         target_include_directories(dungeon_clear_tests PRIVATE
             "${MOD_PATH}/src"
             "${MOD_PATH}/src/DungeonClear"
-            "${MOD_PATH}/src/DungeonClear/Ai/Dungeon/DungeonClear/Util"
+            "${MOD_PATH}/src/QueueFill"
+            "${MOD_PATH}/src/Ai/Dungeon/DungeonClear/Util"
             "${CMAKE_SOURCE_DIR}/src/test/mocks"
         )
 

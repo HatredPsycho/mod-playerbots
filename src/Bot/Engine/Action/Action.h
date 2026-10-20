@@ -87,6 +87,18 @@ public:
     virtual std::vector<NextAction> getAlternatives() { return {}; }
     virtual std::vector<NextAction> getContinuers() { return {}; }
     virtual ActionThreatType getThreatType() { return ActionThreatType::None; }
+
+    // What a bot does here on its own initiative, for strategies that take its movement and pulls over
+    // (Dungeon Clear holds every such action of its party). Actions keep None unless they wander, pull or
+    // follow the leader by themselves.
+    enum class Autonomy
+    {
+        None,
+        Wander,
+        Engage,
+        LeaderFollow
+    };
+    virtual Autonomy GetAutonomy() const { return Autonomy::None; }
     void Update() {}
     void Reset() {}
     virtual Unit* GetTarget();

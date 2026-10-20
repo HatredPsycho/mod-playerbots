@@ -56,12 +56,20 @@
 #include <string>
 #include <vector>
 
+#include "Common.h"
 #include "ObjectGuid.h"
 
 class Player;
 
 namespace DcSpectator
 {
+    // The spectator camera is a game master's tool on this realm: `.dc spectate`, the addon's
+    // spectate command and the SPECTATE availability flag all ask this.
+    inline bool MaySpectate(AccountTypes security)
+    {
+        return security >= SEC_GAMEMASTER;
+    }
+
     // True while `player` has an active spectator camera in EITHER mode
     // (guid-keyed lookup).
     bool IsActive(Player* player);

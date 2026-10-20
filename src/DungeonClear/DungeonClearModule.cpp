@@ -181,6 +181,7 @@ public:
         // module registers nothing at all rather than registering and then
         // refusing to act. See DcModuleEnable.h.
         DcModule::LatchFromConf();
+        DcModule::WarnIfLegacyConfInUse();
         if (!DcModule::IsEnabled())
             return;
 

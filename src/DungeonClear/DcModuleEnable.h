@@ -61,6 +61,11 @@ namespace DcModule
     // DcSettings::InvalidateConfCache so the conf read is fresh.
     void WarnIfConfDiffersFromLatch();
 
+    // Dungeon Clear's settings moved into playerbots.conf. While a realm still has
+    // DungeonClear.* lines in its old configs/modules/mod_dungeon_clear.conf, say so
+    // once at startup; the file is still read until it is removed.
+    void WarnIfLegacyConfInUse();
+
     // Test seam. Nothing in the running server may call this: dropping the latch
     // mid-process is exactly the half-state the latch exists to prevent.
     void ResetLatchForTests();

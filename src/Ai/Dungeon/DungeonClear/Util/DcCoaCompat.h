@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "CoaAbilities.h"
 #include "AscensionSpecialization.h"
 #include "Config.h"
 #include "Player.h"
@@ -37,22 +38,10 @@ namespace DcCoaCompat
         float maxRange;
     };
 
-    inline bool Taunts(SpellInfo const* info)
-    {
-        return info->HasEffect(SPELL_EFFECT_ATTACK_ME) || info->HasAura(SPELL_AURA_MOD_TAUNT);
-    }
-
-    inline bool Damages(SpellInfo const* info)
-    {
-        return info->HasEffect(SPELL_EFFECT_SCHOOL_DAMAGE) || info->HasEffect(SPELL_EFFECT_WEAPON_DAMAGE) ||
-               info->HasEffect(SPELL_EFFECT_WEAPON_PERCENT_DAMAGE) ||
-               info->HasEffect(SPELL_EFFECT_NORMALIZED_WEAPON_DMG) || info->HasEffect(SPELL_EFFECT_HEALTH_LEECH) ||
-               info->HasAura(SPELL_AURA_PERIODIC_DAMAGE);
-    }
-
     // The best ranged single-target opener a CoA tank knows: an instant taunt first,
     // then an instant damaging spell, the longer reach and the shorter cooldown
     // breaking ties. Spells on cooldown are skipped so the next pack still gets one.
+    // Which spells taunt or damage comes from playerbots' CoA class kit (CoaAbilities).
     inline std::optional<PullOpener> ResolvePullOpener(Player* bot)
     {
         if (!IsCoaClass(bot))
@@ -64,51 +53,37 @@ namespace DcCoaCompat
         std::optional<PullOpener> best;
         int bestScore = 0;
         uint32 bestCooldown = 0;
-        for (auto const& [spellId, state] : bot->GetSpellMap())
+        auto consider = [&](SpellInfo const* info, int score)
         {
-            if (state->State == PLAYERSPELL_REMOVED || !state->Active)
-                continue;
-            SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
-            if (!info || info->IsPassive() || info->IsPositive() || !info->NeedsExplicitUnitTarget() ||
-                info->IsAffectingArea() || info->IsChanneled() || info->CalcCastTime() > 0)
-                continue;
+            if (!info->NeedsExplicitUnitTarget() || info->IsChanneled() || info->CalcCastTime() > 0)
+                return;
             uint32 const cooldown = std::max(info->RecoveryTime, info->CategoryRecoveryTime);
-            if (cooldown > LongestCooldownMs || bot->HasSpellCooldown(spellId))
-                continue;
+            if (cooldown > LongestCooldownMs || bot->HasSpellCooldown(info->Id))
+                return;
             float const maxRange = info->GetMaxRange(false);
             if (maxRange < MinimumReach)
-                continue;
-            int const score = Taunts(info) ? 2 : Damages(info) ? 1 : 0;
-            if (!score)
-                continue;
+                return;
             bool const better = !best || score > bestScore ||
                 (score == bestScore && (maxRange > best->maxRange ||
                                         (maxRange == best->maxRange && cooldown < bestCooldown)));
             if (better)
             {
-                best = PullOpener{spellId, std::max(info->GetMinRange(false), 8.0f), maxRange};
+                best = PullOpener{info->Id, std::max(info->GetMinRange(false), 8.0f), maxRange};
                 bestScore = score;
                 bestCooldown = cooldown;
             }
-        }
+        };
+        for (SpellInfo const* info : CoaAbilities::KnownSingleTargetTaunts(bot))
+            consider(info, 2);
+        for (SpellInfo const* info : CoaAbilities::KnownSingleTargetAttacks(bot))
+            consider(info, 1);
         return best;
     }
 
-    // Whether a CoA character can bring a dead ally back: it knows a resurrect.
+    // Whether a CoA character can bring a dead ally back: its class kit has a resurrect it knows.
     inline bool CanResurrect(Player const* player)
     {
-        if (!IsCoaClass(player))
-            return false;
-        for (auto const& [spellId, state] : player->GetSpellMap())
-        {
-            if (state->State == PLAYERSPELL_REMOVED || !state->Active)
-                continue;
-            SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
-            if (info && !info->IsPassive() &&
-                (info->HasEffect(SPELL_EFFECT_RESURRECT) || info->HasEffect(SPELL_EFFECT_RESURRECT_NEW)))
-                return true;
-        }
-        return false;
+        return IsCoaClass(player) && CoaAbilities::CanResurrect(const_cast<Player*>(player));
     }
 
     // DungeonClear.LockFreeClickableDoors: comma-separated gameobject entries the

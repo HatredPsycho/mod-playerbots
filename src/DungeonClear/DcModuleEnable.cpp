@@ -6,7 +6,10 @@
 #include "DcModuleEnable.h"
 
 #include <atomic>
+#include <fstream>
+#include <string>
 
+#include "Config.h"
 #include "Log.h"
 #include "ObjectGuid.h"
 
@@ -90,5 +93,29 @@ namespace DcModule
     void ResetLatchForTests()
     {
         g_state.store(-1, std::memory_order_relaxed);
+    }
+
+    void WarnIfLegacyConfInUse()
+    {
+        std::string const path = sConfigMgr->GetConfigPath() + "modules/mod_dungeon_clear.conf";
+        std::ifstream file(path);
+        if (!file)
+            return;
+
+        uint32 keys = 0;
+        for (std::string line; std::getline(file, line);)
+        {
+            std::size_t const start = line.find_first_not_of(" \t");
+            if (start != std::string::npos && line.compare(start, 13, "DungeonClear.") == 0)
+                ++keys;
+        }
+        if (!keys)
+            return;
+
+        LOG_WARN("module",
+                 "Dungeon Clear: {} still sets {} DungeonClear.* key(s). Dungeon Clear is part of "
+                 "playerbots now and its settings belong in playerbots.conf (section \"DUNGEON CLEAR\"); "
+                 "the old file is read for now. Move the lines and delete it.",
+                 path, keys);
     }
 }
