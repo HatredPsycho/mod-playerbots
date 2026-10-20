@@ -49,6 +49,13 @@ namespace DungeonClearMath
     std::size_t SelectHealTarget(std::vector<HealCandidate> const& members,
                                  float hpFloor, float tankBias);
 
+    // Whether a healer walks off to heal an out-of-sight member. In combat always.
+    // Out of combat nobody is dying: a healer below `lowManaPct` drinks where it
+    // stands, and a member at or above `mediumHealthPct` waits until it is back in
+    // sight. `manaPct` is ignored for a healer without mana.
+    bool HealRepositionWorthIt(bool inCombat, bool usesMana, float manaPct, float lowManaPct,
+                               float targetHealthPct, float mediumHealthPct);
+
     // Pure standoff-point generator. Produces candidate 2D points on a circle of
     // radius `standoffRadius` around `center`, ORDERED so the first is on the side
     // the bot already stands (shortest move / most likely to round the same corner)

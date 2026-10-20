@@ -233,3 +233,36 @@ TEST(DungeonClearHealRepositionTest, ZeroRadiusIsUnleashed)
 {
     EXPECT_TRUE(HealLeashRegistry::WithinLeash(0.0f, 0.0f, 0.0f, 500.0f, 500.0f));
 }
+
+using DungeonClearMath::HealRepositionWorthIt;
+
+// In combat a hurt member out of sight is always worth the walk.
+TEST(DungeonClearHealRepositionTest, InCombatAlwaysRepositions)
+{
+    EXPECT_TRUE(HealRepositionWorthIt(true, true, 5.0f, 15.0f, 85.0f, 65.0f));
+}
+
+// Out of combat a healer low on mana drinks instead of walking off (RFC, 20/10).
+TEST(DungeonClearHealRepositionTest, OutOfCombatLowManaDrinks)
+{
+    EXPECT_FALSE(HealRepositionWorthIt(false, true, 10.0f, 15.0f, 30.0f, 65.0f));
+}
+
+// Out of combat a scratched member is no reason to leave the group.
+TEST(DungeonClearHealRepositionTest, OutOfCombatScratchWaits)
+{
+    EXPECT_FALSE(HealRepositionWorthIt(false, true, 80.0f, 15.0f, 85.0f, 65.0f));
+    EXPECT_FALSE(HealRepositionWorthIt(false, true, 80.0f, 15.0f, 65.0f, 65.0f));
+}
+
+// Out of combat a badly hurt member still draws a healer that has the mana.
+TEST(DungeonClearHealRepositionTest, OutOfCombatBadlyHurtRepositions)
+{
+    EXPECT_TRUE(HealRepositionWorthIt(false, true, 80.0f, 15.0f, 40.0f, 65.0f));
+}
+
+// A healer without mana is never held back by it.
+TEST(DungeonClearHealRepositionTest, OutOfCombatNoManaUserIgnoresMana)
+{
+    EXPECT_TRUE(HealRepositionWorthIt(false, false, 0.0f, 15.0f, 40.0f, 65.0f));
+}
