@@ -2139,6 +2139,15 @@ bool DungeonClearHealRepositionTrigger::IsActive()
         bot->IsWithinLOSInMap(visible))
         return false;
 
+    // Without this a dry healer chased a player at 85% into the next room after the
+    // fight and never sat down to drink (RFC, 20/10).
+    bool const usesMana = bot->GetMaxPower(POWER_MANA) > 0;
+    if (!DungeonClearMath::HealRepositionWorthIt(
+            bot->IsInCombat(), usesMana, usesMana ? bot->GetPowerPct(POWER_MANA) : 0.0f,
+            static_cast<float>(DC_PB_CONFIG(LowMana, lowMana)), target->GetHealthPct(),
+            static_cast<float>(DC_PB_CONFIG(MediumHealth, mediumHealth))))
+        return false;
+
     // Don't sprint across the map into the unknown — a target this far is a
     // wipe/skip case, not a reposition case.
     float const maxRange = DcSettings::GetFloat(bot, "HealRepositionMaxRange");

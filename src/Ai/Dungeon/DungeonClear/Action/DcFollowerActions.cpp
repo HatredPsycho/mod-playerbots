@@ -1774,9 +1774,10 @@ bool DungeonClearHealRepositionAction::Execute(Event /*event*/)
                   bot->IsWithinLOSInMap(target) ? 1 : 0, haveDest ? 1 : 0,
                   prio == MovementPriority::MOVEMENT_COMBAT ? "combat" : "normal");
 
-    DcMoveTo(map->GetId(), dx, dy, dz, /*idle*/ false, /*react*/ false,
-           /*normal_only*/ false, /*exact_waypoint*/ false, prio);
-    return true;
+    // A refused move yields the tick, as the combat regroup does: holding it every tick
+    // kept a healer pinned against a wall with nothing else, drinking included, allowed to run.
+    return DcMoveTo(map->GetId(), dx, dy, dz, /*idle*/ false, /*react*/ false,
+                    /*normal_only*/ false, /*exact_waypoint*/ false, prio);
 }
 
 bool DungeonClearHazardVacateAction::Execute(Event /*event*/)

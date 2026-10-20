@@ -907,6 +907,15 @@ bool DcMovementAction::FindStandoffPoint(Map* map, Position const& center, float
         if (gen.GetPathType() != PATHFIND_NORMAL)
             continue;
 
+        // PATHFIND_NORMAL is free for a Player and an off-mesh end is clamped to the
+        // nearest poly, which across a wall is on the bot's side of it: a healer then
+        // walked into that wall for good. Only a route that ends at the point counts,
+        // as in DcEngageGeometry::PathedCloseOn.
+        Movement::PointsArray const& path = gen.GetPath();
+        if (path.empty() || std::fabs(path.back().z - snap.z) > DC_Z_LEVEL_TOLERANCE ||
+            std::hypot(path.back().x - snap.x, path.back().y - snap.y) > DC_Z_LEVEL_TOLERANCE)
+            continue;
+
         x = snap.x;
         y = snap.y;
         z = snap.z;
