@@ -5,6 +5,8 @@
  */
 
 #include "AiObjectContext.h"
+#include "Ai/Dungeon/DungeonClear/DungeonClearTriggerContext.h"
+#include "DcModuleEnable.h"
 #include "Aq20TriggerContext.h"
 #include "BTTriggerContext.h"
 #include "BWLTriggerContext.h"
@@ -83,4 +85,6 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     // CoA: generische, parametrisierbare Bausteine (GenericTrigger)
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     triggerContexts.Add(new CoaGenericTriggerContext());
+    if (DcModule::IsEnabled())
+        triggerContexts.Add(new DungeonClearTriggerContext());
 }

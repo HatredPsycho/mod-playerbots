@@ -1,0 +1,11 @@
+[worldserver]
+
+########################################
+# mod-dungeon-clear configuration (deprecated)
+########################################
+#
+# Dungeon Clear is part of Playerbots now; its settings (DungeonClear.*) live in
+# playerbots.conf, section "DUNGEON CLEAR". This file is still read so a realm's
+# existing mod_dungeon_clear.conf keeps working during the change, and the
+# worldserver warns at startup while it still holds DungeonClear.* lines. Move
+# them into playerbots.conf and delete this file.

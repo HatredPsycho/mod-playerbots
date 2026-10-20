@@ -5,6 +5,7 @@
  */
 
 #include "CoaAiObjectContext.h"
+#include "CoaAbilities.h"
 
 #include "Action.h"
 #include "AttackAction.h"
@@ -4432,6 +4433,7 @@ class CoaAutoPullAction : public AttackAction
 {
 public:
     CoaAutoPullAction(PlayerbotAI* botAI) : AttackAction(botAI, "coa auto pull") {}
+    Autonomy GetAutonomy() const override { return Autonomy::Engage; }
 
     bool Execute(Event /*event*/) override
     {
@@ -4628,6 +4630,7 @@ class CoaCatchUpAction : public Action
 {
 public:
     CoaCatchUpAction(PlayerbotAI* botAI) : Action(botAI, "coa catch up") {}
+    Autonomy GetAutonomy() const override { return Autonomy::LeaderFollow; }
 
     bool Execute(Event /*event*/) override
     {
@@ -5162,4 +5165,43 @@ void CoaAiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList
 void CoaAiObjectContext::BuildSharedValueContexts(SharedNamedObjectContextList<UntypedValue>& valueContexts)
 {
     AiObjectContext::BuildSharedValueContexts(valueContexts);
+}
+
+namespace CoaAbilities
+{
+    namespace
+    {
+        template <typename Filter>
+        std::vector<SpellInfo const*> Spells(Player* bot, Filter wanted)
+        {
+            std::vector<SpellInfo const*> spells;
+            if (!bot)
+                return spells;
+            for (Usable const& usable : KnownAbilities(bot, wanted))
+                spells.push_back(usable.info);
+            return spells;
+        }
+
+        bool SingleTargetHostile(uint16 kind)
+        {
+            return (kind & KIND_HOSTILE) && !(kind & (KIND_AOE | KIND_CONTROL));
+        }
+    }
+
+    std::vector<SpellInfo const*> KnownSingleTargetTaunts(Player* bot)
+    {
+        return Spells(bot, [](uint16 kind) { return SingleTargetHostile(kind) && (kind & KIND_TAUNT); });
+    }
+
+    std::vector<SpellInfo const*> KnownSingleTargetAttacks(Player* bot)
+    {
+        return Spells(bot, [](uint16 kind)
+            { return SingleTargetHostile(kind) && (kind & KIND_DAMAGE) && !(kind & KIND_TAUNT); });
+    }
+
+    bool CanResurrect(Player* bot)
+    {
+        return bot && ClassHas(bot, KIND_RESURRECT) &&
+               !KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_RESURRECT) != 0; }).empty();
+    }
 }

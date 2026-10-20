@@ -5,6 +5,8 @@
  */
 
 #include "AiObjectContext.h"
+#include "Ai/Dungeon/DungeonClear/DungeonClearStrategyContext.h"
+#include "DcModuleEnable.h"
 #include "DungeonStrategyContext.h"
 #include "RaidStrategyContext.h"
 #include "CoaGenericContext.h"
@@ -19,4 +21,6 @@ void AiObjectContext::BuildSharedStrategyContexts(SharedNamedObjectContextList<S
     strategyContexts.Add(new DungeonStrategyContext());
     strategyContexts.Add(new RaidStrategyContext());
     strategyContexts.Add(new CoaGenericStrategyContext());
+    if (DcModule::IsEnabled())
+        strategyContexts.Add(new DungeonClearStrategyContext());
 }
