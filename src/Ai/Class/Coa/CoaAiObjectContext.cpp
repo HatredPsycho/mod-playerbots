@@ -1177,6 +1177,12 @@ Player* GroupTank(Player* bot);
 // saving nearly all fight long and chose its cheapest heals while members died (28/09).
 constexpr uint32 GroupHealerManaReserve = 60;
 
+bool KnowsAHeal(Player* bot)
+{
+    return !KnownAbilities(bot, [](uint16 kind)
+        { return (kind & (KIND_HEAL | KIND_HOT)) && !(kind & (KIND_CONTROL | KIND_HOSTILE)); }).empty();
+}
+
 bool SavingManaForHeals(Player* bot)
 {
     if (bot->getPowerType() != POWER_MANA)
@@ -1195,8 +1201,27 @@ bool SavingManaForHeals(Player* bot)
     if (!reserve || bot->GetPowerPct(POWER_MANA) >= float(reserve))
         return false;
 
-    return !KnownAbilities(bot, [](uint16 kind)
-        { return (kind & (KIND_HEAL | KIND_HOT)) && !(kind & (KIND_CONTROL | KIND_HOSTILE)); }).empty();
+    return KnowsAHeal(bot);
+}
+
+// In a dungeon a healer's mana is the group's: even the share above 60 went on damage at the start of
+// every pull, and a low-level healer, with little mana and slow regeneration, ran dry within a few pulls
+// (20/10). The maps are the ones where stock healers drop "healer dps". Only damage is held back here;
+// which heal it picks still follows SavingManaForHeals.
+bool SavingManaFromDamage(Player* bot)
+{
+    if (SavingManaForHeals(bot))
+        return true;
+
+    if (bot->getPowerType() != POWER_MANA || GetCoaRole(bot) != CoaRole::Heal ||
+        !sPlayerbotAIConfig.IsRestrictedHealerDPSMap(bot->GetMapId()))
+        return false;
+
+    if (uint32 const specialization = GetAscensionActiveSpecialization(bot))
+        if (sPlayerbotAIConfig.coaOffensiveHealerSpecs.count(specialization))
+            return false;
+
+    return KnowsAHeal(bot);
 }
 
 // Removes what costs mana, for a bot that is keeping the rest of its mana for healing.
@@ -2530,7 +2555,7 @@ public:
         // measured on 18/09 that is the usual state: in 99% of the casts turned down for want of
         // power the bot sat below 10% mana. Under its reserve it attacks with what costs nothing
         // (and its weapon), keeping the rest for heals.
-        bool const saveMana = SavingManaForHeals(bot);
+        bool const saveMana = SavingManaFromDamage(bot);
 
         // Taunts, even those that deal damage, stay out of the rotation on an enemy another tank holds; those that deal
         // none, on one that already hits the tank: a Felsworn Tyrant spent 9 of its 18 Betrays on a boss already on it,
@@ -2698,7 +2723,7 @@ public:
 
         std::vector<Usable> spells = KnownAbilities(bot, [](uint16 kind)
             { return (kind & KIND_AOE) && (kind & (KIND_DAMAGE | KIND_HOSTILE)); });
-        if (SavingManaForHeals(bot))
+        if (SavingManaFromDamage(bot))
             DropManaSpells(bot, spells);
         DropChannelBreakers(bot, spells);
 
@@ -4876,7 +4901,7 @@ bool CoaHealerSavesManaFrom(Player* bot, SpellInfo const* info)
     // What heals or shields stays: saving mana for heals must not take the heals away (a Cultist
     // healer lost Gaze of C'Thun, its main heal: 18 healing a second, the tank 44 s under half).
     return info && GetCoaRole(bot) == CoaRole::Heal && info->PowerType == POWER_MANA &&
-           info->CalcPowerCost(bot, info->GetSchoolMask()) > 0 && SavingManaForHeals(bot) && !HealsOrShields(bot, info);
+           info->CalcPowerCost(bot, info->GetSchoolMask()) > 0 && SavingManaFromDamage(bot) && !HealsOrShields(bot, info);
 }
 
 bool CoaHealerAvoidsForm(Player* bot, SpellInfo const* info)

@@ -783,6 +783,17 @@ bool DungeonClearMath::SegmentIntersectsAABB2D(float ax, float ay,
     return t0 <= t1;
 }
 
+bool DungeonClearMath::HealRepositionWorthIt(bool inCombat, bool usesMana, float manaPct,
+                                             float lowManaPct, float targetHealthPct,
+                                             float mediumHealthPct)
+{
+    if (inCombat)
+        return true;
+    if (usesMana && manaPct < lowManaPct)
+        return false;
+    return targetHealthPct < mediumHealthPct;
+}
+
 std::size_t DungeonClearMath::SelectHealTarget(std::vector<HealCandidate> const& members,
                                                float hpFloor, float tankBias)
 {

@@ -1460,6 +1460,8 @@ AiPlayerbot.CoaSpecRotations = 1
 # Measured with 1000 bots: 99% of the casts turned down for want of power were
 # made below 10% mana, i.e. bots that had spent everything on damage.
 # A bot that knows no heal is never held back. 0 disables the reserve.
+# On the maps of AiPlayerbot.RestrictedHealerDPSMaps (with HealerDPSMapRestriction
+# on) a healer pays for no damage at all, whatever its mana.
 # Default: 35 (bots whose specialization is a healing one)
 AiPlayerbot.CoaHealerManaReserve = 35
 
