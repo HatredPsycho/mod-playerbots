@@ -5,15 +5,23 @@
  */
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <cmath>
 #include <map>
 #include <set>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "AllCreatureScript.h"
+#include "AllGameObjectScript.h"
 #include "Chat.h"
 #include "DBCStores.h"
+#include "GameObject.h"
 #include "GameObjectData.h"
+#include "GameTime.h"
 #include "Group.h"
 #include "Map.h"
 #include "ObjectMgr.h"
@@ -32,6 +40,12 @@
 // Mode 0 lists class quests only; mode 1 adds race and profession quests. A quest is listed for a bot when that
 // bot can take it now (Player::CanTakeQuest) and it is restricted to something the bot has, so the quests every
 // character gets stay out.
+//
+// "CoAQ\tACCEPT\t<bot>\t<quest id>" makes that bot take a listed quest from where it stands, as long as a giver of
+// the quest is still within AiPlayerbot.NearbyQuestRadius of the player; the answer is
+//   CoAQ\tTAKEN\t<bot>\t<quest id>\t<1|0>
+// Talking to a quest giver also makes every bot of the player standing next to it name the quests it could take
+// there and the player cannot; whispering that bot "yes" (or "ja") takes them, "no" (or "nein") drops the offer.
 namespace
 {
     constexpr char const* AddonPrefix = "CoAQ";
@@ -56,6 +70,19 @@ namespace
         char kind;
         Giver const* giver;
     };
+
+    constexpr float OfferRange = 40.0f;
+    constexpr time_t OfferSeconds = 120;
+
+    struct QuestOffer
+    {
+        ObjectGuid master;
+        std::vector<uint32> quests;
+        time_t expires;
+    };
+
+    std::mutex offersLock;
+    std::unordered_map<ObjectGuid, QuestOffer> questOffers;
 
     void Send(Player* player, std::string text)
     {
@@ -141,6 +168,107 @@ namespace
             }
         }
         return offers;
+    }
+
+    PlayerbotAI* AltBotOf(Player* master, Player* bot)
+    {
+        if (!bot || bot == master || !bot->IsInWorld() || bot->GetMap() != master->GetMap())
+            return nullptr;
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+        return botAI && botAI->GetMaster() == master ? botAI : nullptr;
+    }
+
+    bool CanTakeNow(Player* bot, Quest const* quest)
+    {
+        return bot->GetQuestStatus(quest->GetQuestId()) == QUEST_STATUS_NONE && bot->CanTakeQuest(quest, false) &&
+               bot->SatisfyQuestLog(false) && bot->CanAddQuest(quest, false);
+    }
+
+    bool Take(Player* bot, PlayerbotAI* botAI, Quest const* quest)
+    {
+        if (!CanTakeNow(bot, quest))
+            return false;
+        bot->AddQuestAndCheckCompletion(quest, nullptr);
+        if (bot->GetQuestStatus(quest->GetQuestId()) == QUEST_STATUS_NONE)
+            return false;
+        botAI->TellMaster("Accepted " + botAI->GetChatHelper()->FormatQuest(quest));
+        return true;
+    }
+
+    bool OfferedNearby(Player* player, uint32 questId)
+    {
+        for (Giver const& giver : NearbyGivers(player, sPlayerbotAIConfig.nearbyQuestRadius))
+        {
+            auto const quests = giver.creature ? sObjectMgr->GetCreatureQuestRelationBounds(giver.entry)
+                                               : sObjectMgr->GetGOQuestRelationBounds(giver.entry);
+            for (auto itr = quests.first; itr != quests.second; ++itr)
+                if (itr->second == questId)
+                    return true;
+        }
+        return false;
+    }
+
+    void AcceptRequest(Player* player, std::string const& botName, uint32 questId)
+    {
+        bool taken = false;
+        Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
+        Group* group = player->GetGroup();
+        if (group && quest && OfferedNearby(player, questId))
+        {
+            for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            {
+                Player* bot = ref->GetSource();
+                if (bot && bot->GetName() == botName)
+                {
+                    if (PlayerbotAI* botAI = AltBotOf(player, bot))
+                        taken = Take(bot, botAI, quest);
+                    break;
+                }
+            }
+        }
+        Send(player, Acore::StringFormat("{}\tTAKEN\t{}\t{}\t{}", AddonPrefix, Clipped(botName, 40), questId,
+                                         taken ? 1 : 0));
+    }
+
+    void OfferGiverQuests(Player* player, WorldObject* giver, QuestRelationBounds quests)
+    {
+        if (!player || !giver || GET_PLAYERBOT_AI(player) || quests.first == quests.second)
+            return;
+        Group* group = player->GetGroup();
+        if (!group)
+            return;
+
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* bot = ref->GetSource();
+            PlayerbotAI* botAI = AltBotOf(player, bot);
+            if (!botAI || bot->GetExactDist2d(giver) > OfferRange)
+                continue;
+
+            std::vector<uint32> offered;
+            std::string links;
+            for (auto itr = quests.first; itr != quests.second; ++itr)
+            {
+                Quest const* quest = sObjectMgr->GetQuestTemplate(itr->second);
+                if (!quest || player->CanTakeQuest(quest, false) || !CanTakeNow(bot, quest))
+                    continue;
+                offered.push_back(quest->GetQuestId());
+                links += (links.empty() ? "" : ", ") + botAI->GetChatHelper()->FormatQuest(quest);
+            }
+            if (offered.empty())
+                continue;
+
+            time_t const now = GameTime::GetGameTime().count();
+            bool repeated = false;
+            {
+                std::lock_guard<std::mutex> guard(offersLock);
+                QuestOffer& offer = questOffers[bot->GetGUID()];
+                repeated = offer.master == player->GetGUID() && offer.quests == offered && offer.expires > now;
+                offer = {player->GetGUID(), offered, now + OfferSeconds};
+            }
+            if (!repeated)
+                botAI->TellMaster("I can take " + links + ". Whisper me \"yes\" to accept or \"no\" to skip.");
+        }
     }
 
     std::string GiverName(Giver const& giver, LocaleConstant locale)
@@ -247,21 +375,114 @@ namespace
     }
 }
 
+// Called by PlayerbotsPlayerScript before the bot reads the whisper as a command; true consumes it.
+bool PlayerbotsAnswerQuestOffer(Player* master, Player* bot, std::string const& msg)
+{
+    std::string answer = msg;
+    answer.erase(0, answer.find_first_not_of(' '));
+    answer.erase(answer.find_last_not_of(' ') + 1);
+    std::transform(answer.begin(), answer.end(), answer.begin(), [](unsigned char c) { return std::tolower(c); });
+    bool const yes = answer == "yes" || answer == "y" || answer == "ja" || answer == "j";
+    bool const no = answer == "no" || answer == "n" || answer == "nein";
+    if (!master || !bot || (!yes && !no))
+        return false;
+
+    std::vector<uint32> quests;
+    {
+        std::lock_guard<std::mutex> guard(offersLock);
+        auto const itr = questOffers.find(bot->GetGUID());
+        if (itr == questOffers.end())
+            return false;
+        bool const valid =
+            itr->second.master == master->GetGUID() && itr->second.expires > GameTime::GetGameTime().count();
+        if (valid)
+            quests = itr->second.quests;
+        questOffers.erase(itr);
+        if (!valid)
+            return false;
+    }
+
+    PlayerbotAI* botAI = AltBotOf(master, bot);
+    if (!botAI)
+        return false;
+    if (no)
+    {
+        botAI->TellMaster("Ok, I leave them.");
+        return true;
+    }
+
+    uint32 taken = 0;
+    for (uint32 questId : quests)
+        if (Quest const* quest = sObjectMgr->GetQuestTemplate(questId))
+            taken += Take(bot, botAI, quest) ? 1 : 0;
+    if (!taken)
+        botAI->TellMaster("I can no longer take them.");
+    return true;
+}
+
 class PlayerbotsNearbyQuests : public PlayerScript
 {
 public:
-    PlayerbotsNearbyQuests() : PlayerScript("PlayerbotsNearbyQuests", {PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE}) {}
+    PlayerbotsNearbyQuests()
+        : PlayerScript("PlayerbotsNearbyQuests", {PLAYERHOOK_ON_BEFORE_SEND_CHAT_MESSAGE, PLAYERHOOK_ON_LOGOUT}) {}
 
     void OnPlayerBeforeSendChatMessage(Player* player, uint32& /*type*/, uint32& lang, std::string& msg) override
     {
-        static std::string const request = std::string(AddonPrefix) + "\tSCAN";
-        if (lang != LANG_ADDON || !player || GET_PLAYERBOT_AI(player) || msg.compare(0, request.size(), request) != 0)
+        static std::string const prefix = std::string(AddonPrefix) + "\t";
+        if (lang != LANG_ADDON || !player || GET_PLAYERBOT_AI(player) || msg.compare(0, prefix.size(), prefix) != 0)
             return;
-        Scan(player, msg.size() > request.size() + 1 && msg[request.size() + 1] == '1');
+
+        std::vector<std::string> parts;
+        std::size_t start = prefix.size();
+        while (start <= msg.size())
+        {
+            std::size_t const end = std::min(msg.find('\t', start), msg.size());
+            parts.push_back(msg.substr(start, end - start));
+            start = end + 1;
+        }
+
+        if (parts[0] == "SCAN")
+            Scan(player, parts.size() > 1 && parts[1] == "1");
+        else if (parts[0] == "ACCEPT" && parts.size() == 3)
+            AcceptRequest(player, parts[1], static_cast<uint32>(std::strtoul(parts[2].c_str(), nullptr, 10)));
+    }
+
+    void OnPlayerLogout(Player* player) override
+    {
+        std::lock_guard<std::mutex> guard(offersLock);
+        questOffers.erase(player->GetGUID());
+    }
+};
+
+class PlayerbotsNearbyQuestsCreatureGiver : public AllCreatureScript
+{
+public:
+    PlayerbotsNearbyQuestsCreatureGiver() : AllCreatureScript("PlayerbotsNearbyQuestsCreatureGiver") {}
+
+    bool CanCreatureGossipHello(Player* player, Creature* creature) override
+    {
+        if (creature->IsQuestGiver())
+            OfferGiverQuests(player, creature, sObjectMgr->GetCreatureQuestRelationBounds(creature->GetEntry()));
+        return false;
+    }
+};
+
+class PlayerbotsNearbyQuestsObjectGiver : public AllGameObjectScript
+{
+public:
+    PlayerbotsNearbyQuestsObjectGiver() : AllGameObjectScript("PlayerbotsNearbyQuestsObjectGiver") {}
+
+    bool CanGameObjectGossipHello(Player* player, GameObject* go) override
+    {
+        if (go->GetGoType() == GAMEOBJECT_TYPE_QUESTGIVER)
+            OfferGiverQuests(player, go, sObjectMgr->GetGOQuestRelationBounds(go->GetEntry()));
+        return false;
     }
 };
 
 void AddPlayerbotsNearbyQuestsScripts()
 {
     new PlayerbotsNearbyQuests();
+    new PlayerbotsNearbyQuestsCreatureGiver();
+    new PlayerbotsNearbyQuestsObjectGiver();
 }
