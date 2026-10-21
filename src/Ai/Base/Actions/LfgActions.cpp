@@ -8,6 +8,7 @@
 #include "AiFactory.h"
 #include "ItemVisitors.h"
 #include "LFGMgr.h"
+#include "LfgRoleAction.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Playerbots.h"
@@ -25,6 +26,9 @@ bool LfgJoinAction::Execute(Event /*event*/) { return JoinLFG(); }
 
 uint32 LfgJoinAction::GetRoles()
 {
+    if (uint8 const chosen = GetLfgRoleOverride(bot))
+        return chosen;
+
     // Conquest of Azeroth classes have no talent tabs: their role comes from the specialization.
     if (IsCoaBot(bot))
     {
