@@ -6,7 +6,9 @@
 
 #include "BattleGroundTactics.h"
 #include "Chat.h"
+#include "CoaReborn.h"
 #include "CoaSpecialization.h"
+#include "CoaWildcard.h"
 #include "Config.h"
 #include "GroupMgr.h"
 #include "GuildTaskMgr.h"
@@ -34,6 +36,10 @@ public:
             {"bg", HandleDebugBGCommand, SEC_GAMEMASTER, Console::Yes},
         };
 
+        static ChatCommandTable playerbotsWildcardCommandTable = {
+            {"redraft", HandleWildcardRedraftCommand, SEC_GAMEMASTER, Console::No},
+        };
+
         static ChatCommandTable playerbotsAccountCommandTable = {
             {"setKey", HandleSetSecurityKeyCommand, SEC_PLAYER, Console::No},
             {"link", HandleLinkAccountCommand, SEC_PLAYER, Console::No},
@@ -50,6 +56,7 @@ public:
             {"version", HandleVersionCommand, SEC_PLAYER, Console::Yes},
             {"debug", playerbotsDebugCommandTable},
             {"account", playerbotsAccountCommandTable},
+            {"wildcard", playerbotsWildcardCommandTable},
         };
 
         static ChatCommandTable commandTable = {
@@ -80,6 +87,8 @@ public:
     // every AiPlayerbot.CoaRaidPlayerCooldown minutes each; game masters have no limit and alone recruit one role.
     // .playerbots coa regear [level] : game masters only, gears again the random bots online of that level or
     // above (60 by default) to the quality the config gives them now.
+    // .playerbots coa wcr [spec <0-2>|reload] : game masters only, the Warcraft Reborn tree of the selected bot, moved to
+    // another tree; reload reads playerbots_coa_wcr_builds again.
     static bool HandleCoaRecruitCommand(ChatHandler* handler, char const* args)
     {
         Player* master = handler->GetSession() ? handler->GetSession()->GetPlayer() : nullptr;
@@ -180,6 +189,12 @@ public:
             return true;
         }
 
+        if (wanted == "wcr" && gameMaster)
+        {
+            HandleCoaWcr(handler, className);
+            return true;
+        }
+
         if (!gameMaster)
         {
             handler->SendSysMessage("Usage: .playerbots coa raid [size] [tanks] [healers], e.g. .playerbots coa raid 25. "
@@ -222,6 +237,85 @@ public:
         std::string message;
         RecruitCoaBot(master, role, message, classId);
         handler->SendSysMessage(message);
+        return true;
+    }
+
+    static void HandleCoaWcr(ChatHandler* handler, std::string const& args)
+    {
+        if (!IsRebornRealm())
+        {
+            handler->SendSysMessage("not a Warcraft Reborn realm");
+            return;
+        }
+        std::istringstream in(args);
+        std::string word, number;
+        in >> word >> number;
+        if (word == "reload")
+        {
+            handler->PSendSysMessage("playerbots_coa_wcr_builds: {} guide rows loaded.", LoadWcrBuilds());
+            return;
+        }
+
+        Player* bot = handler->getSelectedPlayer();
+        if (!bot || !GET_PLAYERBOT_AI(bot))
+        {
+            handler->SendSysMessage("Select a bot: .playerbots coa wcr [spec <0-2>|reload]");
+            return;
+        }
+        if (!IsRebornBot(bot))
+        {
+            handler->PSendSysMessage("{}: not a Warcraft Reborn class.", bot->GetName());
+            return;
+        }
+
+        if (word == "spec")
+        {
+            if (number.size() != 1 || number[0] < '0' || number[0] > '2')
+            {
+                handler->SendSysMessage("Usage: .playerbots coa wcr spec <0-2>");
+                return;
+            }
+            CoaRole const before = GetWcrRole(bot);
+            std::string error;
+            if (!SetWcrSpec(bot, uint8(number[0] - '0'), error))
+                handler->PSendSysMessage("{}: {}", bot->GetName(), error);
+            if (GetWcrRole(bot) != before && sRandomPlayerbotMgr.IsRandomBot(bot))
+                PlayerbotFactory(bot, bot->GetLevel()).InitEquipment(true);
+            if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot))
+                botAI->ResetStrategies();
+        }
+
+        for (std::string const& line : DescribeWcr(bot))
+            handler->PSendSysMessage("{}: {}", bot->GetName(), line);
+    }
+
+    // .playerbots wildcard redraft [name] : the named random Wildcard Hero bot, or the selected one, forgets
+    // its build and drafts it again for its role.
+    static bool HandleWildcardRedraftCommand(ChatHandler* handler, Optional<PlayerIdentifier> target)
+    {
+        if (!target)
+            target = PlayerIdentifier::FromTarget(handler);
+        Player* bot = target ? target->GetConnectedPlayer() : nullptr;
+        if (!bot)
+        {
+            handler->SendSysMessage("Name an online Wildcard Hero bot or select one: .playerbots wildcard redraft [name]");
+            return true;
+        }
+        if (!RedraftWildcardBot(bot))
+        {
+            handler->PSendSysMessage("{} is not a random Wildcard Hero bot.", bot->GetName());
+            return true;
+        }
+
+        if (bot->IsInCombat())
+        {
+            handler->PSendSysMessage("{} drafted its build again and takes its stat path after the fight.", bot->GetName());
+            return true;
+        }
+
+        CoaRole const role = GetWildcardRole(bot);
+        handler->PSendSysMessage("{} drafted its build again as a {}.", bot->GetName(),
+                                 role == CoaRole::Tank ? "tank" : role == CoaRole::Heal ? "healer" : "damage dealer");
         return true;
     }
 

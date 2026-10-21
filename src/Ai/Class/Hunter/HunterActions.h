@@ -8,6 +8,7 @@
 #define PLAYERBOTS_HUNTERACTIONS_H
 
 #include "AiObject.h"
+#include "CoaReborn.h"
 #include "Event.h"
 #include "GenericSpellActions.h"
 #include "Unit.h"
@@ -395,7 +396,7 @@ public:
         CastExplosiveShotBaseAction(botAI) {}
     bool Execute(Event /*event*/) override
     {
-        return botAI->CastSpell(60053, GetTarget());
+        return botAI->CastSpell(RebornSpellId(60053), GetTarget());
     }
     bool isUseful() override
     {
@@ -403,7 +404,7 @@ public:
         if (!target)
             return false;
 
-        return !target->HasAura(60053);
+        return !HasAuraOrTwin(target, 60053);
     }
 };
 
@@ -415,7 +416,7 @@ public:
         CastExplosiveShotBaseAction(botAI) {}
     bool Execute(Event /*event*/) override
     {
-        return botAI->CastSpell(60052, GetTarget());
+        return botAI->CastSpell(RebornSpellId(60052), GetTarget());
     }
     bool isUseful() override
     {
@@ -423,7 +424,7 @@ public:
         if (!target)
             return false;
 
-        return !target->HasAura(60052);
+        return !HasAuraOrTwin(target, 60052);
     }
 };
 
@@ -435,7 +436,7 @@ public:
         CastExplosiveShotBaseAction(botAI) {}
     bool Execute(Event /*event*/) override
     {
-        return botAI->CastSpell(60051, GetTarget());
+        return botAI->CastSpell(RebornSpellId(60051), GetTarget());
     }
     bool isUseful() override
     {
@@ -443,7 +444,7 @@ public:
         if (!target)
             return false;
 
-        return !target->HasAura(60051);
+        return !HasAuraOrTwin(target, 60051);
     }
 };
 
@@ -455,7 +456,7 @@ public:
         CastExplosiveShotBaseAction(botAI) {}
     bool Execute(Event /*event*/) override
     {
-        return botAI->CastSpell(53301, GetTarget());
+        return botAI->CastSpell(RebornSpellId(53301), GetTarget());
     }
     bool isUseful() override
     {
@@ -463,7 +464,7 @@ public:
         if (!target)
             return false;
 
-        return !target->HasAura(53301);
+        return !HasAuraOrTwin(target, 53301);
     }
 };
 

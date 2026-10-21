@@ -9,6 +9,8 @@
 #include <functional>
 #include "RaceMgr.h"
 #include "CoaSpecialization.h"
+#include "CoaWildcard.h"
+#include "CoaReborn.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
 #include "CellImpl.h"
@@ -46,7 +48,9 @@
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotGuildMgr.h"
 #include "PlayerbotMgr.h"
+#include "PlayerbotOperations.h"
 #include "PlayerbotTextMgr.h"
+#include "PlayerbotWorldThreadProcessor.h"
 #include "Playerbots.h"
 #include "PositionValue.h"
 #include "RBAC.h"
@@ -1787,6 +1791,10 @@ void PlayerbotAI::ChangeEngineOnNonCombat()
     {
         aiObjectContext->GetValue<PositionInfo>("pos", "stay")->Reset();
     }
+
+    // A Wildcard Hero drafted in combat takes its stat path now, with the role and range that come with it.
+    if (TakeDueWildcardPath(bot) && DraftWildcardBuild(bot))
+        ResetStrategies();
 }
 
 void PlayerbotAI::DoNextAction(bool min)
@@ -2322,8 +2330,11 @@ bool PlayerbotAI::IsRanged(Player* player, bool bySpec)
     if (!bySpec && botAi)
         return botAi->ContainsStrategy(STRATEGY_TYPE_RANGED);
 
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return GetCoaStyle(player) != CoaStyle::Melee;
+
+    if (IsRebornBot(player))
+        return IsWcrRanged(player);
 
     int tab = AiFactory::GetPlayerSpecTab(player);
     switch (player->getClass())
@@ -2361,7 +2372,7 @@ bool PlayerbotAI::IsMelee(Player* player, bool bySpec) { return !IsRanged(player
 bool PlayerbotAI::IsCaster(Player* player, bool bySpec)
 {
     // CoA specializations that shoot on agility are ranged without being casters.
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return IsRanged(player, bySpec) && GetCoaStyle(player) == CoaStyle::Caster;
 
     return IsRanged(player, bySpec) && player->getClass() != CLASS_HUNTER;
@@ -2371,7 +2382,7 @@ bool PlayerbotAI::IsCombo(Player* player)
 {
     // int tab = AiFactory::GetPlayerSpecTab(player);
     return player->getClass() == CLASS_ROGUE ||
-           (player->getClass() == CLASS_DRUID && player->HasAura(768));  // cat druid
+           (player->getClass() == CLASS_DRUID && HasAuraOrTwin(player, 768));  // cat druid
 }
 
 bool PlayerbotAI::IsRangedDps(Player* player, bool bySpec)
@@ -2744,8 +2755,11 @@ bool PlayerbotAI::IsTank(Player* player, bool bySpec)
     if (!bySpec && botAi)
         return botAi->ContainsStrategy(STRATEGY_TYPE_TANK);
 
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return GetCoaRole(player) == CoaRole::Tank;
+
+    if (IsRebornBot(player))
+        return GetWcrRole(player) == CoaRole::Tank;
 
     int tab = AiFactory::GetPlayerSpecTab(player);
     switch (player->getClass())
@@ -2785,8 +2799,11 @@ bool PlayerbotAI::IsHeal(Player* player, bool bySpec)
     if (!bySpec && botAi)
         return botAi->ContainsStrategy(STRATEGY_TYPE_HEAL);
 
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return GetCoaRole(player) == CoaRole::Heal;
+
+    if (IsRebornBot(player))
+        return GetWcrRole(player) == CoaRole::Heal;
 
     int tab = AiFactory::GetPlayerSpecTab(player);
     switch (player->getClass())
@@ -2825,8 +2842,11 @@ bool PlayerbotAI::IsDps(Player* player, bool bySpec)
     if (!bySpec && botAi)
         return botAi->ContainsStrategy(STRATEGY_TYPE_DPS);
 
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return GetCoaRole(player) == CoaRole::Dps;
+
+    if (IsRebornBot(player))
+        return GetWcrRole(player) == CoaRole::Dps;
 
     int tab = AiFactory::GetPlayerSpecTab(player);
     switch (player->getClass())
@@ -3332,6 +3352,15 @@ bool PlayerbotAI::SayToGuild(std::string const& msg)
 bool PlayerbotAI::SayToWorld(std::string const& msg)
 {
     if (msg.empty())
+        return false;
+
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(std::make_unique<BotChannelOperation>(
+        bot->GetGUID(), "say to world", [msg](Player* speaker) { return GET_PLAYERBOT_AI(speaker)->SayToWorldNow(msg); }));
+}
+
+bool PlayerbotAI::SayToWorldNow(std::string const& msg)
+{
+    if (msg.empty())
     {
         return false;
     }
@@ -3356,6 +3385,16 @@ bool PlayerbotAI::SayToWorld(std::string const& msg)
 
 bool PlayerbotAI::SayToChannel(std::string const& msg, ChatChannelId const& chanId)
 {
+    if (msg.empty())
+        return false;
+
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(std::make_unique<BotChannelOperation>(
+        bot->GetGUID(), "say to channel",
+        [msg, chanId](Player* speaker) { return GET_PLAYERBOT_AI(speaker)->SayToChannelNow(msg, chanId); }));
+}
+
+bool PlayerbotAI::SayToChannelNow(std::string const& msg, ChatChannelId chanId)
+{
     // Checks whether the message or ChannelMgr is valid
     if (msg.empty())
         return false;
@@ -3373,9 +3412,6 @@ bool PlayerbotAI::SayToChannel(std::string const& msg, ChatChannelId const& chan
     // Valley" inside Elwynn Forest), so either name makes this the right channel to speak in.
     AreaTableEntry const* current_area = GetCurrentArea();
     std::string const current_str_area = current_area ? GetLocalizedAreaName(current_area) : "";
-
-    std::mutex socialMutex;
-    std::lock_guard<std::mutex> lock(socialMutex);  // Blocking for thread safety when accessing SocialMgr
 
     for (auto const& [key, channel] : cMgr->GetChannels())
     {
@@ -5561,7 +5597,7 @@ uint32 PlayerbotAI::GetEquipGearScore(Player* player)
     if (main)
     {
         bool twoHand = (main->GetTemplate()->InventoryType == INVTYPE_2HWEAPON);
-        if (twoHand && !player->HasAura(SPELL_TITAN_GRIP))
+        if (twoHand && !HasAuraOrTwin(player, SPELL_TITAN_GRIP))
             ignoreOffhand = true;  // classic 2-hander
     }
     else if (!off)  // both hands empty
@@ -5606,7 +5642,7 @@ uint32 PlayerbotAI::GetEquipGearScore(Player* player)
             // If character is not warfury and have 2 hand weapon equipped, main hand will be counted twice
             if (i == SLOT_MAIN_HAND)
                 mh_type = item->GetTemplate()->InventoryType;
-            if (!player->HasAura(SPELL_TITAN_GRIP) && mh_type == INVTYPE_2HWEAPON && i == SLOT_MAIN_HAND)
+            if (!HasAuraOrTwin(player, SPELL_TITAN_GRIP) && mh_type == INVTYPE_2HWEAPON && i == SLOT_MAIN_HAND)
                 sum += item->GetTemplate()->ItemLevel;
         }
     }

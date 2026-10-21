@@ -1,5 +1,33 @@
 # CoA Bots — changelog
 
+## v2.6 — Three realms: Conquest of Azeroth, Wildcard and Warcraft Reborn (October 2026)
+
+### New realm modes
+- **Warcraft Reborn realms** (`CoA.ClassModel = "wcr"`): random bots are the original classes (Warrior to Druid,
+  Death Knight included). They learn the Reborn spells like a player at the trainer, take their talents through
+  Character Advancement with a build for each of their three trees, and their tree gives their role (tank, healer,
+  damage) for lfg bot, the raid builder and the dungeon finder. Whisper `wcr` to see a bot's tree, `wcr spec 0|1|2`
+  to change it; game masters: `.playerbots coa wcr [spec N|reload]`.
+- **Wildcard realms** (Darkmoon): Heroes of any role can be recruited by lfg bot and the raid builder (a recruited
+  Hero rebuilds its draft for the role), a Hero keeps its role from one draft to the next and regears after a
+  redraft, Heroes hold real weapons (a bow or a gun when they fight at range), and the PvP tactics apply to them.
+  Whisper `wildcard`, `wildcard role tank|heal|dps`, `wildcard redraft`.
+
+### Fixes
+- A spell that triggers itself no longer sends the gear rating into an endless loop (server crash).
+- Bots of one class no longer all take the same tree on a Warcraft Reborn realm.
+- Warcraft Reborn: shamans set their totems again (Call of the Elements no longer loops on an empty bar), hunters
+  keep their Auto Shot going, Frost and Unholy death knights spend their spare runes, a Blood tank stays in Frost
+  Presence and holds threat, rogues spend their combo points on Eviscerate instead of Expose Armor.
+- Wildcard: damage dealers are spread over melee, ranged and caster builds (they were nearly all melee Agility),
+  draft toward the Season 10 archetypes, always start with an ability they can use without a cooldown, and a tank
+  with a taunt; Heroes learn and cast the higher ranks of their abilities and ranged Heroes shoot with Auto Shot.
+
+### Loot and gear
+- **Best gear** (`autogear`, "Best gear for the group" in SquidBots Lite) keeps an equipped **heirloom**: it no
+  longer swaps it for a worldforged piece and leaves the heirloom in the bags. `autogear reset` still regears
+  everything from scratch.
+
 ## v2.5 — Auction house, Manastorm, smarter casts and your reports (October 2026)
 
 ### Core (repack)
