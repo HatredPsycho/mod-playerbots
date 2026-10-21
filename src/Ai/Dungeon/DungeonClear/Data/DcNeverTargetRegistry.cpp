@@ -354,6 +354,28 @@ namespace
         // targets. Reservists that aggro are still fought; General Angerforge's
         // summons (also 8901) are fought wherever he calls them.
         { 230, 8901, 1275.0f, 1480.0f, -560.0f, -305.0f },  // Blackrock Depths — Anvilrage Reservist, Lyceum only
+
+        // --- Upper Blackrock Spire (229): the Rookery Whelps ------------------
+        //
+        // Class 2. A Rookery Whelp (10161, level 56-57, rank 0) exists only
+        // because a Rookery Egg hatched — a party member came within 1.5yd of
+        // it, or a Rookery Hatcher walked to it. The Rookery floor carries 149
+        // eggs and the party crosses it on a measured lane that keeps every egg
+        // >= 3.8yd off (RegisterBlackrockSpireRoute). A clear that walks
+        // OFF that lane to hunt a whelp steps among the eggs and hatches more:
+        // killing one is negative progress. Whelps that aggro the party are
+        // fought where they come, by the stock combat engine.
+        { 229, 10161 },  // Upper Blackrock Spire — Rookery Whelp (hatched from the eggs)
+
+        // --- Upper Blackrock Spire (229): Lord Victor Nefarius ----------------
+        //
+        // Class 1. Nefarius (10162) watches the stadium from the balcony at
+        // (163.2, -444, z 122.1), 11yd above the arena, with no script AI on map
+        // 229 — talk lines only. He cannot be
+        // reached, and the reachability filter should already drop him; this row
+        // is the cheap insurance that the stadium hold never sends the tank up a
+        // wall at him. Rend beside him stays a target: he is the bit-11 kill.
+        { 229, 10162 },  // Upper Blackrock Spire — Lord Victor Nefarius (balcony, unreachable)
     };
 }
 

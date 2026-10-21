@@ -96,6 +96,7 @@ enum class DcThrottle : uint8
     BrdEventLog,         // the Blackrock Depths Upper City hooks' waiting lines
     BrdTorchWarn,        // "no Flame Keeper respawned" WARN (once per torch wait)
     EventLeashLog,       // an event's pack-leash hold line (DungeonEvent::packLeash)
+    UbrsEventLog,        // the Upper Blackrock Spire hooks' waiting lines
 
     // --- action floors (time only) -----------------------------------------
     UpHarpoonFire,       // floor between two Harpoon Launcher clicks (its own
@@ -108,6 +109,16 @@ enum class DcThrottle : uint8
                          // keg's SmartAI chain lands before the next
     BrdAleTurnIn,        // floor between two Rocknot's Ale hand-ins, so each lands
                          // as its own drink and yell instead of three in one tick
+    UbrsDoorArm,         // floor between two armings of the Dragonspire Hall (AT
+                         // 2046's script + IP's door SetData): once per door attempt
+    UbrsDoorClick,       // floor between two Dragonspine Door click fallbacks; its
+                         // stamp is also how the hook knows the click was used
+    UbrsHallRestart,     // floor between two hall-sweep rewinds onto the rune packs
+    UbrsHallRearm,       // floor between two re-fires of AT 2046's script
+    UbrsAltarUse,        // floor between two Blackrock Altar uses (its ritual
+                         // takes 5s; a re-use mid-ritual is swallowed)
+    UbrsStadiumFire,     // floor between two forged AT 2026 fires (Rend's script
+                         // takes ~1s to read IN_PROGRESS)
 
     Count
 };

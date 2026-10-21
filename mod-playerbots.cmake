@@ -139,6 +139,8 @@ if (BUILD_TESTING)
             "${MOD_PATH}/test/dungeon_clear/TestHallsOfReflectionRouteProbe.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestCullingOfStratholmeRouteProbe.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestBlackrockDepthsRouteProbe.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestBlackrockSpireEvents.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestBlackrockSpireRouteProbe.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTrialOfTheChampionRouteProbe.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestOculusRouteProbe.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestKarazhanRouteProbe.cpp"
