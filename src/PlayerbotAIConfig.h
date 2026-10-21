@@ -392,6 +392,7 @@ public:
     bool twoRoundsGearInit;
     bool syncQuestWithPlayer;
     bool syncQuestForPlayer;
+    bool syncQuestAcceptWithPlayer;
     bool dropObsoleteQuests;
     bool allowLearnTrainerSpells;
     bool autoPickTalents;
