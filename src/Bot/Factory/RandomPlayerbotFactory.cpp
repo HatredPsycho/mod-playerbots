@@ -9,6 +9,8 @@
 #include "ArenaTeamMgr.h"
 #include "CharacterCache.h"
 #include "CoaBotNames.h"
+#include "CoaReborn.h"
+#include "CoaWildcard.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "DatabaseEnv.h"
@@ -895,7 +897,26 @@ void RandomPlayerbotFactory::CreateRandomBots()
                                                 time_t(0), LOCALE_enUS, 0, false, false, 0, true);
         sessionBots.push_back(session);
 
-        for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES - count; ++cls)
+        // A Wildcard realm plays Heroes only, as Darkmoon - Season 10 did: every character slot of the
+        // account gets one, where elsewhere each class gets a slot.
+        bool const wildcard = IsWildcardRealm();
+        // A Warcraft Reborn realm plays the original classes, the Hero excepted, and none of the CoA ones.
+        bool const reborn = !wildcard && IsRebornRealm();
+        std::vector<uint8> classes;
+        if (wildcard)
+            classes.assign(count < 10 ? 10 - count : 0, CLASS_HERO);
+        else if (reborn)
+        {
+            for (uint8 cls = CLASS_WARRIOR; cls <= CLASS_DRUID; ++cls)
+                if (IsRebornClass(cls))
+                    classes.push_back(cls);
+            classes.resize(std::min<std::size_t>(classes.size(), count < 10 ? 10 - count : 0));
+        }
+        else
+            for (uint8 cls = CLASS_WARRIOR; cls < MAX_CLASSES - count; ++cls)
+                classes.push_back(cls);
+
+        for (uint8 cls : classes)
         {
             // skip nonexistent classes
             if (!((1 << (cls - 1)) & CLASSMASK_ALL_PLAYABLE) || !sChrClassesStore.LookupEntry(cls))
@@ -909,7 +930,7 @@ void RandomPlayerbotFactory::CreateRandomBots()
             // WotLK ones from character creation. The core only enforces that when the realm sets
             // CharacterCreating.Disabled.ClassMask, which ships at 0, so without this a realm built
             // from source fills its starting valleys with Warriors and Mages no player can roll.
-            if (sPlayerbotAIConfig.coaClassesOnly && !IsAscensionClass(cls))
+            if (!wildcard && !reborn && sPlayerbotAIConfig.coaClassesOnly && !IsAscensionClass(cls))
                 continue;
 
             Player* playerBot = factory.CreateRandomBot(session, cls, nameCache);

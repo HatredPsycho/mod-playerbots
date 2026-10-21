@@ -9,6 +9,8 @@
 
 #include <string_view>
 #include "CoaSpecialization.h"
+#include "CoaWildcard.h"
+#include "CoaReborn.h"
 #include "BattlegroundMgr.h"
 #include "DKAiObjectContext.h"
 #include "DruidAiObjectContext.h"
@@ -70,7 +72,7 @@ AiObjectContext* AiFactory::createAiObjectContext(Player* player, PlayerbotAI* b
     // Conquest of Azeroth custom classes (12 and above) have no hand written context.
     // Without this they fall through to the plain context, which has no combat rotation:
     // the bot follows and quests but never fights.
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
         return new CoaAiObjectContext(botAI);
 
     return new AiObjectContext(botAI);
@@ -78,6 +80,10 @@ AiObjectContext* AiFactory::createAiObjectContext(Player* player, PlayerbotAI* b
 
 uint8 AiFactory::GetPlayerSpecTab(Player* bot)
 {
+    // A Warcraft Reborn character has no stock talents: its tree is the one its build was taken from.
+    if (IsRebornBot(bot))
+        return GetWcrSpec(bot);
+
     std::map<uint8, uint32> tabs = GetPlayerSpecTabs(bot);
 
     if (bot->GetLevel() >= 10 && ((tabs[0] + tabs[1] + tabs[2]) > 0))
@@ -294,7 +300,9 @@ std::string AiFactory::GetPlayerSpecName(Player* player)
 
 void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const facade, Engine* engine)
 {
+    EnsureWcrBuild(player);
     uint8 tab = GetPlayerSpecTab(player);
+    bool const reborn = IsRebornBot(player);
 
     if (!player->InBattleground())
         engine->addStrategiesNoInit("racials", "chat", "default", "cast time", "potions", "duel", "boost", nullptr);
@@ -323,7 +331,7 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
                 engine->addStrategiesNoInit("arcane", "bdps", nullptr);
             else if (tab == MAGE_TAB_FIRE)
             {
-                if (player->HasSpell(SPELL_FROSTFIRE_BOLT) && player->HasAura(SPELL_ICE_SHARDS))
+                if (KnowsSpellOrTwin(player, SPELL_FROSTFIRE_BOLT) && HasAuraOrTwin(player, SPELL_ICE_SHARDS))
                     engine->addStrategiesNoInit("frostfire", "bdps", nullptr);
                 else
                     engine->addStrategiesNoInit("fire", "bdps", nullptr);
@@ -336,7 +344,7 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
         case CLASS_WARRIOR:
             if (tab == WARRIOR_TAB_PROTECTION)
                 engine->addStrategiesNoInit("tank", "tank assist", "pull", "pull back", "aoe", nullptr);
-            else if (tab == WARRIOR_TAB_ARMS || !player->HasSpell(SPELL_WHIRLWIND))
+            else if (tab == WARRIOR_TAB_ARMS || !KnowsSpellOrTwin(player, SPELL_WHIRLWIND))
                 engine->addStrategiesNoInit("arms", "aoe", "dps assist", nullptr);
             else // if (tab == WARRIOR_TAB_FURY)
                 engine->addStrategiesNoInit("fury", "aoe", "dps assist", nullptr);
@@ -368,7 +376,8 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
                 engine->addStrategiesNoInit("resto", "cure", "dps assist", "tranquility", nullptr);
             else
             {
-                if (player->HasSpell(SPELL_CAT_FORM) && !player->HasAura(SPELL_DRUID_THICK_HIDE))
+                if (reborn ? GetWcrRole(player) != CoaRole::Tank
+                           : player->HasSpell(SPELL_CAT_FORM) && !player->HasAura(SPELL_DRUID_THICK_HIDE))
                     engine->addStrategiesNoInit("cat", "aoe", "cc", "dps assist", "feral charge", nullptr);
                 else
                     engine->addStrategiesNoInit("bear", "tank assist", "pull", "pull back", "feral charge", nullptr);
@@ -413,8 +422,10 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
     // Conquest of Azeroth custom classes never appear in the switch above, so they
     // would enter combat with no rotation strategy at all. "coa" chooses spells at
     // runtime from what the bot actually knows; see CoaAiObjectContext.
-    if (IsAscensionCustomClassId(player->getClass()))
+    if (IsCoaBot(player))
     {
+        // A Wildcard Hero rolls what it has earned and takes the stat path its build suits.
+        DraftWildcardBuild(player);
         // Random bots take a specialization from level 10; its role picks the rotation.
         EnsureCoaSpecialization(player);
         // Catch up on points earned before bots spent talents (or while this build was not live).
@@ -613,7 +624,8 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
         case CLASS_DRUID:
             if (tab == DRUID_TAB_FERAL)
             {
-                if (player->GetLevel() >= 20 && !player->HasAura(SPELL_DRUID_THICK_HIDE))
+                if (IsRebornBot(player) ? GetWcrRole(player) != CoaRole::Tank
+                                        : player->GetLevel() >= 20 && !player->HasAura(SPELL_DRUID_THICK_HIDE))
                     nonCombatEngine->addStrategy("dps assist", false);
                 else
                     nonCombatEngine->addStrategiesNoInit("tank assist", "pull", nullptr);
@@ -645,7 +657,7 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
             break;
         default:
             // Conquest of Azeroth classes: party buffs, and tanks take the lead like the vanilla tanks.
-            if (IsAscensionCustomClassId(player->getClass()))
+            if (IsCoaBot(player))
             {
                 nonCombatEngine->addStrategiesNoInit(GetCoaRole(player) == CoaRole::Tank ? "tank assist" : "dps assist",
                                                      "coa buff", "coa pvp", nullptr);

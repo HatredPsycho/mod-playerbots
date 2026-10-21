@@ -5,6 +5,7 @@
  */
 
 #include "ShamanTriggers.h"
+#include "CoaReborn.h"
 #include "Creature.h"
 #include "InstanceScript.h"
 #include "ItemTemplate.h"
@@ -95,7 +96,7 @@ bool WaterBreathingOnPartyTrigger::IsActive()
 // and not on Chain Lightning (1.5 second cast with talents).
 bool ElementalMasteryTrigger::IsActive()
 {
-    return bot->HasSpellCooldown(421);
+    return bot->HasSpellCooldown(RebornSpellId(421));
 }
 
 // Checks if Sprit Wolves are out/if Spirit Walk buff is not on the bot/if the cooldown for Spirit Walk is ready.
@@ -132,10 +133,19 @@ bool SpiritWalkTrigger::IsActive()
 // Fires the trigger if at least 2 of the totem slots are empty or out of range.
 bool CallOfTheElementsTrigger::IsActive()
 {
-    if (!botAI->CanCastSpell(SPELL_CALL_OF_THE_ELEMENTS, bot, true))
+    if (!botAI->CanCastSpell(RebornSpellId(SPELL_CALL_OF_THE_ELEMENTS), bot, true))
     {
         return false;
     }
+
+    // Call of the Elements drops the totems of the bar: with none the bot knows on it, it would be cast in a loop.
+    bool barSet = false;
+    for (uint8 button : { TOTEM_BAR_SLOT_EARTH, TOTEM_BAR_SLOT_FIRE, TOTEM_BAR_SLOT_WATER, TOTEM_BAR_SLOT_AIR })
+        if (ActionButton const* action = bot->GetActionButton(button);
+            action && action->GetType() == ACTION_BUTTON_SPELL && bot->HasSpell(action->GetAction()))
+            barSet = true;
+    if (!barSet)
+        return false;
 
     int emptyCount = 0;
     static const uint8 slots[] = {
@@ -166,10 +176,10 @@ bool CallOfTheElementsTrigger::IsActive()
             continue;
         }
 
-        if ((slot == SUMMON_SLOT_TOTEM_EARTH && bot->HasSpell(SPELL_STONESKIN_TOTEM_RANK_1)) ||
-            (slot == SUMMON_SLOT_TOTEM_FIRE && bot->HasSpell(SPELL_SEARING_TOTEM_RANK_1)) ||
-            (slot == SUMMON_SLOT_TOTEM_WATER && bot->HasSpell(SPELL_HEALING_STREAM_TOTEM_RANK_1)) ||
-            (slot == SUMMON_SLOT_TOTEM_AIR && bot->HasSpell(SPELL_NATURE_RESISTANCE_TOTEM_RANK_1)))
+        if ((slot == SUMMON_SLOT_TOTEM_EARTH && KnowsSpellOrTwin(bot, SPELL_STONESKIN_TOTEM_RANK_1)) ||
+            (slot == SUMMON_SLOT_TOTEM_FIRE && KnowsSpellOrTwin(bot, SPELL_SEARING_TOTEM_RANK_1)) ||
+            (slot == SUMMON_SLOT_TOTEM_WATER && KnowsSpellOrTwin(bot, SPELL_HEALING_STREAM_TOTEM_RANK_1)) ||
+            (slot == SUMMON_SLOT_TOTEM_AIR && KnowsSpellOrTwin(bot, SPELL_NATURE_RESISTANCE_TOTEM_RANK_1)))
         {
             emptyCount++;
         }
@@ -186,7 +196,7 @@ bool CallOfTheElementsTrigger::IsActive()
 // 5. Finally, if any totem summon slot is not empty, the trigger will fire.
 bool TotemicRecallTrigger::IsActive()
 {
-    if (!bot->HasSpell(SPELL_TOTEMIC_RECALL))
+    if (!KnowsSpellOrTwin(bot, SPELL_TOTEMIC_RECALL))
         return false;
 
     Map* map = bot->GetMap();
@@ -287,7 +297,7 @@ static uint32 GetRequiredTotemSpellId(PlayerbotAI* botAI, char const* strategies
 bool NoEarthTotemTrigger::IsActive()
 {
     // Check if the bot has Stoneskin Totem (required level 4) and prevents the trigger firing if it doesn't
-    if (!bot->HasSpell(SPELL_STONESKIN_TOTEM_RANK_1))
+    if (!KnowsSpellOrTwin(bot, SPELL_STONESKIN_TOTEM_RANK_1))
         return false;
 
     ObjectGuid guid = bot->m_SummonSlot[SUMMON_SLOT_TOTEM_EARTH];
@@ -328,7 +338,7 @@ bool NoEarthTotemTrigger::IsActive()
 bool NoFireTotemTrigger::IsActive()
 {
     // Check if the bot has Searing Totem (required level 10) and prevents the trigger firing if it doesn't
-    if (!bot->HasSpell(SPELL_SEARING_TOTEM_RANK_1))
+    if (!KnowsSpellOrTwin(bot, SPELL_SEARING_TOTEM_RANK_1))
         return false;
 
     ObjectGuid guid = bot->m_SummonSlot[SUMMON_SLOT_TOTEM_FIRE];
@@ -370,7 +380,7 @@ bool NoFireTotemTrigger::IsActive()
 bool NoWaterTotemTrigger::IsActive()
 {
     // Check if the bot has Healing Stream Totem (required level 20) and prevents the trigger firing if it doesn't
-    if (!bot->HasSpell(SPELL_HEALING_STREAM_TOTEM_RANK_1))
+    if (!KnowsSpellOrTwin(bot, SPELL_HEALING_STREAM_TOTEM_RANK_1))
         return false;
 
     ObjectGuid guid = bot->m_SummonSlot[SUMMON_SLOT_TOTEM_WATER];
@@ -413,7 +423,7 @@ bool NoWaterTotemTrigger::IsActive()
 bool NoAirTotemTrigger::IsActive()
 {
     // Check if the bot has Nature Resistance Totem (required level 30) and prevents the trigger firing if it doesn't
-    if (!bot->HasSpell(SPELL_NATURE_RESISTANCE_TOTEM_RANK_1))
+    if (!KnowsSpellOrTwin(bot, SPELL_NATURE_RESISTANCE_TOTEM_RANK_1))
         return false;
 
     ObjectGuid guid = bot->m_SummonSlot[SUMMON_SLOT_TOTEM_AIR];

@@ -11,6 +11,8 @@
 #include "AttackAction.h"
 #include "CoaDungeonPriorities.h"
 #include "CoaSpecialization.h"
+#include "CoaWildcard.h"
+#include "AscensionWildcard.h"
 #include "CombatStrategy.h"
 #include "DatabaseEnv.h"
 #include "Engine.h"
@@ -32,12 +34,14 @@
 #include "AscensionSpecialization.h"
 
 #include <algorithm>
+#include <numeric>
 #include <array>
 #include <atomic>
 #include <cmath>
 #include <iterator>
 #include <ctime>
 #include <map>
+#include <memory>
 #include <mutex>
 #include <unordered_map>
 #include <unordered_set>
@@ -97,6 +101,7 @@ struct CoaAbility
     uint32 dispelMask;
     uint32 firstSpellId;  // first rank: ranks of one spell replace each other
     uint32 purgeMask = 0;  // magic buffs and enrages it takes off an enemy (Purge, Tranquilizing Shot)
+    uint32 synergy = 0;   // a Wildcard Hero's: how well the rolled entry fits the rest of its build
 };
 
 struct ClassKit
@@ -933,12 +938,56 @@ std::unordered_map<uint8, ClassKit> const& ClassAbilities()
     return abilities;
 }
 
+// A Wildcard Hero has no class kit: its abilities are whatever its dice gave it. Its own kit holds the
+// spells of its rolled entries, classified like a class kit, and is kept until its build changes.
+std::mutex WildcardKitLock;
+std::unordered_map<ObjectGuid::LowType, std::shared_ptr<ClassKit const>> WildcardKits;
+
+std::shared_ptr<ClassKit const> BuildWildcardKit(Player const* bot)
+{
+    auto kit = std::make_shared<ClassKit>();
+    for (auto const& [rolled, synergy] : WildcardBuildSynergies(bot))
+        // The rolled rank first, then the higher ranks the bot trained: the highest it knows is cast.
+        for (uint32 spellId = rolled; spellId && (spellId == rolled || bot->HasSpell(spellId));
+             spellId = sSpellMgr->GetNextSpellInChain(spellId))
+            if (SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId))
+            {
+                CoaAbility ability = { spellId, 0, 0, 0, info->GetFirstRankSpell()->Id };
+                Classify(info, ability);
+                ability.synergy = synergy;
+                kit->abilities.push_back(ability);
+                kit->kinds |= ability.kind;
+                kit->purgeMask |= ability.purgeMask;
+            }
+    return kit;
+}
+
+// The kit a bot casts from: the one of its class, or its own for a Wildcard Hero.
+std::shared_ptr<ClassKit const> KitOf(Player* bot)
+{
+    if (IsWildcardHeroBot(bot))
+    {
+        ObjectGuid::LowType const guid = bot->GetGUID().GetCounter();
+        {
+            std::lock_guard<std::mutex> lock(WildcardKitLock);
+            if (auto const found = WildcardKits.find(guid); found != WildcardKits.end())
+                return found->second;
+        }
+        std::shared_ptr<ClassKit const> const kit = BuildWildcardKit(bot);
+        std::lock_guard<std::mutex> lock(WildcardKitLock);
+        return WildcardKits.try_emplace(guid, kit).first->second;
+    }
+
+    auto const& all = ClassAbilities();
+    auto const found = all.find(bot->getClass());
+    return found == all.end() ? nullptr : std::shared_ptr<ClassKit const>(std::shared_ptr<void>(), &found->second);
+}
+
 // Whether the bot's class has any ability of that kind: a cheap test before looking at spells.
 bool ClassHas(Player* bot, uint16 kind)
 {
-    auto const& all = ClassAbilities();
-    auto const found = all.find(bot->getClass());
-    return found != all.end() && (found->second.kinds & kind);
+    std::shared_ptr<ClassKit const> const kit = KitOf(bot);
+    return kit && (kit->kinds & kind);
 }
 
 struct Usable
@@ -947,6 +996,7 @@ struct Usable
     uint16 kind;
     uint32 dispelMask;
     uint32 purgeMask = 0;
+    uint32 synergy = 0;
 };
 
 // Active abilities the bot has reached and actually knows, for which `wanted(kind)` is true.
@@ -955,15 +1005,14 @@ std::vector<Usable> KnownAbilities(Player* bot, Filter wanted)
 {
     std::vector<Usable> usable;
 
-    auto const& all = ClassAbilities();
-    auto const found = all.find(bot->getClass());
-    if (found == all.end())
+    std::shared_ptr<ClassKit const> const kit = KitOf(bot);
+    if (!kit)
         return usable;
 
     // A bot can still know the lower ranks of a spell: only cast the highest one it has reached.
     // Abilities are ordered by required level, so a later rank replaces an earlier one.
     std::unordered_map<uint32, size_t> rankIndex;
-    for (CoaAbility const& ability : found->second.abilities)
+    for (CoaAbility const& ability : kit->abilities)
     {
         if (!wanted(ability.kind) || ability.requiredLevel > bot->GetLevel() || !bot->HasSpell(ability.spellId))
             continue;
@@ -973,11 +1022,23 @@ std::vector<Usable> KnownAbilities(Player* bot, Filter wanted)
         if (!info || info->IsPassive())
             continue;
 
+        // A Wildcard Hero's higher ranks are a SpellRank ladder of the client, not a server chain: cast the
+        // highest rank of the ladder it knows and has reached.
+        if (IsWildcardHeroBot(bot))
+        {
+            auto const& ladders = AscensionWildcard::LoadedTables().RankLadders;
+            if (auto const ladder = ladders.find(ability.spellId); ladder != ladders.end())
+                for (uint32 rankSpellId : ladder->second)
+                    if (SpellInfo const* rank = rankSpellId ? sSpellMgr->GetSpellInfo(rankSpellId) : nullptr;
+                        rank && rank->SpellLevel <= bot->GetLevel() && bot->HasSpell(rankSpellId))
+                        info = rank;
+        }
+
         auto const [itr, inserted] = rankIndex.try_emplace(ability.firstSpellId, usable.size());
         if (inserted)
-            usable.push_back({ info, ability.kind, ability.dispelMask, ability.purgeMask });
+            usable.push_back({ info, ability.kind, ability.dispelMask, ability.purgeMask, ability.synergy });
         else
-            usable[itr->second] = { info, ability.kind, ability.dispelMask, ability.purgeMask };
+            usable[itr->second] = { info, ability.kind, ability.dispelMask, ability.purgeMask, ability.synergy };
     }
 
     return usable;
@@ -1047,6 +1108,48 @@ bool HasReadyAbility(PlayerbotAI* botAI, Player* bot, Filter wanted)
 }
 
 // Abilities worth using in the damage rotation.
+// Damage of its own on the hit, not only through an aura it leaves.
+bool HitsDirectly(SpellInfo const* info)
+{
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.Effect == SPELL_EFFECT_SCHOOL_DAMAGE || effect.Effect == SPELL_EFFECT_WEAPON_DAMAGE ||
+            effect.Effect == SPELL_EFFECT_WEAPON_DAMAGE_NOSCHOOL || effect.Effect == SPELL_EFFECT_NORMALIZED_WEAPON_DMG ||
+            effect.Effect == SPELL_EFFECT_WEAPON_PERCENT_DAMAGE || effect.Effect == SPELL_EFFECT_HEALTH_LEECH)
+            return true;
+    return false;
+}
+
+// An attack whose point is the aura it keeps on the target: a damage over time or a debuff. A strike
+// with a side effect (the slow of Frostbolt) is not one.
+bool KeepsAuraOnTarget(SpellInfo const* info)
+{
+    if (HitsDirectly(info))
+        return false;
+    for (SpellEffectInfo const& effect : info->Effects)
+        if (effect.IsAura())
+            return true;
+    return false;
+}
+
+// 2: a cooldown longer than the global one; 1: an aura kept on the target; 0: everything else.
+uint8 AttackTier(SpellInfo const* info)
+{
+    if (std::max(info->RecoveryTime, info->CategoryRecoveryTime) > 1500)
+        return 2;
+    return KeepsAuraOnTarget(info) ? 1 : 0;
+}
+
+// The bot's own damage over time or debuff on the target with more than 3 seconds and all its stacks
+// left: casting it again only renews it.
+bool AuraStillRunning(Player* bot, SpellInfo const* info, Unit* target)
+{
+    if (!KeepsAuraOnTarget(info))
+        return false;
+    Aura const* aura = target->GetAura(info->Id, bot->GetGUID());
+    return aura && (aura->GetDuration() < 0 || aura->GetDuration() > 3000) &&
+           (info->StackAmount <= 1 || aura->GetStackAmount() >= info->StackAmount);
+}
+
 bool IsAttack(uint16 kind, bool tank)
 {
     // An ability none of the tests above recognised is a summon, a stance, a permanent self
@@ -2615,15 +2718,30 @@ public:
 
         time_t const now = time(nullptr);
 
-        // Rotate through the abilities, starting after the last one that went off, so a
-        // bot uses its whole kit instead of spamming the first ability that works.
-        for (size_t i = 0; i < usable.size(); ++i)
+        // Rotate through the abilities, starting after the last one that went off, so a bot uses its whole kit
+        // instead of spamming the first ability that works. A Wildcard Hero attacks by priority (shiro2448): abilities
+        // with a cooldown as soon as they are ready, an aura kept on the target (damage over time, a debuff) when it
+        // is not running, the rest fill in; within each, the abilities that fit its build best first.
+        bool const byPriority = IsWildcardHeroBot(bot);
+        std::vector<size_t> order(usable.size());
+        std::iota(order.begin(), order.end(), size_t(0));
+        auto const rank = [&](size_t index)
         {
-            size_t const index = (next + i) % usable.size();
+            return std::make_tuple(byPriority ? -int32(AttackTier(usable[index].info)) : 0,
+                                   byPriority ? -int64(usable[index].synergy) : int64(0),
+                                   (index + usable.size() - next % usable.size()) % usable.size());
+        };
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return rank(a) < rank(b); });
+
+        for (size_t index : order)
+        {
             SpellInfo const* info = usable[index].info;
 
             Strikes& strikes = failures[info->Id];
             if (strikes.benchedUntil > now)
+                continue;
+
+            if (byPriority && AuraStillRunning(bot, info, target))
                 continue;
 
             if (saveMana && info->PowerType == POWER_MANA && info->CalcPowerCost(bot, info->GetSchoolMask()) > 0)
@@ -2674,6 +2792,8 @@ private:
         if (saveMana)
             DropManaSpells(bot, usable);
         DropChannelBreakers(bot, usable);
+        if (IsWildcardHeroBot(bot))
+            return AttackByPriority(usable, target);
         if (usable.empty())
             return RecordUsage(USAGE_ATTACK, nullptr);
 
@@ -2688,6 +2808,43 @@ private:
                 [cast](Usable const& spell) { return spell.info == cast; });
             if (itr != usable.end())
                 next = start + size_t(std::distance(usable.begin(), itr)) + 1;
+        }
+
+        return RecordUsage(USAGE_ATTACK, cast);
+    }
+
+    // A Wildcard Hero, in the AiPlayerbot.CoaAttackLoop attack: by priority as in the loop below, through CastFirst.
+    bool AttackByPriority(std::vector<Usable> usable, Unit* target)
+    {
+        usable.erase(std::remove_if(usable.begin(), usable.end(),
+                         [this, target](Usable const& spell) { return AuraStillRunning(bot, spell.info, target); }),
+                     usable.end());
+        if (usable.empty())
+            return RecordUsage(USAGE_ATTACK, nullptr);
+
+        size_t const count = usable.size();
+        size_t const start = next % count;
+        std::vector<size_t> order(count);
+        std::iota(order.begin(), order.end(), size_t(0));
+        auto const rank = [&](size_t index)
+        {
+            return std::make_tuple(-int32(AttackTier(usable[index].info)), -int64(usable[index].synergy),
+                                   (index + count - start) % count);
+        };
+        std::sort(order.begin(), order.end(), [&](size_t a, size_t b) { return rank(a) < rank(b); });
+
+        std::vector<Usable> ordered;
+        ordered.reserve(count);
+        for (size_t index : order)
+            ordered.push_back(usable[index]);
+
+        SpellInfo const* const cast = CastFirst(botAI, bot, ordered, target, USAGE_ATTACK);
+        if (cast)
+        {
+            auto const itr = std::find_if(usable.begin(), usable.end(),
+                [cast](Usable const& spell) { return spell.info == cast; });
+            if (itr != usable.end())
+                next = size_t(std::distance(usable.begin(), itr)) + 1;
         }
 
         return RecordUsage(USAGE_ATTACK, cast);
@@ -2726,6 +2883,7 @@ public:
         if (SavingManaFromDamage(bot))
             DropManaSpells(bot, spells);
         DropChannelBreakers(bot, spells);
+        std::stable_sort(spells.begin(), spells.end(), [](Usable const& a, Usable const& b) { return a.synergy > b.synergy; });
 
         return RecordUsage(USAGE_AOE, CastFirst(botAI, bot, spells, target, LoopUsage(USAGE_AOE)));
     }
@@ -3295,9 +3453,8 @@ SpellInfo const* PurgeableBuff(Unit* enemy, uint32 mask, uint32 now)
 
 bool ClassPurges(Player* bot)
 {
-    auto const& all = ClassAbilities();
-    auto const found = all.find(bot->getClass());
-    return found != all.end() && found->second.purgeMask;
+    std::shared_ptr<ClassKit const> const kit = KitOf(bot);
+    return kit && kit->purgeMask;
 }
 
 std::vector<Usable> KnownPurges(Player* bot)
@@ -4234,6 +4391,9 @@ public:
 
     std::vector<NextAction> getDefaultActions() override
     {
+        // A ranged Wildcard Hero keeps its bow or gun shooting between its drafted abilities.
+        if (ranged && IsWildcardHeroBot(botAI->GetBot()) && GetCoaStyle(botAI->GetBot()) == CoaStyle::Ranged)
+            return { NextAction("shoot", ACTION_NORMAL + 1), NextAction("coa attack", ACTION_NORMAL) };
         return { NextAction("coa attack", ACTION_NORMAL) };
     }
 
@@ -4859,6 +5019,19 @@ bool CoaCastControl(PlayerbotAI* botAI, Player* bot, Unit* target)
     return CastFirst(botAI, bot, KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_CONTROL) != 0; }), target) != nullptr;
 }
 
+void ForgetWildcardKit(Player const* bot)
+{
+    std::lock_guard<std::mutex> lock(WildcardKitLock);
+    WildcardKits.erase(bot->GetGUID().GetCounter());
+}
+
+bool CoaBotCasts(SpellInfo const* info)
+{
+    CoaAbility ability = { info->Id, 0, 0, 0, info->GetFirstRankSpell()->Id };
+    Classify(info, ability);
+    return ability.kind != 0;
+}
+
 // Whether a spell heals or shields an ally, by the classifier (triggered spells included) or by an
 // absorb it puts on its target. Gaze of C'Thun hits enemies or heals allies: not a heal to the
 // classifier, yet the Cultist healer's main heal (its rotation's "can cast" line).
@@ -4885,12 +5058,11 @@ bool HealsOrShields(Player* bot, SpellInfo const* info)
     if (HealsOrShieldsDirectly(info))
         return true;
 
-    auto const& all = ClassAbilities();
-    auto const found = all.find(bot->getClass());
-    if (found == all.end())
+    std::shared_ptr<ClassKit const> const kit = KitOf(bot);
+    if (!kit)
         return false;
     uint32 const first = info->GetFirstRankSpell()->Id;
-    for (CoaAbility const& ability : found->second.abilities)
+    for (CoaAbility const& ability : kit->abilities)
         if ((ability.spellId == info->Id || ability.firstSpellId == first) && (ability.kind & (KIND_HEAL | KIND_HOT)))
             return true;
     return false;
