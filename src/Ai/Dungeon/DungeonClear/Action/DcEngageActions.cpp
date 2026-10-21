@@ -1303,7 +1303,7 @@ bool DungeonClearClearStalledAction::Execute(Event /*event*/)
         }
     }
 
-    Unit* target = DcTargeting::FindNearestReachableHostile(bot);
+    Unit* target = DcTargeting::FindNearestReachableHostile(bot, context);
     if (!target)
     {
         // We're stalled with nothing left to kill. Leave the stall reason in
