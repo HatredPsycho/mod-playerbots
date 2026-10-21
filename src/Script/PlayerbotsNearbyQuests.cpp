@@ -89,9 +89,9 @@ namespace
 
         for (auto const& [guid, data] : sObjectMgr->GetAllCreatureData())
         {
-            auto const quests = sObjectMgr->GetCreatureQuestRelationBounds(data.id1);
+            auto const quests = sObjectMgr->GetCreatureQuestRelationBounds(data.id);
             if (quests.first != quests.second)
-                consider(data.id1, true, data.mapid, data.posX, data.posY, data.posZ);
+                consider(data.id, true, data.mapid, data.posX, data.posY, data.posZ);
         }
         for (auto const& [guid, data] : sObjectMgr->GetAllGOData())
         {
