@@ -1469,8 +1469,15 @@ TEST(DungeonEventBlackwingLairTest, NefarianStartIsARepeatableSummonGate)
     EXPECT_FALSE(ev->encounterActive);
     EXPECT_FALSE(ev->stepsOwnMovement);
 
-    ASSERT_EQ(ev->steps.size(), 1u);
-    EventStep const& talk = ev->steps[0];
+    // The event musters the raid itself before the click: Nefarian does not
+    // exist yet, so the engage rung's muster can never arm for this opener.
+    ASSERT_EQ(ev->steps.size(), 2u);
+    EXPECT_EQ(ev->steps[0].kind, EventStepKind::Custom);
+    EXPECT_EQ(ev->steps[0].hookId, DC_HOOK_RAID_MUSTER);
+    EXPECT_TRUE(ev->ownsThePull)
+        << "the muster holds the raid at the anchor; no pull may walk it off";
+
+    EventStep const& talk = ev->steps[1];
     EXPECT_EQ(talk.kind, EventStepKind::Gossip);
     EXPECT_EQ(talk.creatureEntry, NPC_VICTOR_NEFARIUS);
     EXPECT_EQ(talk.gossipOption, NEFARIUS_GOSSIP_OPTION);
