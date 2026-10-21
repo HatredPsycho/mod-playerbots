@@ -63,7 +63,7 @@ local STRINGS = {
 		CLEAR = "Clear", TIP_CLEAR = "Dungeon Clear: the tank bot leads the group through this dungeon on its own. Click for the window, right click for its orders.",
 		DC_ON = "Start the clear", DC_OFF = "Stop the clear", DC_PAUSE = "Pause / resume", DC_SKIP = "Skip this boss",
 		DC_PULL = "Pull mode", DC_WINDOW = "Dungeon Clear window",
-		MM_TIP = "Left click: show or hide the bot bar. Right click: Dungeon Clear. Drag to move this button.",
+		MM_TIP = "Left click: show or hide the bot bar. Shift + left click: bot quests nearby. Right click: Dungeon Clear. Drag to move this button.",
 		OLD_ADDONS = "SquidBots Lite or DungeonClear is still enabled beside CoA Companion, which replaces both: disable them in the AddOns list and reload.",
 		RELEASE = "Release", TIP_RELEASE = "Shown when a bot is dead: dead bots release their spirit and run back to their body.",
 		ROLE_ORDERS = "Orders by role", R_TANK_ATTACK = "Tank: attack my target", R_DPS_ATTACK = "Damage: attack my target",
@@ -84,7 +84,7 @@ local STRINGS = {
 		BALANCE_DONE = "Group: %s.", BALANCE_MISSING = "No bot in the group can play %s.",
 		BALANCE_WAIT = "Asking the bots for their specializations...", BALANCE_RAID = "In a raid, the raid command already sets the roles: pick specializations bot by bot.",
 		SPECS_NOT_BOT = "not a bot", SPEC_ASK = "Ask the bot", TIP_ROLE = "Switch to %s.", TIP_NO_ROLE = "No specialization of this role.",
-		HELP = "CoA Companion: /coa or /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (GM only), /sbl reset; /dc for Dungeon Clear. Key bindings: Esc > Key Bindings > CoA Companion.",
+		HELP = "CoA Companion: /coa or /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl quests, /sbl spec, /sbl roles on|off, /sbl gm (GM only), /sbl reset; /dc for Dungeon Clear. Key bindings: Esc > Key Bindings > CoA Companion.",
 		SCALE_SET = "SquidBots Lite bar size: %s (this character).", SCALE_BAD = "Bar size: a number from 0.5 to 2, for example /sbl scale 1.2",
 		LANG_SET = "SquidBots Lite language: English.", CHANNEL_SET = "SquidBots Lite asks in: %s",
 	},
@@ -146,7 +146,7 @@ local STRINGS = {
 		CLEAR = "Nettoyer", TIP_CLEAR = "Dungeon Clear : le bot tank mène seul le groupe à travers ce donjon. Clic pour la fenêtre, clic droit pour ses ordres.",
 		DC_ON = "Lancer le nettoyage", DC_OFF = "Arrêter le nettoyage", DC_PAUSE = "Pause / reprise", DC_SKIP = "Passer ce boss",
 		DC_PULL = "Mode de pull", DC_WINDOW = "Fenêtre Dungeon Clear",
-		MM_TIP = "Clic gauche : afficher ou cacher la barre des bots. Clic droit : Dungeon Clear. Glisser pour déplacer ce bouton.",
+		MM_TIP = "Clic gauche : afficher ou cacher la barre des bots. Maj + clic gauche : quêtes des bots à proximité. Clic droit : Dungeon Clear. Glisser pour déplacer ce bouton.",
 		OLD_ADDONS = "SquidBots Lite ou DungeonClear est encore activé à côté de CoA Companion, qui remplace les deux : désactivez-les dans la liste des AddOns et rechargez.",
 		RELEASE = "Libérer", TIP_RELEASE = "Visible quand un bot est mort : les bots morts libèrent leur esprit et rejoignent leur corps.",
 		ROLE_ORDERS = "Ordres par rôle", R_TANK_ATTACK = "Tank : attaquer ma cible", R_DPS_ATTACK = "DPS : attaquer ma cible",
@@ -167,7 +167,7 @@ local STRINGS = {
 		BALANCE_DONE = "Groupe : %s.", BALANCE_MISSING = "Aucun bot du groupe ne peut jouer %s.",
 		BALANCE_WAIT = "Demande de leurs spécialisations aux bots...", BALANCE_RAID = "En raid, la commande de raid répartit déjà les rôles : choisissez les spécialisations bot par bot.",
 		SPECS_NOT_BOT = "pas un bot", SPEC_ASK = "Demander au bot", TIP_ROLE = "Passer en %s.", TIP_NO_ROLE = "Aucune spécialisation de ce rôle.",
-		HELP = "CoA Companion : /coa ou /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl spec, /sbl roles on|off, /sbl gm (MJ), /sbl reset ; /dc pour Dungeon Clear. Raccourcis : Échap > Raccourcis > CoA Companion.",
+		HELP = "CoA Companion : /coa ou /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl quests, /sbl spec, /sbl roles on|off, /sbl gm (MJ), /sbl reset ; /dc pour Dungeon Clear. Raccourcis : Échap > Raccourcis > CoA Companion.",
 		SCALE_SET = "Taille de la barre SquidBots Lite : %s (ce personnage).", SCALE_BAD = "Taille de la barre : un nombre de 0,5 à 2, par exemple /sbl scale 1.2",
 		LANG_SET = "Langue de SquidBots Lite : français.", CHANNEL_SET = "SquidBots Lite demande dans : %s",
 	},
@@ -2436,6 +2436,8 @@ SlashCmdList["SQUIDBOTSLITE"] = function(message)
 		Print(string.format(L.CHANNEL_SET, rest ~= "" and rest or table.concat(CHANNELS, ", ")))
 	elseif command == "alts" then
 		ShowAlts()
+	elseif command == "quests" and CoACompanionBots_ToggleBotQuests then
+		CoACompanionBots_ToggleBotQuests()
 	elseif command == "raidframes" then
 		SquidBotsLiteDB.raidFrames = string.lower(rest) ~= "off"
 		Print(SquidBotsLiteDB.raidFrames and L.RAIDFRAMES_ON or L.RAIDFRAMES_OFF)
