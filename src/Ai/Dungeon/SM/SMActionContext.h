@@ -7,6 +7,7 @@
 #ifndef PLAYERBOTS_SMACTIONCONTEXT_H
 #define PLAYERBOTS_SMACTIONCONTEXT_H
 
+#include "Action.h"
 #include "NamedObjectContext.h"
 #include "SMActions.h"
 
@@ -15,13 +16,17 @@ class VanillaDungeonSMActionContext : public NamedObjectContext<Action>
 public:
     VanillaDungeonSMActionContext()
     {
-        creators["arcanist doan move out of detonation"] =
-            &VanillaDungeonSMActionContext::arcanist_doan_move_out_of_detonation;
+        creators["sm move from doan"] = &VanillaDungeonSMActionContext::move_from_doan;
+        creators["sm doan ranged keep away"] = &VanillaDungeonSMActionContext::doan_ranged_keep_away;
+        creators["sm move from herod"] = &VanillaDungeonSMActionContext::move_from_herod;
+        creators["sm attack whitemane"] = &VanillaDungeonSMActionContext::attack_whitemane;
     }
+
 private:
-    static Action* arcanist_doan_move_out_of_detonation(PlayerbotAI* botAI) {
-        return new ArcanistDoanMoveOutOfDetonationAction(botAI);
-    }
+    static Action* move_from_doan(PlayerbotAI* ai) { return new SmMoveFromDoanAction(ai); }
+    static Action* doan_ranged_keep_away(PlayerbotAI* ai) { return new SmDoanRangedAction(ai); }
+    static Action* move_from_herod(PlayerbotAI* ai) { return new SmMoveFromHerodAction(ai); }
+    static Action* attack_whitemane(PlayerbotAI* ai) { return new SmAttackWhitemaneAction(ai); }
 };
 
 #endif

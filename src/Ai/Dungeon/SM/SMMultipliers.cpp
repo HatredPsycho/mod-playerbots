@@ -5,34 +5,51 @@
  */
 
 #include "SMMultipliers.h"
-#include "GenericSpellActions.h"
-#include "MovementActions.h"
+
+#include "AiObjectContext.h"
+#include "AttackAction.h"
+#include "ChooseTargetActions.h"
 #include "Playerbots.h"
 #include "ReachTargetActions.h"
 #include "SMActions.h"
-#include "SMShared.h"
+#include "SMTriggers.h"
 
-using namespace SMShared;
+using namespace ScarletMonastery;
 
-float ArcanistDoanDetonationMultiplier::GetValue(Action* action)
+namespace
 {
-    if (dynamic_cast<ArcanistDoanMoveOutOfDetonationAction*>(action))
+    // Anything that walks a bot back to the boss: attacking, melee, moving into spell range, following.
+    bool ApproachesBoss(Action* action)
+    {
+        return dynamic_cast<AttackAction*>(action) || dynamic_cast<CastReachTargetSpellAction*>(action) ||
+               dynamic_cast<MovementAction*>(action);
+    }
+}
+
+float ArcanistDoanMultiplier::GetValue(Action* action)
+{
+    if (dynamic_cast<SmMoveFromDoanAction*>(action))
         return 1.0f;
 
-    bool const isMovement =
-        dynamic_cast<MovementAction*>(action) || dynamic_cast<CastReachTargetSpellAction*>(action);
-    bool const isSpell = dynamic_cast<CastSpellAction*>(action);
-    if (!isMovement && !isSpell)
-        return 1.0f;
-
+    // Inside Arcane Bubble he takes no damage, so nobody, the tank included, has a reason to stay in Detonation.
     Unit* doan = AI_VALUE2(Unit*, "find target", "arcanist doan");
-    if (!doan || !IsDetonationImminent(doan))
+    return IsDetonating(doan) && ApproachesBoss(action) ? 0.0f : 1.0f;
+}
+
+float HerodMultiplier::GetValue(Action* action)
+{
+    if (botAI->IsTank(bot) || dynamic_cast<SmMoveFromHerodAction*>(action))
         return 1.0f;
 
-    // Nothing may walk a bot back toward Doan until Detonation has gone off.
-    if (isMovement)
-        return 0.0f;
+    Unit* herod = AI_VALUE2(Unit*, "find target", "herod");
+    return IsWhirlwinding(herod) && ApproachesBoss(action) ? 0.0f : 1.0f;
+}
 
-    // Inside the blast radius, standing still to cast is how bots die; outside it they may keep casting.
-    return bot->GetExactDist2d(doan) < DETONATION_SAFE_DISTANCE ? 0.0f : 1.0f;
+float WhitemaneMultiplier::GetValue(Action* action)
+{
+    // The ordinary "attack what the tank attacks" would pull everyone back onto Mograine.
+    if (!dynamic_cast<DpsAssistAction*>(action) || botAI->IsTank(bot) || botAI->IsHeal(bot))
+        return 1.0f;
+
+    return WhitemaneToFocus(botAI, context) ? 0.0f : 1.0f;
 }

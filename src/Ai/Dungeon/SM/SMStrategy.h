@@ -7,17 +7,14 @@
 #ifndef PLAYERBOTS_SMSTRATEGY_H
 #define PLAYERBOTS_SMSTRATEGY_H
 
+#include "Multiplier.h"
 #include "Strategy.h"
-#include <string>
-#include <vector>
 
 class VanillaDungeonSMStrategy : public Strategy
 {
 public:
-    VanillaDungeonSMStrategy(PlayerbotAI* botAI) : Strategy(botAI) {}
-
+    VanillaDungeonSMStrategy(PlayerbotAI* ai) : Strategy(ai) {}
     std::string const getName() override { return "vanilla-sm"; }
-
     void InitTriggers(std::vector<TriggerNode*>& triggers) override;
     void InitMultipliers(std::vector<Multiplier*>& multipliers) override;
 };
