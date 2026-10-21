@@ -620,6 +620,7 @@ void AddSC_coa_status_file();
 void AddSC_coa_arena_ready();
 void AddPlayerbotsQuestAcceptSyncScripts();
 void AddPlayerbotsNearbyQuestsScripts();
+void AddPlayerbotsAltReagentDepositScripts();
 
 void AddPlayerbotsScripts()
 {
@@ -628,6 +629,7 @@ void AddPlayerbotsScripts()
     new PlayerbotsPlayerScript();
     AddPlayerbotsQuestAcceptSyncScripts();
     AddPlayerbotsNearbyQuestsScripts();
+    AddPlayerbotsAltReagentDepositScripts();
     new PlayerbotsMiscScript();
     new PlayerbotsServerScript();
     new PlayerbotsWorldScript();

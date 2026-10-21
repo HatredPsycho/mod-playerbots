@@ -394,6 +394,7 @@ public:
     bool syncQuestForPlayer;
     bool syncQuestAcceptWithPlayer;
     float nearbyQuestRadius;
+    uint32 altBotReagentDepositInterval;
     bool dropObsoleteQuests;
     bool allowLearnTrainerSpells;
     bool autoPickTalents;

@@ -751,6 +751,9 @@ bool PlayerbotAIConfig::Initialize()
     syncQuestForPlayer = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncQuestForPlayer", false);
     syncQuestAcceptWithPlayer = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncQuestAcceptWithPlayer", true);
     nearbyQuestRadius = std::clamp(sConfigMgr->GetOption<float>("AiPlayerbot.NearbyQuestRadius", 300.0f), 50.0f, 2000.0f);
+    altBotReagentDepositInterval = sConfigMgr->GetOption<uint32>("AiPlayerbot.AltBotReagentDepositInterval", 30);
+    if (altBotReagentDepositInterval && altBotReagentDepositInterval < 10)
+        altBotReagentDepositInterval = 10;
     dropObsoleteQuests = sConfigMgr->GetOption<bool>("AiPlayerbot.DropObsoleteQuests", true);
     allowLearnTrainerSpells = sConfigMgr->GetOption<bool>("AiPlayerbot.AllowLearnTrainerSpells", true);
     autoPickTalents = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoPickTalents", true);

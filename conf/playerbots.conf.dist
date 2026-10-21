@@ -494,6 +494,12 @@ AiPlayerbot.SyncQuestAcceptWithPlayer = 1
 # Default: 300
 AiPlayerbot.NearbyQuestRadius = 300
 
+# Seconds between an alt bot's ".rbank deposit all": alt bots put the reagents they loot into the
+# reagent bank (mod-reagent-bank-account) as the ReagentBankUI addon does for a played character.
+# Random bots never do. 0 disables it, otherwise at least 10.
+# Default: 30
+AiPlayerbot.AltBotReagentDepositInterval = 30
+
 # Bots will drop obsolete quests
 # Default: 1 (enabled)
 AiPlayerbot.DropObsoleteQuests = 1
