@@ -126,6 +126,10 @@ bool EnsureCoaSpecialization(Player* bot);
 // Returns the number of entries raised.
 uint32 ApplyCoaTalents(Player* bot);
 
+// Takes back every talent and ability bought with points from a CoA character, so its owner can choose them again.
+// Returns the number of entries lowered.
+uint32 ResetCoaTalents(Player* bot);
+
 // The Character Advancement entry `entryId`, or null.
 AscensionCompatData::CoATalentEntry const* FindCoaEntry(uint32 entryId);
 
