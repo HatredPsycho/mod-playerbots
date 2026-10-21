@@ -35,7 +35,7 @@ local STRINGS = {
 		T_NONE = "No talent learnt yet.", T_NO_CMD = "No answer: this server's CoA Bots has no talent list yet (2.1 or later, CoA classes).",
 		T_HINT = "The talents and paid abilities this bot learnt, by tree. An alt's talents are yours to choose; a random bot keeps the community build of its spec (Reset to the build).",
 		T_ABILITY = "ability", T_REQUIRES = "Requires: %s", T_CAN = "Can be learnt now.", T_CANNOT = "Not yet: level, a prerequisite talent or points missing. Queued after its prerequisite, Save takes it in turn.",
-		T_CHOOSE = "Choose talents", T_SAVE = "Save (%d)", T_CANCEL = "Cancel", T_BACK = "Learnt talents",
+		T_TREE = "Talent tree", T_CHOOSE = "Choose talents", T_SAVE = "Save (%d)", T_CANCEL = "Cancel", T_BACK = "Learnt talents",
 		T_POINTS = "Spec: %d spent, %d left  -  Class: %d spent, %d left",
 		T_LEFT = "Left after your choices: spec %d, class %d", T_CLASS = "class", T_SPEC = "spec",
 		T_REQ = "level %d", T_COST = "cost %d",
@@ -73,7 +73,7 @@ local STRINGS = {
 		T_NONE = "Aucun talent appris pour l'instant.", T_NO_CMD = "Pas de réponse : le CoA Bots de ce serveur n'a pas encore la liste des talents (2.1 ou plus, classes CoA).",
 		T_HINT = "Les talents et capacités achetées de ce bot, par arbre. Ceux d'un alt sont à vous de choisir ; un bot aléatoire garde le build de la communauté pour sa spé (Remettre le build).",
 		T_ABILITY = "capacité", T_REQUIRES = "Prérequis : %s", T_CAN = "Peut être appris maintenant.", T_CANNOT = "Pas encore : il manque le niveau, un talent prérequis ou des points. Ajouté après son prérequis, Sauvegarder le prend à son tour.",
-		T_CHOOSE = "Choisir les talents", T_SAVE = "Sauvegarder (%d)", T_CANCEL = "Annuler", T_BACK = "Talents appris",
+		T_TREE = "Arbre de talents", T_CHOOSE = "Choisir les talents", T_SAVE = "Sauvegarder (%d)", T_CANCEL = "Annuler", T_BACK = "Talents appris",
 		T_POINTS = "Spé : %d dépensés, %d restants  -  Classe : %d dépensés, %d restants",
 		T_LEFT = "Restants après vos choix : spé %d, classe %d", T_CLASS = "classe", T_SPEC = "spé",
 		T_REQ = "niveau %d", T_COST = "coût %d",
@@ -992,6 +992,9 @@ local function BuildTalents(page)
 		StaticPopupDialogs.SQUIDBOTSLITE_AUTOPICK.text = string.format(T("T_AUTOPICK_ASK"), current or "?")
 		StaticPopup_Show("SQUIDBOTSLITE_AUTOPICK")
 	end)
+	page.tree = Button(140, 156, function()
+		if CoACompanionBots_OpenBotTalents then CoACompanionBots_OpenBotTalents(current) end
+	end)
 	page.save = Button(130, 10, function() Save(); RenderTalents(page) end)
 	page.cancel = Button(90, 146, function() pending = {}; RenderTalents(page) end)
 	page.back = Button(130, 242, function()
@@ -1021,12 +1024,14 @@ RenderTalents = function(page)
 	end
 	page.choose:SetText(T("T_CHOOSE"))
 	page.autopick:SetText(T("T_AUTOPICK"))
+	page.tree:SetText(T("T_TREE"))
 	page.save:SetText(string.format(T("T_SAVE"), PendingCount()))
 	page.cancel:SetText(T("T_CANCEL"))
 	page.back:SetText(T("T_BACK"))
 	local isAlt = current and SquidBotsLiteDB.alts and SquidBotsLiteDB.alts[current]
 	if choosing or not isAlt then page.choose:Hide() else page.choose:Show() end
 	if choosing or isAlt then page.autopick:Hide() else page.autopick:Show() end
+	if choosing or not isAlt then page.tree:Hide() else page.tree:Show() end
 	for _, b in ipairs({ page.save, page.cancel, page.back }) do if choosing then b:Show() else b:Hide() end end
 	if PendingCount() > 0 then page.save:Enable(); page.cancel:Enable() else page.save:Disable(); page.cancel:Disable() end
 	page.hint:SetText(T(choosing and "T_CHOOSE_HINT" or "T_HINT"))

@@ -264,6 +264,18 @@ bool ChangeTalentsAction::Execute(Event event)
             botAI->ResetStrategies();
             return true;
         }
+        else if (IsCoaClass(bot) && param == "reset")
+        {
+            // CoA: the bot frame of CoA Companion chooses an alt's talents again from nothing; the core has no
+            // other way to take a rank back.
+            if (!botAI->IsAltBot())
+            {
+                botAI->TellMaster("Talents can only be reset for your own alts");
+                return false;
+            }
+            out << "Talents reset: " << ResetCoaTalents(bot) << " entries";
+            botAI->ResetStrategies();
+        }
         else if (IsCoaClass(bot) && param.find("autopick") != std::string::npos)
         {
             // CoA: InitTalentsTree spends Blizzard talent points a CoA class does not have; its build is the
@@ -339,7 +351,7 @@ std::string ChangeTalentsAction::TalentsHelp()
 {
     std::ostringstream out;
     out << "Talents usage: talents switch <1/2>, talents autopick, talents spec list, "
-           "talents spec <specName>, talents apply <link>.";
+           "talents spec <specName>, talents apply <link>, talents reset (CoA alts).";
     return out.str();
 }
 

@@ -509,20 +509,12 @@ std::vector<std::pair<uint32, uint8>> BuildRanksAtLevel(Player* bot, uint32 spec
     }
     return wanted;
 }
-}  // namespace
 
-uint32 ApplyCoaTalents(Player* bot)
+// Lowers every entry of the bot's class above its rank in `wanted` (0 when absent), with what has to follow. With
+// spentOnly, only talents and abilities bought with points are lowered, the free automatic ranks stay.
+uint32 LowerCoaEntries(Player* bot, std::vector<std::pair<uint32, uint8>> const& wanted, bool spentOnly,
+                       std::string& changes, uint32& orphans)
 {
-    if (!bot || !IsAscensionCustomClassId(bot->getClass()) || bot->GetLevel() < SpecializationLevel ||
-        !sRandomPlayerbotMgr.IsRandomBot(bot))
-        return 0;
-
-    uint32 const specializationId = GetAscensionActiveSpecialization(bot);
-    if (!specializationId)
-        return 0;
-
-    std::vector<std::pair<uint32, uint8>> const wanted = BuildRanksAtLevel(bot, specializationId);
-
     // The core teaches the class baseline again right after any change (SynchronizeProgression), so
     // lowering an entry whose spell is part of that baseline never sticks and was redone every refresh.
     auto const coreGrants = [bot](uint32 spellId)
@@ -550,10 +542,9 @@ uint32 ApplyCoaTalents(Player* bot)
     // raises them (Fiery Judgement, spell level 31, on a level 3 Witch Hunter). Every entry of its class
     // above what the build holds at this level goes back down, to 0 when the build has none of it yet.
     uint32 lowered = 0;
-    std::string changes;
     for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
     {
-        if (entry.ClassId != bot->getClass())
+        if (entry.ClassId != bot->getClass() || (spentOnly && !(entry.Talent || entry.AECost || entry.TECost)))
             continue;
         auto itr = std::find_if(wanted.begin(), wanted.end(),
             [&entry](std::pair<uint32, uint8> const& w) { return w.first == entry.EntryId; });
@@ -569,7 +560,7 @@ uint32 ApplyCoaTalents(Player* bot)
     }
     // The higher ranks of an ability taken away stay otherwise: the rank table learns rank 2+ from the
     // first one, and nothing removes them with it.
-    uint32 orphans = 0;
+    orphans = 0;
     if (lowered)
         for (AscensionProgression::Rank const& rank : AscensionProgression::Ranks)
             if (rank.ClassId == bot->getClass() && bot->HasSpell(rank.SpellId) && !bot->HasSpell(rank.FirstSpellId))
@@ -580,6 +571,24 @@ uint32 ApplyCoaTalents(Player* bot)
     // A rank left below one taken away stays inactive otherwise (see ReactivateHighestRanks).
     if (lowered)
         PlayerbotFactory::ReactivateHighestRanks(bot);
+    return lowered;
+}
+}  // namespace
+
+uint32 ApplyCoaTalents(Player* bot)
+{
+    if (!bot || !IsAscensionCustomClassId(bot->getClass()) || bot->GetLevel() < SpecializationLevel ||
+        !sRandomPlayerbotMgr.IsRandomBot(bot))
+        return 0;
+
+    uint32 const specializationId = GetAscensionActiveSpecialization(bot);
+    if (!specializationId)
+        return 0;
+
+    std::vector<std::pair<uint32, uint8>> const wanted = BuildRanksAtLevel(bot, specializationId);
+    std::string changes;
+    uint32 orphans = 0;
+    uint32 const lowered = LowerCoaEntries(bot, wanted, false, changes, orphans);
 
     uint32 raised = 0;
     for (auto const& [entryId, rank] : wanted)
@@ -594,6 +603,20 @@ uint32 ApplyCoaTalents(Player* bot)
         LOG_INFO("playerbots", "coa: {} (class {}, level {}, specialization {}) raised {}, lowered {} talent entries ({} orphan ranks):{}",
                  bot->GetName(), bot->getClass(), bot->GetLevel(), specializationId, raised, lowered, orphans, changes);
     return raised;
+}
+
+uint32 ResetCoaTalents(Player* bot)
+{
+    if (!bot || !IsAscensionCustomClassId(bot->getClass()))
+        return 0;
+
+    std::string changes;
+    uint32 orphans = 0;
+    uint32 const lowered = LowerCoaEntries(bot, {}, true, changes, orphans);
+    if (lowered)
+        LOG_INFO("playerbots", "coa: {} (class {}, level {}) reset {} talent entries ({} orphan ranks):{}",
+                 bot->GetName(), bot->getClass(), bot->GetLevel(), lowered, orphans, changes);
+    return lowered;
 }
 
 uint32 SpendCoaTalentPoints(Player* bot)
