@@ -9,11 +9,24 @@
 
 #include "Multiplier.h"
 
-class ArcanistDoanDetonationMultiplier : public Multiplier
+class ArcanistDoanMultiplier : public Multiplier
 {
 public:
-    ArcanistDoanDetonationMultiplier(PlayerbotAI* botAI)
-        : Multiplier(botAI, "arcanist doan detonation") {}
+    ArcanistDoanMultiplier(PlayerbotAI* ai) : Multiplier(ai, "arcanist doan") {}
+    float GetValue(Action* action) override;
+};
+
+class HerodMultiplier : public Multiplier
+{
+public:
+    HerodMultiplier(PlayerbotAI* ai) : Multiplier(ai, "herod") {}
+    float GetValue(Action* action) override;
+};
+
+class WhitemaneMultiplier : public Multiplier
+{
+public:
+    WhitemaneMultiplier(PlayerbotAI* ai) : Multiplier(ai, "high inquisitor whitemane") {}
     float GetValue(Action* action) override;
 };
 

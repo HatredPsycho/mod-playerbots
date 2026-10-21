@@ -15,13 +15,17 @@ class VanillaDungeonSMTriggerContext : public NamedObjectContext<Trigger>
 public:
     VanillaDungeonSMTriggerContext()
     {
-        creators["arcanist doan boss casting detonation"] =
-            &VanillaDungeonSMTriggerContext::arcanist_doan_boss_casting_detonation;
+        creators["sm doan detonation"] = &VanillaDungeonSMTriggerContext::doan_detonation;
+        creators["sm doan ranged"] = &VanillaDungeonSMTriggerContext::doan_ranged;
+        creators["sm herod whirlwind"] = &VanillaDungeonSMTriggerContext::herod_whirlwind;
+        creators["sm whitemane focus"] = &VanillaDungeonSMTriggerContext::whitemane_focus;
     }
+
 private:
-    static Trigger* arcanist_doan_boss_casting_detonation(PlayerbotAI* botAI) {
-        return new ArcanistDoanBossCastingDetonationTrigger(botAI);
-    }
+    static Trigger* doan_detonation(PlayerbotAI* ai) { return new SmDoanDetonationTrigger(ai); }
+    static Trigger* doan_ranged(PlayerbotAI* ai) { return new SmDoanRangedTrigger(ai); }
+    static Trigger* herod_whirlwind(PlayerbotAI* ai) { return new SmHerodWhirlwindTrigger(ai); }
+    static Trigger* whitemane_focus(PlayerbotAI* ai) { return new SmWhitemaneFocusTrigger(ai); }
 };
 
 #endif

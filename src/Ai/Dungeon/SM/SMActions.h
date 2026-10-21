@@ -7,13 +7,38 @@
 #ifndef PLAYERBOTS_SMACTIONS_H
 #define PLAYERBOTS_SMACTIONS_H
 
+#include "Action.h"
+#include "AttackAction.h"
 #include "MovementActions.h"
+#include "PlayerbotAI.h"
+#include "Playerbots.h"
+#include "SMTriggers.h"
 
-class ArcanistDoanMoveOutOfDetonationAction : public MovementAction
+class SmMoveFromDoanAction : public MovementAction
 {
 public:
-    ArcanistDoanMoveOutOfDetonationAction(PlayerbotAI* botAI)
-        : MovementAction(botAI, "arcanist doan move out of detonation") {}
+    SmMoveFromDoanAction(PlayerbotAI* ai) : MovementAction(ai, "sm move from doan") {}
+    bool Execute(Event event) override;
+};
+
+class SmDoanRangedAction : public MovementAction
+{
+public:
+    SmDoanRangedAction(PlayerbotAI* ai) : MovementAction(ai, "sm doan ranged keep away") {}
+    bool Execute(Event event) override;
+};
+
+class SmMoveFromHerodAction : public MovementAction
+{
+public:
+    SmMoveFromHerodAction(PlayerbotAI* ai) : MovementAction(ai, "sm move from herod") {}
+    bool Execute(Event event) override;
+};
+
+class SmAttackWhitemaneAction : public AttackAction
+{
+public:
+    SmAttackWhitemaneAction(PlayerbotAI* ai) : AttackAction(ai, "sm attack whitemane") {}
     bool Execute(Event event) override;
 };
 
