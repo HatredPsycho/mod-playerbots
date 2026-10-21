@@ -86,6 +86,8 @@ public:
     }
 };
 
+bool PlayerbotsAnswerQuestOffer(Player* master, Player* bot, std::string const& msg);
+
 class PlayerbotsPlayerScript : public PlayerScript
 {
 public:
@@ -261,6 +263,9 @@ public:
         {
             return true;
         }
+
+        if (PlayerbotsAnswerQuestOffer(player, receiver, msg))
+            return false;
 
         botAI->HandleCommand(type, msg, player);
 

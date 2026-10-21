@@ -1,7 +1,7 @@
 -- CoA Companion: the quests near you that only some of your bots can take.
 -- The server (mod-playerbots, PlayerbotsNearbyQuests.cpp) answers "CoAQ\tSCAN\t<0|1>" with BEGIN, ZONE, Q and END
 -- lines; mode 0 is class quests, mode 1 adds race and profession quests. The list shows in a window, on the world
--- map and on the minimap.
+-- map and on the minimap. "ACCEPT\t<bot>\t<quest>" lets that bot take a listed quest; the server answers TAKEN.
 
 local PREFIX = "CoAQ"
 local REFRESH_SECONDS = 20
@@ -30,6 +30,9 @@ local TEXTS = {
         FOR = "for %s",
         GIVER = "at %s",
         DISTANCE = "%d yd",
+        ACCEPT = "Accept",
+        TAKEN = "%s accepted %s.",
+        NOT_TAKEN = "%s could not accept %s.",
     },
     fr = {
         TITLE = "Quêtes des bots à proximité",
@@ -45,6 +48,9 @@ local TEXTS = {
         FOR = "pour %s",
         GIVER = "auprès de %s",
         DISTANCE = "%d m",
+        ACCEPT = "Accepter",
+        TAKEN = "%s a accepté %s.",
+        NOT_TAKEN = "%s n'a pas pu accepter %s.",
     },
 }
 local DIRECTIONS = {
@@ -182,8 +188,19 @@ for i = 1, VISIBLE_ROWS do
     row:SetHeight(ROW_HEIGHT)
     row:SetPoint("TOPLEFT", scroll, "TOPLEFT", 0, -(i - 1) * ROW_HEIGHT)
     row:SetPoint("RIGHT", scroll, "RIGHT", 0, 0)
+    row.accept = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+    row.accept:SetWidth(70)
+    row.accept:SetHeight(ROW_HEIGHT)
+    row.accept:SetPoint("RIGHT", row, "RIGHT", 0, 0)
+    row.accept:SetScript("OnClick", function(self)
+        local offer = self:GetParent().offer
+        if not offer then return end
+        self:Disable()
+        SendAddonMessage(PREFIX, "ACCEPT\t" .. offer.bot .. "\t" .. offer.quest, "WHISPER", UnitName("player"))
+    end)
     row.text = row:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-    row.text:SetAllPoints()
+    row.text:SetPoint("TOPLEFT")
+    row.text:SetPoint("BOTTOMRIGHT", row.accept, "BOTTOMLEFT", -4, 0)
     row.text:SetJustifyH("LEFT")
     row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
     row:SetScript("OnEnter", function(self)
@@ -223,6 +240,7 @@ local function RenderList()
         if not line then
             row:Hide()
         elseif line.heading then
+            row.accept:Hide()
             row.text:SetText("|cffffd100" .. line.heading .. "|r")
             row:Show()
         else
@@ -232,6 +250,9 @@ local function RenderList()
             if direction then where = where .. " " .. direction end
             row.text:SetText(string.format("   %s[%d]|r %s  |cffaaaaaa- %s, %s|r",
                 KIND_COLOR[offer.kind] or "", offer.level, offer.title, offer.giver, where))
+            row.accept:SetText(T("ACCEPT"))
+            row.accept:Enable()
+            row.accept:Show()
             row:Show()
         end
     end
@@ -372,6 +393,19 @@ local function OnAddonMessage(message)
             distance = tonumber(parts[6]) or 0, zone = parts[7], x = tonumber(parts[8]) or -1,
             y = tonumber(parts[9]) or -1, giver = parts[10], title = parts[11],
         })
+    elseif kind == "TAKEN" then
+        local quest = tonumber(parts[3])
+        local name = tostring(quest)
+        for _, offer in ipairs(offers) do
+            if offer.quest == quest then
+                name = offer.title
+                break
+            end
+        end
+        local text = parts[4] == "1" and T("TAKEN") or T("NOT_TAKEN")
+        DEFAULT_CHAT_FRAME:AddMessage("|cff69ccf0CoA Companion:|r " .. string.format(text, parts[2], name))
+        RequestScan()
+        RenderList()
     elseif kind == "END" then
         offers, pending, scanning, hasBots = pending or {}, nil, false, true
         RenderList()
@@ -386,7 +420,10 @@ events:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 events:RegisterEvent("PARTY_MEMBERS_CHANGED")
 events:SetScript("OnEvent", function(_, event, prefix, message)
     if event == "CHAT_MSG_ADDON" then
-        if prefix == PREFIX and message and string.sub(message, 1, 5) ~= "SCAN\t" then OnAddonMessage(message) end
+        if prefix == PREFIX and message and string.sub(message, 1, 5) ~= "SCAN\t"
+            and string.sub(message, 1, 7) ~= "ACCEPT\t" then
+            OnAddonMessage(message)
+        end
     elseif event == "WORLD_MAP_UPDATE" then
         UpdateWorldPins()
     elseif Settings().botQuestsMap or frame:IsShown() then
