@@ -483,6 +483,11 @@ AiPlayerbot.SyncQuestWithPlayer = 1
 # Default: 0 (disabled)
 AiPlayerbot.SyncQuestForPlayer = 0
 
+# Bots take the quests their master accepts: when you accept a quest, every bot of your group
+# whose master you are and who stands on your map accepts it too, if it can take it.
+# Default: 1 (enabled)
+AiPlayerbot.SyncQuestAcceptWithPlayer = 1
+
 # Bots will drop obsolete quests
 # Default: 1 (enabled)
 AiPlayerbot.DropObsoleteQuests = 1
