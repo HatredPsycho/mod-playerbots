@@ -2333,6 +2333,11 @@ TEST(DungeonEventIntegrityTest, PullOwningEventsAreVetted)
         // drag-back camp would be stamped off the edge or on another island, and a
         // scout-lagged tank is fifteen yards of rim nobody can stand on.
         {578, 9},
+        // Blackwing Lair "Nefarian — start the encounter". The event holds the
+        // raid at Nefarian's landing for its own muster before Victor's gossip;
+        // the lair holds no trash to pull, and a pull walking a bot off the
+        // anchor would only delay the readiness check the muster is waiting on.
+        {469, 5},
     };
 
     for (DungeonEvent const& ev : DungeonEventRegistry::AllEvents())
