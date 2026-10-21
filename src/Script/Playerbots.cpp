@@ -619,6 +619,7 @@ void AddSC_coa_group_telemetry();
 void AddSC_coa_status_file();
 void AddSC_coa_arena_ready();
 void AddPlayerbotsQuestAcceptSyncScripts();
+void AddPlayerbotsNearbyQuestsScripts();
 
 void AddPlayerbotsScripts()
 {
@@ -626,6 +627,7 @@ void AddPlayerbotsScripts()
     new PlayerbotsDatabaseScript();
     new PlayerbotsPlayerScript();
     AddPlayerbotsQuestAcceptSyncScripts();
+    AddPlayerbotsNearbyQuestsScripts();
     new PlayerbotsMiscScript();
     new PlayerbotsServerScript();
     new PlayerbotsWorldScript();
