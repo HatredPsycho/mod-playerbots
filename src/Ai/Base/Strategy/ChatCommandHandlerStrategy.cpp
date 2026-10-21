@@ -110,6 +110,7 @@ ChatCommandHandlerStrategy::ChatCommandHandlerStrategy(PlayerbotAI* botAI) : Pas
     supported.push_back("talents");
     supported.push_back("wcr");
     supported.push_back("wildcard");
+    supported.push_back("lfgrole");
     supported.push_back("spells");
     supported.push_back("co");
     supported.push_back("nc");
