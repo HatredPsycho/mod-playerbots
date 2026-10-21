@@ -83,6 +83,15 @@ namespace
           /*detourReachable*/ true, /*bossSideLastRadius*/ 36.0f },
         { 429, 14354,  50.0f, {} }, // Dire Maul East — Pusillin
 
+        // Upper Blackrock Spire (229) — General Drakkisath. NOT a script radius:
+        // his own engage only DoZoneInCombats his two Chromatic Elite Guards (his
+        // formation, fought with him). The room around him is the problem — 14
+        // Blackhand / Rage Talon mobs stand within 57yd of him at the north pair,
+        // the south archway the party walks in by, and the western group, and a
+        // boss fight among them pulls them in. 60yd is the measured gap: the next
+        // spawn out is 71.5yd off, in the corridors. Single level (z 111).
+        { 229, 10363,  60.0f, {} }, // Upper Blackrock Spire — General Drakkisath
+
         // Deadmines (36) — Gilnid, the goblin foundry.
         //
         // THE RADIUS IS NOT READ FROM A SCRIPT HERE, because there is no script to
@@ -358,6 +367,27 @@ namespace
         // outside the whole ring, so no dragged pack is fought in his aggro.
         { 469, 11983, 47.0f, { 13996, 12459, 12457, 12461 }, false, 0.0f, 0.0f,
           /*pullOutRadius*/ 10.0f, /*skirtRadius*/ 40.0f },
+
+        // Blackwing Lair (469): Broodlord Lashlayer. No scripted room pull; the
+        // Suppression Room's whelp field runs right up to him. From his spawn
+        // (84387, -7574.0,-1034.4,449.3; aggro 23yd at level 60) the nearest
+        // Corrupted Whelps stand 27.8-36yd out and the rest of the field reaches
+        // past 60yd, with Death Talon Hatchers at 45-59yd and Blackwing Taskmasters
+        // at 47-52yd. Live (2026-10-20 23:02-23:03): the whelps came a few at a
+        // time and were fought where they met the raid, the fight crept east whelp
+        // by whelp, and at 23:03:23 a bot 22.4yd from him pulled him with no pull
+        // in flight. That run already had the 66yd transit standoff (#5) and the
+        // stall-fallback boss veto (#6), so this needs neither of them to fire.
+        //
+        // radius 60 takes every whelp on his floor up to the 59yd pair and the
+        // Hatcher on the ramp at 58.9yd. Whitelist = whelps, Hatchers and
+        // Taskmasters only: Firemaw's Technicians stand 23-35yd EAST of him and
+        // belong to the Firemaw row, and Razorgore's room is a floor down.
+        // pullOutRadius 20 keeps the 27.8yd whelps (inside the computed ~28yd
+        // exclusion) clearable and forces the drag-to-camp pull; skirtRadius 40
+        // fights each dragged group outside his radius with room for the ranged.
+        { 469, 12017, 60.0f, { 14022, 14023, 14024, 14025, 12468, 12458 }, false, 0.0f, 0.0f,
+          /*pullOutRadius*/ 20.0f, /*skirtRadius*/ 40.0f },
     };
 }
 

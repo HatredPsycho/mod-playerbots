@@ -64,6 +64,7 @@ void RegisterShadowfangKeepEvents(std::vector<DungeonEvent>& out);
 void RegisterScarletMonasteryEvents(std::vector<DungeonEvent>& out);
 void RegisterRazorfenDownsEvents(std::vector<DungeonEvent>& out);
 void RegisterBlackrockDepthsEvents(std::vector<DungeonEvent>& out);
+void RegisterBlackrockSpireEvents(std::vector<DungeonEvent>& out);
 void RegisterDeadminesEvents(std::vector<DungeonEvent>& out);
 void RegisterWailingCavernsEvents(std::vector<DungeonEvent>& out);
 void RegisterStratholmeEvents(std::vector<DungeonEvent>& out);
@@ -367,6 +368,304 @@ namespace DcBlackrockDepths
     constexpr HallPoint IRON_HALL_SLOT_OFFSETS[IRON_HALL_SLOT_COUNT] = {
         { 0.0f, 0.0f }, { 2.5f, 0.0f }, { -2.5f, 0.0f }, { 0.0f, 2.5f }, { 0.0f, -2.5f },
     };
+}
+
+// Upper Blackrock Spire (map 229) — the numbers BlackrockSpireEvents.cpp's events,
+// hooks and roster patch share with the gtests (t/TestBlackrockSpireEvents,
+// t/TestDungeonEvent). The reasoning for each is in that file.
+//
+// mod-individual-progression re-registers the UBRS instance and area-trigger
+// scripts under the core's ScriptNames, so either may be running. Nothing here
+// includes an IP header: its values are literals, named as such.
+namespace DcBlackrockSpire
+{
+    constexpr uint32 MAP_ID = 229;
+
+    // blackrock_spire.h DataTypes (boss-state slots, NOT DungeonEncounter bits).
+    constexpr uint32 DATA_PYROGUARD_EMBERSEER = 9;
+    constexpr uint32 DATA_WARCHIEF_REND_BLACKHAND = 10;
+    constexpr uint32 DATA_DRAGONSPIRE_ROOM = 15;
+    constexpr uint32 STATE_NOT_STARTED = 0;
+    constexpr uint32 STATE_IN_PROGRESS = 1;
+    constexpr uint32 STATE_FAIL = 2;
+    constexpr uint32 STATE_DONE = 3;
+    constexpr uint32 GO_STATE_OPEN = 0;    // GOState ACTIVE: an open door, a lit rune
+    constexpr uint32 GO_STATE_CLOSED = 1;  // GOState READY
+
+    // mod-individual-progression's blackrock_spire.h DATA_UBRS_DOOR_OPEN: its
+    // instance script opens the Dragonspine Door on SetData(2046, 26). The core
+    // script has no case for type 2046, so the same call is a no-op there.
+    constexpr uint32 IP_DATA_UBRS_DOOR_OPEN = 26;
+
+    constexpr uint32 AT_DRAGONSPIRE_HALL = 2046;
+
+    // Event ids (map-229 latch keys), the roster objective sequence numbers that
+    // carry them, and the ObjectiveHookRegistry ids (one flat space).
+    constexpr uint32 EVENT_DRAGONSPINE_DOOR = 1;
+    constexpr uint32 EVENT_DRAGONSPIRE_HALL = 2;
+    constexpr uint32 OBJ_DRAGONSPINE_DOOR = 1;
+    constexpr uint32 OBJ_DRAGONSPIRE_HALL = 2;
+    constexpr uint32 HOOK_OPEN_DRAGONSPINE_DOOR = 56;
+    constexpr uint32 HOOK_HALL_RUNES_SWEEP = 57;
+
+    constexpr uint32 NPC_BLACKHAND_DREADWEAVER = 9817;
+    constexpr uint32 NPC_BLACKHAND_SUMMONER = 9818;
+    constexpr uint32 NPC_BLACKHAND_VETERAN = 9819;
+
+    constexpr uint32 GO_DRAGONSPINE_DOOR = 164725;
+    constexpr uint32 GO_EMBERSEER_IN = 175244;
+    constexpr uint32 GO_DOORS = 175705;
+
+    // The door event's stand point: the ubrs test row's entrance, inside AT 2046
+    // (r10 around (102.43,-319.17)). The door itself is 22yd east of it at
+    // (126.9,-319.1,70.9), past the executor's default 20yd GO search, so every
+    // door lookup passes DOOR_SCAN.
+    constexpr float DOOR_STAND_X = 105.0f;
+    constexpr float DOOR_STAND_Y = -320.0f;
+    constexpr float DOOR_STAND_Z = 65.5f;
+    constexpr float DOOR_SCAN = 40.0f;
+    // How long IP's brazier sequence gets before the click fallback (its door
+    // opens ~3s after SetData), and how long the click gets before Blocked.
+    constexpr uint32 DOOR_SCRIPT_WAIT_MS = 5000;
+    constexpr uint32 DOOR_CLICK_WAIT_MS = 15000;
+
+    // The hall objective's anchor, just inside the door.
+    constexpr float HALL_ANCHOR_X = 131.0f;
+    constexpr float HALL_ANCHOR_Y = -318.0f;
+    constexpr float HALL_ANCHOR_Z = 71.0f;
+
+    // The seven hall runes, in the clear order (lower floor 3, 1, 4, 2, then up
+    // the ramp 7, 6, 5), each with the 9817/9818/9819 pack the instance script
+    // lists for it (every one within 15yd at STORE time).
+    struct HallRune { uint32 goEntry; uint32 room; float x, y, z; };
+    constexpr HallRune HALL_RUNES[] = {
+        { 175195, 3, 124.8f, -298.0f, 70.9f },
+        { 175197, 1, 125.4f, -340.5f, 70.9f },
+        { 175200, 4, 155.3f, -286.1f, 70.9f },
+        { 175199, 2, 155.3f, -353.0f, 70.8f },
+        { 175194, 7, 192.7f, -258.4f, 76.9f },
+        { 175196, 6, 228.8f, -301.5f, 76.9f },
+        { 175198, 5, 215.2f, -334.7f, 76.8f },
+    };
+    // The script's 15yd list radius plus melee reach: the ClearRadius steps and
+    // the sweep share it, so a mob the sweep finds is one a rewound step clears.
+    constexpr float HALL_RUNE_CLEAR_RADIUS = 18.0f;
+    constexpr float HALL_RUNE_CLEAR_ZBAND = 6.0f;
+    // Every rune and Emberseer In from anywhere in the hall (rune room 1 to the
+    // door is 106yd).
+    constexpr float HALL_SCAN = 130.0f;
+    // The script's CHECK runs every 3s; a lit rune with no pack near it for
+    // longer than this means CHECK is not running (STORE never armed) or the
+    // snapshot holds a mob that is not coming back — re-fire the area trigger.
+    constexpr uint32 HALL_REARM_AFTER_MS = 8000;
+    constexpr uint32 HALL_REARM_FLOOR_MS = 20000;
+    // Floor between two sweep rewinds, so a mob nothing can reach cannot spin
+    // the event.
+    constexpr uint32 HALL_RESTART_FLOOR_MS = 30000;
+
+    // --- the Blackrock Altar and Pyroguard Emberseer (event 3) -----------
+    constexpr uint32 EVENT_BLACKROCK_ALTAR = 3;
+    constexpr uint32 OBJ_BLACKROCK_ALTAR = 3;
+    constexpr uint32 HOOK_MUSTER_HALL_OF_BINDING = 58;
+    constexpr uint32 HOOK_EMBERSEER_FREED = 59;
+    // Not in the plan's 56-61 block: the plan's bare UseGO step does not hold
+    // the ritual's channel (see UseBlackrockAltar), so the altar got a hook.
+    constexpr uint32 HOOK_USE_BLACKROCK_ALTAR = 62;
+
+    constexpr uint32 NPC_PYROGUARD_EMBERSEER = 9816;
+    constexpr uint32 NPC_BLACKHAND_INCARCERATOR = 10316;
+    constexpr uint32 GO_BLACKROCK_ALTAR = 175706;
+    constexpr uint32 GO_EMBERSEER_OUT = 175153;
+    // The altar's ritual spell 16533 sends this event; the instance's
+    // ProcessEvent starts Emberseer's release when his state is NOT_STARTED.
+    constexpr uint32 EVENT_PYROGUARD_EMBERSEER = 4884;
+    // The ritual's anim spell: the user channels it, and GameObject::Update
+    // drops a participant who is no longer channelling it before the 5s
+    // ritual completes.
+    constexpr uint32 SPELL_ALTAR_CHANNEL = 16532;
+
+    // The altar (144.4,-280.9,91.5) and the stand point on the room floor 4.9yd
+    // north of it — also the objective anchor.
+    constexpr float ALTAR_X = 144.445f;
+    constexpr float ALTAR_Y = -280.941f;
+    constexpr float ALTAR_STAND_X = 144.4f;
+    constexpr float ALTAR_STAND_Y = -276.0f;
+    constexpr float ALTAR_STAND_Z = 91.6f;
+    constexpr float ALTAR_SCAN = 15.0f;
+    // One Use() per this floor while the ritual has not taken.
+    constexpr uint32 ALTAR_USE_FLOOR_MS = 3000;
+    // A ritual that has not started his release in this long is not going to
+    // (the channel broke, every time): enter the script's own entry point.
+    constexpr uint32 ALTAR_FALLBACK_MS = 15000;
+    // The seven incarcerators stand at x 126-162, y -241..-277, z 91.6; the
+    // farthest is 39.5yd from the stand point.
+    constexpr float INCARCERATOR_CLEAR_RADIUS = 45.0f;
+
+    // The Hall of Binding: the incarcerators' aggro shuts Emberseer In and the
+    // Doors two seconds after the altar, so everyone must be in here first. The
+    // room floor is z 91.6 with his platform at 96.4; the hall below is z 71 and
+    // the Rookery floor west of Emberseer Out is x < 113.
+    struct Box { float minX, minY, minZ, maxX, maxY, maxZ; };
+    constexpr Box HALL_OF_BINDING = { 115.0f, -284.0f, 88.0f, 174.0f, -236.0f, 100.0f };
+    // The muster's cap (DC_SEALED_MUSTER_TIMEOUT_MS's 20s): then proceed and
+    // name who is outside.
+    constexpr uint32 MUSTER_CAP_MS = 20000;
+    // Emberseer's room, for the event-level completion on Emberseer Out (35yd
+    // from the stand point).
+    constexpr float BINDING_SCAN = 60.0f;
+
+    // --- the Rookery crossing (no event) ----------------------------------
+    // The measured north lane from Emberseer Out to the upper floor, every egg
+    // >= 3.8yd off. Each point is on a navmesh poly at that z. Probed in
+    // t/TestBlackrockSpireRouteProbe.
+    struct LanePoint { float x, y, z; };
+    constexpr LanePoint ROOKERY_LANE[] = {
+        { 113.9f, -258.9f,  91.8f },   // Emberseer Out
+        {  96.0f, -258.5f,  91.6f },
+        {  80.0f, -258.0f,  91.6f },   // between egg clusters 12 and 15
+        {  66.5f, -257.5f,  96.3f },
+        {  67.5f, -244.5f,  98.9f },   // turn north
+        {  88.9f, -241.3f, 105.1f },   // the ramp, above cluster 15
+        { 100.6f, -252.8f, 106.6f },
+        { 108.1f, -266.0f, 106.7f },   // the upper floor
+    };
+    constexpr uint32 GO_ROOKERY_EGG = 175124;
+
+    // The anchor route Emberseer's room -> the stadium muster point
+    // (RegisterBlackrockSpireRoute): the lane above across the Rookery, then the
+    // navmesh's own corridor over the upper floor, the Hall of Blackhand and the
+    // z118 walkway, decimated to legs under 10yd from its verbatim vertices.
+    // Anchors 6-21 (the Rookery, Emberseer Out to the upper floor) are walked
+    // with ROOKERY_ANCHOR_ARRIVE so the tank cannot cut a corner into a cluster.
+    // Probed in t/TestBlackrockSpireRouteProbe.
+    constexpr LanePoint ROOKERY_ROUTE[] = {
+        { 143.00f, -265.75f, 95.66f },  //  0  Emberseer's room, off his platform
+        { 141.61f, -269.50f, 93.45f },  //  1
+        { 134.13f, -266.64f, 92.46f },  //  2
+        { 126.66f, -263.78f, 92.19f },  //  3
+        { 119.19f, -260.92f, 92.39f },  //  4
+        { 115.45f, -259.49f, 92.28f },  //  5
+        { 113.90f, -258.90f, 91.80f },  //  6  Emberseer Out
+        { 104.95f, -258.70f, 91.70f },  //  7
+        { 96.00f, -258.50f, 91.60f },  //  8
+        { 88.00f, -258.25f, 91.60f },  //  9
+        { 80.00f, -258.00f, 91.60f },  // 10  the pinch between egg clusters 12 and 15
+        { 73.25f, -257.75f, 93.95f },  // 11
+        { 66.50f, -257.50f, 96.30f },  // 12  the west end, turn north
+        { 67.00f, -251.00f, 97.60f },  // 13
+        { 67.50f, -244.50f, 98.90f },  // 14  the ramp foot
+        { 74.63f, -243.43f, 100.97f },  // 15
+        { 81.77f, -242.37f, 103.03f },  // 16
+        { 88.90f, -241.30f, 105.10f },  // 17  the ramp, above cluster 15
+        { 94.75f, -247.05f, 105.85f },  // 18
+        { 100.60f, -252.80f, 106.60f },  // 19
+        { 104.35f, -259.40f, 106.65f },  // 20
+        { 108.10f, -266.00f, 106.70f },  // 21  the upper floor
+        { 108.27f, -274.00f, 107.20f },  // 22
+        { 108.44f, -282.00f, 107.20f },  // 23
+        { 108.61f, -289.99f, 107.20f },  // 24
+        { 108.79f, -297.99f, 107.20f },  // 25
+        { 108.99f, -305.99f, 107.20f },  // 26
+        { 109.10f, -309.99f, 107.20f },  // 27
+        { 116.76f, -312.29f, 108.56f },  // 28
+        { 124.42f, -314.60f, 112.46f },  // 29
+        { 132.08f, -316.90f, 111.58f },  // 30
+        { 139.74f, -319.21f, 111.62f },  // 31  the Hall of Blackhand
+        { 138.73f, -327.14f, 111.53f },  // 32
+        { 137.72f, -335.08f, 111.47f },  // 33
+        { 136.71f, -343.01f, 111.56f },  // 34
+        { 135.70f, -350.95f, 113.12f },  // 35
+        { 134.47f, -358.85f, 117.97f },  // 36
+        { 133.73f, -362.78f, 118.04f },  // 37  the z118 walkway
+        { 125.88f, -364.33f, 118.17f },  // 38
+        { 118.04f, -365.88f, 118.44f },  // 39
+        { 110.19f, -367.42f, 118.37f },  // 40
+        { 102.34f, -368.97f, 117.66f },  // 41
+        { 97.11f, -375.02f, 118.52f },  // 42
+        { 94.49f, -378.05f, 118.28f },  // 43  the descent
+        { 94.78f, -386.05f, 117.72f },  // 44
+        { 95.06f, -394.04f, 115.51f },  // 45
+        { 95.35f, -402.04f, 112.66f },  // 46
+        { 96.23f, -409.96f, 112.80f },  // 47
+        { 101.84f, -415.68f, 112.17f },  // 48
+        { 104.64f, -418.53f, 112.27f },  // 49
+        { 112.59f, -419.41f, 111.45f },  // 50
+        { 118.00f, -420.00f, 110.87f },  // 51  the stadium muster point, inside portcullis 164726
+    };
+    constexpr uint32 ROOKERY_ROUTE_LANE_FIRST = 6;
+    constexpr uint32 ROOKERY_ROUTE_LANE_LAST = 21;
+    constexpr float ROOKERY_ANCHOR_ARRIVE = 2.0f;
+    constexpr uint32 NPC_ROOKERY_WHELP = 10161;
+    constexpr uint32 NPC_WARCHIEF_REND_BLACKHAND = 10429;
+
+    // --- the Blackrock Stadium: Rend and Gyth (event 4) -------------------
+    constexpr uint32 EVENT_BLACKROCK_STADIUM = 4;
+    constexpr uint32 OBJ_BLACKROCK_STADIUM = 4;
+    constexpr uint32 HOOK_MUSTER_IN_STADIUM = 60;
+    constexpr uint32 HOOK_ENSURE_STADIUM_STARTED = 61;
+    constexpr uint32 NPC_LORD_VICTOR_NEFARIUS = 10162;
+    constexpr uint32 GO_GYTH_ENTRY_DOOR = 164726;   // the stadium portcullis (x 108)
+    constexpr uint32 GO_GYTH_COMBAT_DOOR = 175185;  // the pen gate the waves come through
+    constexpr uint32 GO_GYTH_EXIT_DOOR = 175186;    // "TOBOSSROOMS", opens on Rend's death
+
+    // AT 2026 at_blackrock_stadium: (153.76, -419.83, 110.47), radius 20. It
+    // starts the event for any living player inside it — and the portcullis
+    // shuts 1s later — so the party musters well outside it first.
+    constexpr uint32 AT_BLACKROCK_STADIUM = 2026;
+    constexpr float AT_STADIUM_X = 153.76f;
+    constexpr float AT_STADIUM_Y = -419.83f;
+    constexpr float AT_STADIUM_RADIUS = 20.0f;
+
+    // The muster point: 10yd inside the portcullis, 36yd outside AT 2026, 30yd
+    // from the nearest stadium-edge egg. Also the objective anchor, and the end
+    // of ROOKERY_ROUTE.
+    constexpr float STADIUM_MUSTER_X = 118.0f;
+    constexpr float STADIUM_MUSTER_Y = -420.0f;
+    constexpr float STADIUM_MUSTER_Z = 111.0f;
+    // The arena stand: inside AT 2026, 45yd from the pen (summons despawn with
+    // nobody within 100yd), 25yd from Rend on the balcony (the AT script finds
+    // him within 100yd of the player), 46yd from the nearest egg.
+    constexpr float ARENA_STAND_X = 150.0f;
+    constexpr float ARENA_STAND_Y = -420.0f;
+    constexpr float ARENA_STAND_Z = 110.9f;
+    constexpr float ARENA_HOLD_RADIUS = 6.0f;
+    // Everyone past the portcullis (x 108) and on the arena floor — not the
+    // z 106-118 floors and walkway outside it.
+    constexpr Box STADIUM_ARENA = { 110.0f, -455.0f, 108.0f, 192.0f, -386.0f, 114.0f };
+    // Floor between two forged AT 2026 fires while Rend reads NOT_STARTED.
+    constexpr uint32 STADIUM_START_FLOOR_MS = 5000;
+
+    // --- The Beast and General Drakkisath (no events) ---------------------
+    constexpr uint32 NPC_THE_BEAST = 10430;
+    constexpr uint32 NPC_GENERAL_DRAKKISATH = 10363;
+    constexpr uint32 GO_DRAKKISATH_DOOR_1 = 175946;
+    constexpr uint32 GO_DRAKKISATH_DOOR_2 = 175947;
+
+    // Where The Beast is fought (BossPullbackRegistry), and his roster anchor.
+    // boss_the_beast evades when his own Y goes above -505 in combat, and the
+    // corridor on to Drakkisath runs north from (29,-503): a fight at its mouth,
+    // or a Berserker Charge onto a bot standing in it, resets him at full health.
+    // The camp is on the Furnace floor (poly z 111.0), 35yd south of that line,
+    // inside AT 2066 (75.26,-547.68 r30), so arriving starts his patrol and he
+    // comes to the party; the nearest hostile spawn is 51yd off (the Rage Talon
+    // pack at the corridor mouth). Probed in t/TestBlackrockSpireRouteProbe.
+    constexpr float BEAST_CAMP_X = 60.0f;
+    constexpr float BEAST_CAMP_Y = -540.0f;
+    constexpr float BEAST_CAMP_Z = 111.0f;
+    constexpr float BEAST_EVADE_Y = -505.0f;
+
+    // Drakkisath's room pre-clear (RoomAggroRegistry): every pack around his
+    // room — the north pair and its neighbours (21-34yd), the south archway
+    // (42-48yd), the western group (47-57yd) — and nothing past the 57->72yd gap
+    // to the corridor packs.
+    constexpr float DRAKKISATH_X = 36.45f;
+    constexpr float DRAKKISATH_Y = -285.99f;
+    constexpr float DRAKKISATH_ROOM_RADIUS = 60.0f;
+
+    inline bool InBox(Box const& b, float x, float y, float z)
+    {
+        return x >= b.minX && x <= b.maxX && y >= b.minY && y <= b.maxY && z >= b.minZ && z <= b.maxZ;
+    }
 }
 
 void RegisterHellfireRampartsEvents(std::vector<DungeonEvent>& out);
@@ -2294,31 +2593,25 @@ namespace DcBlackwingLair
     // wrong half of the route.
     constexpr std::size_t TRANSIT_STAGE_ANCHOR_INDEX = 20;
 
-    // THE BROODLORD STANDOFF — where the transit ends and the ordinary raid
-    // pipeline (muster, standoff, engage) takes back over. Nearest whelp 27.5yd,
-    // nearest device 21.7yd; clean ground, on the upper room's floor.
-    //
-    // It is also 0.9yd from Broodlord's own spawn (guid 84387, -7573.97, -1034.39),
-    // so arriving here IS the boss pull — with whatever the crossing is still
-    // towing. Live (2026-10-17 13:23): the raid walked in with Hatchers, Taskmasters,
-    // a Technician pack and whelps on it, Broodlord joined two seconds later, 41
-    // deaths. The crossing therefore holds at TRANSIT_ENGAGED_HOLD_LEGS anchors out
-    // until nothing but whelps is fighting the raid (DcSuppressionTransit::
-    // Hold::Engaged); anchor 37, where that hold lands, is 42.1yd from him.
-    constexpr float TRANSIT_END_X = -7573.8f;
-    constexpr float TRANSIT_END_Y = -1033.5f;
-    constexpr float TRANSIT_END_Z = 449.3f;
-
-    // The last two legs (anchor 37 -> 38 -> the standoff) are the ones that walk
-    // into Broodlord's reach: anchor 38 is 18.1yd from him.
+    // End on certified upper-room ground about 66yd from Broodlord's spawn.
+    // The former endpoint was on his spawn and body-pulled him before the normal
+    // muster/standoff/engage pipeline could check the raid. Leave room for the
+    // 10yd arrival tolerance and followers spread around the tank.
+    constexpr float TRANSIT_END_X = -7633.66f;
+    constexpr float TRANSIT_END_Y = -1062.65f;
+    constexpr float TRANSIT_END_Z = 449.85f;
+    constexpr float TRANSIT_END_RADIUS = 10.0f;
     constexpr uint32 TRANSIT_ENGAGED_HOLD_LEGS = 2;
 
-    // How close the leader has to get before the transit is over. Also the
-    // predicate's own OFF switch: the event is due while the leader is inside the
-    // corridor and NOT yet here, so arriving simply stops it being due. There is
-    // no completion latch to reset — a leader shoved back into the gauntlet
-    // re-arms it, which is the correct answer.
-    constexpr float TRANSIT_END_RADIUS = 10.0f;
+    // A completion PLANE, rather than a radius: once the ordinary boss approach
+    // walks beyond staging it must not re-arm this repeatable transit and pull
+    // the tank back. The unit vector follows the final upper-room route leg.
+    constexpr bool PastTransitStandoff(float x, float y, float z)
+    {
+        return z >= TRANSIT_END_Z - 3.0f &&
+               (x - TRANSIT_END_X) * 0.8991f +
+               (y - TRANSIT_END_Y) * 0.4378f >= -TRANSIT_END_RADIUS;
+    }
 
     // THE CORRIDOR — the axis-aligned box that is the two suppression rooms plus
     // the approach and NOTHING else on the map. The transit's activation
@@ -5564,6 +5857,7 @@ void RegisterSunkenTempleRoster(std::vector<BossRosterPatch>& t);
 void RegisterRazorfenDownsRoster(std::vector<BossRosterPatch>& t);
 void RegisterZulFarrakRoster(std::vector<BossRosterPatch>& t);
 void RegisterBlackrockDepthsRoster(std::vector<BossRosterPatch>& t);
+void RegisterBlackrockSpireRoster(std::vector<BossRosterPatch>& t);
 void RegisterBlackwingLairRoster(std::vector<BossRosterPatch>& t);
 void RegisterDeadminesRoster(std::vector<BossRosterPatch>& t);
 void RegisterWailingCavernsRoster(std::vector<BossRosterPatch>& t);
@@ -5661,7 +5955,7 @@ void RegisterDireMaulWings(std::unordered_map<uint32, DungeonWingLayout>& store)
 void RegisterScarletMonasteryWings(std::unordered_map<uint32, DungeonWingLayout>& store);
 void RegisterMaraudonWings(std::unordered_map<uint32, DungeonWingLayout>& store);
 // Blackrock Spire (229) — LBRS / UBRS, chosen per run (WingSelect::Explicit).
-// No events or roster patch yet; lives in BlackrockSpireEvents.cpp.
+// Lives in BlackrockSpireEvents.cpp beside UBRS's events and roster patch.
 void RegisterBlackrockSpireWings(std::unordered_map<uint32, DungeonWingLayout>& store);
 // Blackrock Depths (230) — Detention Block / Upper City, chosen per run.
 void RegisterBlackrockDepthsWings(std::unordered_map<uint32, DungeonWingLayout>& store);
@@ -5701,6 +5995,11 @@ void RegisterHallsOfLightningRoute();
 // from where it stands and a row that starts somewhere else snaps the cursor to
 // the far end ([[dc-anchor-route-must-cover-where-the-party-stands]]).
 void RegisterUtgardePinnacleRoute();
+// Upper Blackrock Spire (229) — Emberseer's room -> the stadium, across the
+// Rookery's 149 egg traps. The navmesh's own corridor happens to keep 3.3yd off
+// them today; the measured north lane keeps 3.8yd and does not move when the
+// corridor does (a different start point, an mmaps regen, a penalty row).
+void RegisterBlackrockSpireRoute();
 
 // Pit of Saron (658) — TWO rows, Krick -> the ledge and the ledge -> Tyrannus.
 //

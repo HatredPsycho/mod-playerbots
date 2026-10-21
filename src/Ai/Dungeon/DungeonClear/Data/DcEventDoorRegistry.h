@@ -355,6 +355,40 @@ namespace DcEventDoorRegistry
             // DONE — Magmus's death. Clicking them would walk the party past
             // Magmus to the Emperor.
             case 170575:  // Blackrock Depths — Throne Room doors (opens on Magmus's death)
+            // Upper Blackrock Spire (map 229) — the event-owned doors. Every one
+            // is a lock-free TYPE_DOOR that BotCanOpenDoorLikePlayer could read as
+            // clickable, and every one is moved by the instance script or by a
+            // DC event that enters the script's own entry points
+            // (BlackrockSpireEvents.cpp):
+            //
+            //   164725 DRAGONSPINE DOOR — spawns open on the stock core, shut
+            //     under mod-individual-progression (opened by its AT 2046 seal
+            //     check). Event 1 owns it: it arms the hall's rune tracking
+            //     before it opens the door, which a walker click would skip, and
+            //     under IP a bare click would open it without the braziers or
+            //     the saved flag. The run reaches it as the door objective, so
+            //     the walker's pause only ever sees it if that event failed.
+            //   175244 EMBERSEER IN / 175705 DOORS — opened when all seven hall
+            //     runes are out; shut again when the incarcerators aggro.
+            case 164725:  // Upper Blackrock Spire — Dragonspine Door
+            case 175244:  // Upper Blackrock Spire — Emberseer In (hall runes)
+            case 175705:  // Upper Blackrock Spire — Doors (ramp into Emberseer's room)
+            //   175153 EMBERSEER OUT — spawns shut, opens on Emberseer's death:
+            //     the way on into the Rookery. A click would skip him.
+            case 175153:  // Upper Blackrock Spire — Emberseer Out (opens on his death)
+            //   164726 STADIUM PORTCULLIS — shuts 1s after AT 2026, reopens on
+            //     Rend's death or a FAIL; 175185 the pen gate the waves come
+            //     through (auto-close 10s); 175186 TOBOSSROOMS, a PASSAGE door
+            //     on Rend — the way on to The Beast. Event 4 owns all three.
+            case 164726:  // Upper Blackrock Spire — Doodad_PortcullisActive01 (stadium entry)
+            case 175185:  // Upper Blackrock Spire — the pen portcullis (wave gate)
+            case 175186:  // Upper Blackrock Spire — TOBOSSROOMS (opens on Rend's death)
+            //   175946 / 175947 — PASSAGE doors on General Drakkisath, opened by
+            //     his death. They gate nothing on the way in (the Furnace enters
+            //     his room by the south archway), but must not read as an
+            //     openable blocker.
+            case 175946:  // Upper Blackrock Spire — Drakkisath's door 1 (opens on his death)
+            case 175947:  // Upper Blackrock Spire — Drakkisath's door 2 (opens on his death)
                 return true;
             default:
                 return false;
