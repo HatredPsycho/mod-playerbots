@@ -393,6 +393,7 @@ public:
     bool syncQuestWithPlayer;
     bool syncQuestForPlayer;
     bool syncQuestAcceptWithPlayer;
+    float nearbyQuestRadius;
     bool dropObsoleteQuests;
     bool allowLearnTrainerSpells;
     bool autoPickTalents;

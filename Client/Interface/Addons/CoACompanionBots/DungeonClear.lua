@@ -2235,7 +2235,9 @@ minimapButton:SetScript("OnDragStop", function(self)
 end)
 
 minimapButton:SetScript("OnClick", function(self, button)
-    if button == "RightButton" or not CoACompanionBots_ToggleBar then
+    if button == "LeftButton" and IsShiftKeyDown() and CoACompanionBots_ToggleBotQuests then
+        CoACompanionBots_ToggleBotQuests()
+    elseif button == "RightButton" or not CoACompanionBots_ToggleBar then
         ToggleMainWindow()
     else
         CoACompanionBots_ToggleBar()

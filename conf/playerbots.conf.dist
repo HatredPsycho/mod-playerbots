@@ -488,6 +488,12 @@ AiPlayerbot.SyncQuestForPlayer = 0
 # Default: 1 (enabled)
 AiPlayerbot.SyncQuestAcceptWithPlayer = 1
 
+# How far (yards) the CoA Companion bot quest list looks for quest givers around the player.
+# It lists the quests only some of your bots can take: class quests, and race and profession
+# quests on demand. Range 50-2000.
+# Default: 300
+AiPlayerbot.NearbyQuestRadius = 300
+
 # Bots will drop obsolete quests
 # Default: 1 (enabled)
 AiPlayerbot.DropObsoleteQuests = 1

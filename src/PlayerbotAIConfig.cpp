@@ -18,6 +18,7 @@
 #include "RandomPlayerbotMgr.h"
 #include "Talentspec.h"
 #include "TravelMgr.h"
+#include <algorithm>
 #include <cctype>
 #include <iostream>
 #include <sstream>
@@ -749,6 +750,7 @@ bool PlayerbotAIConfig::Initialize()
     syncQuestWithPlayer = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncQuestWithPlayer", true);
     syncQuestForPlayer = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncQuestForPlayer", false);
     syncQuestAcceptWithPlayer = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncQuestAcceptWithPlayer", true);
+    nearbyQuestRadius = std::clamp(sConfigMgr->GetOption<float>("AiPlayerbot.NearbyQuestRadius", 300.0f), 50.0f, 2000.0f);
     dropObsoleteQuests = sConfigMgr->GetOption<bool>("AiPlayerbot.DropObsoleteQuests", true);
     allowLearnTrainerSpells = sConfigMgr->GetOption<bool>("AiPlayerbot.AllowLearnTrainerSpells", true);
     autoPickTalents = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoPickTalents", true);
