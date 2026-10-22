@@ -19,6 +19,7 @@
 #include "ScholoActionContext.h"
 #include "StratActionContext.h"
 #include "UldaActionContext.h"
+#include "DMActionContext.h"
 #include "WCActionContext.h"
 
 #endif
