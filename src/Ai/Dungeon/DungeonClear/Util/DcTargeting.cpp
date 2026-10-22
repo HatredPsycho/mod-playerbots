@@ -1399,7 +1399,7 @@ namespace
     }
 }
 std::vector<std::vector<G3D::Vector3>> DcTargeting::BossPatrolRoutesNear(
-    Player* bot, AiObjectContext* ctx, Position const& near, float range, Unit const* except)
+    Player* bot, AiObjectContext* ctx, Position const& point, float range, Unit const* except)
 {
     std::vector<std::vector<G3D::Vector3>> routes;
     if (!bot || !ctx)
@@ -1415,8 +1415,8 @@ std::vector<std::vector<G3D::Vector3>> DcTargeting::BossPatrolRoutesNear(
         Creature* c = map->GetCreature(boss.guid);
         if (!c || c == except || !c->IsAlive() || c->IsInCombat() || !bot->IsHostileTo(c))
             continue;
-        if (DungeonClearMath::DistToClosedRouteOnFloor2D(near.GetPositionX(), near.GetPositionY(),
-                                                         near.GetPositionZ(), boss.route,
+        if (DungeonClearMath::DistToClosedRouteOnFloor2D(point.GetPositionX(), point.GetPositionY(),
+                                                         point.GetPositionZ(), boss.route,
                                                          DC_Z_LEVEL_TOLERANCE) > range)
             continue;
         routes.push_back(boss.route);

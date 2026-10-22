@@ -316,7 +316,7 @@ public:
     // patrol is looked up from the map's creatures once per instance every 10 s.
     static std::vector<std::vector<G3D::Vector3>> BossPatrolRoutesNear(Player* bot,
                                                                        AiObjectContext* ctx,
-                                                                       Position const& near,
+                                                                       Position const& point,
                                                                        float range,
                                                                        Unit const* except);
 

@@ -125,11 +125,11 @@ namespace
         // Absolute tank<->member backstop (camp-anchored mode only): a stale
         // camp sitting where the party stands passes the anchored spread
         // forever while the tank glides away — cap the real gap too.
-        bool const far = spread > maxSpread ||
+        bool const tooFar = spread > maxSpread ||
                          (maxTankGap > 0.0f && bot->GetDistance(member) > maxTankGap);
         // Off the route by more than the spread itself is not "on it": the
         // player is then no nearer the tank's walk than an ordinary straggler.
-        return far && !IsHumanAheadOnRoute(bot, member, aheadRoute, maxSpread);
+        return tooFar && !IsHumanAheadOnRoute(bot, member, aheadRoute, maxSpread);
     }
 }
 
