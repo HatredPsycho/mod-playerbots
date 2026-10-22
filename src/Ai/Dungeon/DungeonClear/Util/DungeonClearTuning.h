@@ -80,6 +80,13 @@ constexpr uint32 DC_ENGAGE_WALK_TICK_GAP_MS = 2 * 1000;
 constexpr uint32 DC_BOSS_STANDOFF_TAG_GRACE_MS = 3000;
 constexpr float DC_BOSS_STANDOFF_TAG_RANGE = 40.0f;
 
+// How long the boss engage's patrol guard stays out of the way once it has let the
+// engage through (DcApproachState::bossPatrolCommit*): the tank's walk from the
+// standoff to the boss, ~30yd at run speed, with room to spare. A pull that has
+// not landed by then (the boss walked off, the walk-in was refused) is guarded
+// afresh.
+constexpr uint32 DC_BOSS_PATROL_COMMIT_MS = 10000;
+
 // How much closer the fresh blocking-trash pick must be than a quiet engage-trash
 // sticky before the sticky is dropped for it (DungeonClearMath::ShouldDropTrashSticky).
 // Wide enough that two roughly equidistant corridor mobs keep the sticky and never
