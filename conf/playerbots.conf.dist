@@ -2257,9 +2257,16 @@ AiPlayerbot.CoaLfgAnnounceMinutes = 10
 
 AiPlayerbot.CoaLfgAnnounceText =
 
+# Write the rare finds of the bots to the "playerbots.loot" logger.
+# Off by default: the hook runs on every bot loot, so a server that does not want
+# the lines should not pay for reading the item. Turn this on together with a
+# worldserver.conf logger that points "playerbots.loot" at an appender.
+# Default: 0 (disabled)
+AiPlayerbot.LootLog = 0
+
 # Quality a looted item must reach to be written to the "playerbots.loot" logger:
-# 3 rare (blue), 4 epic, 5 legendary. Nothing is written unless worldserver.conf
-# points that logger at an appender, and only bots are ever logged.
+# 3 rare (blue), 4 epic, 5 legendary. Only used when AiPlayerbot.LootLog is on;
+# only bots are ever logged.
 # Epics alone are far too rare to watch: a thousand bots grinding their way to 60
 # find a handful a day, where blues arrive all the time.
 # Default: 3 (rare)

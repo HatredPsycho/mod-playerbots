@@ -111,10 +111,13 @@ public:
     // What the bots bring back. Only the finds worth a line, and only from bots: a server watching
     // its bots wants to know what dropped, not to read every piece of linen cloth. The bar is
     // AiPlayerbot.LootLogMinQuality (3, rare, by default; 4 for epics only).
-    // Off unless worldserver.conf points "playerbots.loot" at an appender.
+    // Off unless AiPlayerbot.LootLog is on and worldserver.conf points "playerbots.loot" at an
+    // appender. Check both before touching the item: the hook also runs on servers that never
+    // asked for loot lines, and the item pointer comes from the loot path.
     void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid /*lootguid*/) override
     {
-        if (!player || !item || !GET_PLAYERBOT_AI(player))
+        if (!player || !item || !GET_PLAYERBOT_AI(player) || !sPlayerbotAIConfig.lootLog ||
+            !sLog->ShouldLog("playerbots.loot", LOG_LEVEL_INFO))
             return;
 
         ItemTemplate const* proto = item->GetTemplate();

@@ -2040,7 +2040,7 @@ uint32 PlayerbotFactory::InitTalentsTree(bool increment /*false*/, bool use_temp
         return GetWcrSpec(bot);
     }
 
-    uint32 specTab;
+    uint32 specTab = 0;
     uint8 cls = bot->getClass();
     std::map<uint8, uint32> tabs = AiFactory::GetPlayerSpecTabs(bot);
     uint32 total_tabs = tabs[0] + tabs[1] + tabs[2];
@@ -2056,7 +2056,9 @@ uint32 PlayerbotFactory::InitTalentsTree(bool increment /*false*/, bool use_temp
             {
                 uint32 bearP = sPlayerbotAIConfig.randomClassSpecProb[cls][1];
                 uint32 catP = sPlayerbotAIConfig.randomClassSpecProb[cls][3];
-                if (urand(1, bearP + catP) <= catP)
+                // A class may have no feral probabilities at all (a custom class, or an incomplete config);
+                // urand(1, 0) asserts in the core.
+                if (bearP + catP > 0 && urand(1, bearP + catP) <= catP)
                     isCat = true;
             }
             if (isCat)
@@ -2072,7 +2074,9 @@ uint32 PlayerbotFactory::InitTalentsTree(bool increment /*false*/, bool use_temp
         {
             pointSum += sPlayerbotAIConfig.randomClassSpecProb[cls][i];
         }
-        uint32 point = urand(1, pointSum);
+        // A class without probabilities (custom classes, an incomplete config) has no spec to roll:
+        // urand(1, 0) asserts in the core, so keep the first spec instead of crashing the world.
+        uint32 point = pointSum ? urand(1, pointSum) : 0;
         uint32 currentP = 0;
         int i;
         for (i = 0; i < MAX_SPECNO; i++)
@@ -2089,6 +2093,9 @@ uint32 PlayerbotFactory::InitTalentsTree(bool increment /*false*/, bool use_temp
             specTab = 0;
             LOG_ERROR("playerbots", "Fail to select spec num for bot {}! Set to 0.", bot->GetName());
         }
+        else if (!pointSum)
+            LOG_WARN("playerbots", "No spec probabilities for class {} (bot {}); using spec {}.",
+                     uint32(cls), bot->GetName(), specTab);
     }
     if (reset)
     {
