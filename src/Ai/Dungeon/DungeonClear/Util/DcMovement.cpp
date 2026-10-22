@@ -12,6 +12,7 @@
 #include "Log.h"
 #include "MotionMaster.h"
 #include "MoveSpline.h"
+#include "PathGenerator.h"
 #include "Player.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
@@ -295,6 +296,31 @@ namespace DcMovement
                   bot->GetName(), pts.size(), windowLen, net, runSpeed, delay,
                   pts.front().x, pts.front().y, pts.front().z,
                   pts.back().x, pts.back().y, pts.back().z);
+        return true;
+    }
+
+    bool LayOnNavmesh(Player* bot, Movement::PointsArray& pts)
+    {
+        if (!bot || pts.size() < 2)
+            return false;
+        Movement::PointsArray laid;
+        laid.reserve(pts.size() * 2);
+        laid.push_back(pts.front());
+        for (size_t i = 1; i < pts.size(); ++i)
+        {
+            G3D::Vector3 const& from = laid.back();
+            G3D::Vector3 const& to = pts[i];
+            PathGenerator leg(bot);
+            leg.CalculatePath(from.x, from.y, from.z, to.x, to.y, to.z, false);
+            if (leg.GetPathType() != PATHFIND_NORMAL)
+                break;
+            Movement::PointsArray const& legPoints = leg.GetPath();
+            for (size_t p = 1; p < legPoints.size(); ++p)
+                laid.push_back(legPoints[p]);
+        }
+        if (laid.size() < 2)
+            return false;
+        pts.swap(laid);
         return true;
     }
 }

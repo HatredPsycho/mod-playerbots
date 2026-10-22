@@ -113,6 +113,14 @@ namespace DcMovement
     bool SplinePath(PlayerbotAI* botAI, Movement::PointsArray& pts,
                     MovementPriority recordPrio = MovementPriority::MOVEMENT_NORMAL);
 
+    // Lay a waypoint window onto the navmesh before it is glided: every leg between
+    // consecutive points is replaced by its navmesh path, and the window ends at
+    // the last point reached by a complete (PATHFIND_NORMAL) path. A spline walks
+    // its legs as straight lines, so a window that turns a corner, a door frame or
+    // a stair landing between two points otherwise grinds into the wall or steps
+    // off the edge. Returns true iff at least two points remain.
+    bool LayOnNavmesh(Player* bot, Movement::PointsArray& pts);
+
     // The pause/teardown gate. False once the run is paused, so movement issuance
     // bails (the queued-action race fix). Exposed for the MoveTo funnel and for
     // the few actions that bail before doing non-movement work too.

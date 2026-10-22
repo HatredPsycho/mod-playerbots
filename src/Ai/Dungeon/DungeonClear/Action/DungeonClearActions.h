@@ -464,6 +464,14 @@ class DungeonClearFollowTankAction : public DcMovementAction
 public:
     DungeonClearFollowTankAction(PlayerbotAI* botAI) : DcMovementAction(botAI, "dungeon clear follow tank") {}
     bool Execute(Event event) override;
+
+private:
+    bool UnstickFromStall(Player* tank);
+
+    Position stallAnchor;
+    float stallBestDist = -1.0f;
+    uint32 stallSinceMs = 0;
+    uint32 lastUnstickMs = 0;
 };
 
 // ALL bots, non-combat — paired with DungeonClearRezPartyTrigger (which fires
