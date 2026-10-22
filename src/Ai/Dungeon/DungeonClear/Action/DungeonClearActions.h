@@ -20,6 +20,7 @@ class Unit;
 class Creature;
 class Map;
 struct DungeonBossInfo;
+struct BossAmbush;
 struct EventStep;
 struct DungeonEvent;
 struct DungeonEventProgress;
@@ -288,6 +289,10 @@ private:
         float bossX = 0.0f, bossY = 0.0f, bossZ = 0.0f;
         float engageDist = 0.0f, engageRange = 0.0f;
         bool atBoss = false;
+        // Ambush boss (BossAmbushRegistry) in force: the row, and the loaded boss
+        // whose live handle `liveBoss` then withholds. Both null otherwise.
+        BossAmbush const* ambush = nullptr;
+        Creature* ambushBoss = nullptr;
 
         DcApproachState* appr = nullptr;                    // owned approach FSM state
         ChunkedPathfinder::Result const* path = nullptr;    // resolved after EnsureLongPath
@@ -313,6 +318,10 @@ private:
     Step TryBetweenPullsRest(AdvanceState const& st);
     Step TryBossNotPresentStall(AdvanceState const& st);
     Step TryPatrollingBossHold(AdvanceState const& st);
+    Step TryAmbushHold(AdvanceState const& st);
+    // The ambush row for `next` when it applies this tick (see TryAmbushHold).
+    BossAmbush const* AmbushInForce(DcApproachState& appr, DungeonBossInfo const& next,
+                                    Creature* boss);
 
     // Single-observation approach tail (fable2 T2.2 / nav F10). Execute assembles
     // ONE DungeonClearApproach::Observation across three lazy stages (so the
