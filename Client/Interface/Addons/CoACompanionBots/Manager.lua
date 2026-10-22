@@ -1,7 +1,7 @@
 -- SquidBots Lite, bot sheet (beta): the gear, bags, quests and stats of one bot of the group, for players who
 -- keep a long-term party of alts. Everything goes through chat commands a player can whisper to their own
 -- bots ("c", "quests all", "stats", "e", "ue", "u", "s", "t", "mount", "bank", "drop", "co ?", "nc ?", "talents ?",
--- "trainer learn"); the gear is read by the client's own inspect.
+-- "trainer learn", "spells abilities"); the gear is read by the client's own inspect.
 
 local STRINGS = {
 	en = {
@@ -43,6 +43,8 @@ local STRINGS = {
 		T_NO_OPTIONS = "No talent to choose (CoA classes only, CoA Bots 2.1 or later).", T_SAVING = "Learning %d ranks...",
 		TRAIN = "Learn spells", TRAIN_NEED = "Target a trainer of the bot's class first, then click Learn spells.",
 		TRAIN_ASKED = "%s learns what %s teaches it, paid with its own gold. No answer: nothing to learn there.",
+		SPELLS = "Spells", NO_SPELLS = "No spell, or this server's CoA Bots cannot list them yet.",
+		SPELL_HINT = "Each spell at the highest rank the bot knows, without professions, mounts and pets. Shift-click: link it in chat.",
 	},
 	fr = {
 		TITLE = "Fiche du bot", GEAR = "Équipement", BAGS = "Sacs", QUESTS = "Quêtes", INFO = "Infos", REFRESH = "Actualiser",
@@ -83,6 +85,8 @@ local STRINGS = {
 		T_NO_OPTIONS = "Aucun talent à choisir (classes CoA seulement, CoA Bots 2.1 ou plus).", T_SAVING = "Apprentissage de %d rangs...",
 		TRAIN = "Apprendre sorts", TRAIN_NEED = "Ciblez d'abord un maître de la classe du bot, puis cliquez Apprendre sorts.",
 		TRAIN_ASKED = "%s apprend ce que %s lui enseigne, payé avec son propre or. Pas de réponse : rien à apprendre ici.",
+		SPELLS = "Sorts", NO_SPELLS = "Aucun sort, ou le CoA Bots de ce serveur ne sait pas encore les lister.",
+		SPELL_HINT = "Chaque sort au plus haut rang connu du bot, sans métiers, montures ni mascottes. Maj-clic : lien dans le chat.",
 	},
 }
 local function T(key)
@@ -95,7 +99,7 @@ local BACKDROP = { bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interfac
 -- The bot answers line by line; a listing is over once it stays quiet this long. The server drops a line it
 -- already sent in the last 2 s (AiPlayerbot.RepeatDelay), so a new request waits that long.
 local QUIET, GIVE_UP, REPEAT_DELAY = 0.7, 6, 2.1
-local BAG_COLS, BAG_ROWS, QUEST_ROWS, MOUNT_ROWS = 8, 6, 14, 11
+local BAG_COLS, BAG_ROWS, QUEST_ROWS, MOUNT_ROWS, SPELL_ROWS = 8, 6, 14, 11, 12
 -- Inventory slot ids of the 3.3.5 client, left column, right column, then weapons.
 local GEAR_LEFT = { 1, 2, 3, 15, 5, 4, 19, 9 }
 local GEAR_RIGHT = { 10, 6, 7, 8, 11, 12, 13, 14 }
@@ -118,6 +122,7 @@ local strats = { co = {}, nc = {} }
 local bagMode = "bags"
 local queue = {}
 local mountOffset = 0
+local spells, spellOffset = {}, 0
 
 local function Print(text)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Lite|r: " .. text)
@@ -194,6 +199,22 @@ local function ParseMounts(lines)
 				kind = line:match("|h|r (%a+)") or line:match("%] (%a+)"), preferred = line:find("(preferred)", 1, true) ~= nil })
 		end
 	end
+	return list
+end
+
+-- "spells abilities": one "|cffffffff|Hspell:ID|h[Name]|h|r" line per spell after "=== Spells ===".
+local function ParseSpells(lines)
+	local list = {}
+	for _, line in ipairs(lines) do
+		local id, name = line:match("^|c%x+|Hspell:(%d+)|h%[(.-)%]|h")
+		if id then
+			id = tonumber(id)
+			local clientName, rank, icon = GetSpellInfo(id)
+			table.insert(list, { id = id, link = line:match("^(|c%x+|Hspell:%d+|h%[.-%]|h|r)") or line,
+				name = clientName or name, rank = rank or "", icon = icon })
+		end
+	end
+	table.sort(list, function(a, b) return a.name < b.name end)
 	return list
 end
 
@@ -281,6 +302,9 @@ local function Finish()
 		mounts = ParseMounts(done.lines)
 		-- Same page after a choice (the list comes back in the same order); back to the top for another bot.
 		mountOffset = math.min(mountOffset, math.max(0, #mounts - MOUNT_ROWS))
+	elseif done.kind == "spells" then
+		spells = ParseSpells(done.lines)
+		spellOffset = 0
 	elseif done.kind == "bank" then
 		bank = ParseBags(done.lines)
 	elseif done.kind == "talents" then
@@ -1180,8 +1204,83 @@ RenderMounts = function(page)
 	if #mounts > MOUNT_ROWS then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
 end
 
+local RenderSpells
+
+local function BuildSpells(page)
+	page.rows = {}
+	for i = 1, SPELL_ROWS do
+		local row = CreateFrame("Button", nil, page)
+		row:SetWidth(370)
+		row:SetHeight(22)
+		row:SetPoint("TOPLEFT", 10, -(i - 1) * 24)
+		row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetWidth(20)
+		row.icon:SetHeight(20)
+		row.icon:SetPoint("LEFT", 2, 0)
+		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+		row.name:SetPoint("LEFT", 28, 0)
+		row.name:SetWidth(240)
+		row.name:SetJustifyH("LEFT")
+		row.rank = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		row.rank:SetPoint("LEFT", 272, 0)
+		row:SetScript("OnEnter", function(self)
+			if self.spell then
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:SetHyperlink("spell:" .. self.spell.id)
+				GameTooltip:Show()
+			end
+		end)
+		row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		row:SetScript("OnClick", function(self)
+			if self.spell and IsShiftKeyDown() then ChatEdit_InsertLink(self.spell.link) end
+		end)
+		row:EnableMouseWheel(true)
+		row:SetScript("OnMouseWheel", function(_, delta)
+			spellOffset = math.max(0, math.min(math.max(0, #spells - SPELL_ROWS), spellOffset - delta * 3))
+			RenderSpells(page)
+		end)
+		page.rows[i] = row
+	end
+	page.up = CreateFrame("Button", nil, page, "UIPanelScrollUpButtonTemplate")
+	page.up:SetPoint("TOPRIGHT", -6, 0)
+	page.up:SetScript("OnClick", function() spellOffset = math.max(0, spellOffset - SPELL_ROWS); RenderSpells(page) end)
+	page.down = CreateFrame("Button", nil, page, "UIPanelScrollDownButtonTemplate")
+	page.down:SetPoint("TOPRIGHT", -6, -(SPELL_ROWS * 24) + 16)
+	page.down:SetScript("OnClick", function()
+		if spellOffset + SPELL_ROWS < #spells then spellOffset = spellOffset + SPELL_ROWS end
+		RenderSpells(page)
+	end)
+	page.hint = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	page.hint:SetPoint("TOPLEFT", 14, -(SPELL_ROWS * 24) - 4)
+	page.hint:SetWidth(400)
+	page.hint:SetJustifyH("LEFT")
+	page.note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+	page.note:SetPoint("TOP", 0, -120)
+	page.note:SetWidth(340)
+end
+
+RenderSpells = function(page)
+	page.note:SetText(#spells == 0 and capture == nil and T("NO_SPELLS") or "")
+	page.hint:SetText(T("SPELL_HINT"))
+	for i, row in ipairs(page.rows) do
+		local sp = spells[spellOffset + i]
+		row.spell = sp
+		if sp then
+			row.icon:SetTexture(sp.icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+			row.name:SetText(sp.name)
+			row.rank:SetText(sp.rank)
+			row:Show()
+		else
+			row:Hide()
+		end
+	end
+	if #spells > SPELL_ROWS then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
+end
+
 local TABS = { { "gear", "GEAR", BuildGear }, { "bags", "BAGS", BuildBags }, { "quests", "QUESTS", BuildQuests },
-	{ "talents", "TALENTS", BuildTalents }, { "mounts", "MOUNTS", BuildMounts }, { "info", "INFO", BuildInfo } }
+	{ "talents", "TALENTS", BuildTalents }, { "spells", "SPELLS", BuildSpells }, { "mounts", "MOUNTS", BuildMounts },
+	{ "info", "INFO", BuildInfo } }
 -- The Strategies tab (BuildStrats) is kept out for now: too easy to break a bot with it (decision 12/10).
 -- Put { "strats", "STRATS", BuildStrats } back in TABS to show it.
 
@@ -1301,6 +1400,7 @@ Render = function()
 	elseif tab == "quests" then RenderQuests(pages.quests)
 	elseif tab == "mounts" then RenderMounts(pages.mounts)
 	elseif tab == "talents" then RenderTalents(pages.talents)
+	elseif tab == "spells" then RenderSpells(pages.spells)
 	elseif tab == "strats" then RenderStrats(pages.strats)
 	else RenderInfo(pages.info) end
 end
@@ -1318,6 +1418,8 @@ local function Load()
 		Ask("mounts", "mount ?")
 	elseif tab == "talents" then
 		Ask("talents", "talents ?")
+	elseif tab == "spells" then
+		Ask("spells", "spells abilities")
 	elseif tab == "strats" then
 		Ask("co", "co ?")
 		Ask("nc", "nc ?")
@@ -1356,9 +1458,9 @@ local function Build()
 	sheet.tabs = {}
 	for i, def in ipairs(TABS) do
 		local b = CreateFrame("Button", nil, sheet, "UIPanelButtonTemplate")
-		b:SetWidth(70)
+		b:SetWidth(60)
 		b:SetHeight(22)
-		b:SetPoint("TOPLEFT", 16 + (i - 1) * 73, -36)
+		b:SetPoint("TOPLEFT", 16 + (i - 1) * 62, -36)
 		b:SetScript("OnClick", function() tab = def[1]; Load() end)
 		sheet.tabs[def[1]] = b
 		local page = CreateFrame("Frame", nil, sheet)
@@ -1402,6 +1504,7 @@ function SquidBotsLite_OpenSheet(name)
 	if not sheet then Build() end
 	if current ~= name then
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
+		spells, spellOffset = {}, 0
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
 		bagMode = "bags"
