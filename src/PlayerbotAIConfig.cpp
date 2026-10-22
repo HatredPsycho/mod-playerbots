@@ -858,6 +858,7 @@ bool PlayerbotAIConfig::Initialize()
         for (std::string const& name : names)
             coaHealsExcluded.insert(name);
     }
+    lootLog = sConfigMgr->GetOption<bool>("AiPlayerbot.LootLog", false);
     lootLogMinQuality = sConfigMgr->GetOption<uint32>("AiPlayerbot.LootLogMinQuality", ITEM_QUALITY_RARE);
     autoLearnQuestSpells = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoLearnQuestSpells", true);
     autoTeleportForLevel = sConfigMgr->GetOption<bool>("AiPlayerbot.AutoTeleportForLevel", false);

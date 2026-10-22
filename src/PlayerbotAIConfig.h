@@ -474,6 +474,7 @@ public:
     std::set<uint32> coaExcludedSpecializations;
     std::set<uint32> coaOffensiveHealerSpecs;
     std::set<std::string> coaHealsExcluded;
+    bool lootLog;
     uint32 lootLogMinQuality;
     bool autoDoQuests;
     bool enableNewRpgStrategy;
