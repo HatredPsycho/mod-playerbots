@@ -341,20 +341,39 @@ bool DungeonClearMath::ShouldHoldForPatrol(bool contended, bool closing,
 }
 
 bool DungeonClearMath::IsPatrolMover(bool selfWaypoint, bool leaderWaypoint, bool isBoss,
-                                     bool bossWanders, bool movingNow)
+                                     bool bossWanders, bool movingNow, float bossRoam,
+                                     float bossReach)
 {
-    if (selfWaypoint || leaderWaypoint)
-        return true;
-    return isBoss && (bossWanders || movingNow);
+    if (!isBoss)
+        return selfWaypoint || leaderWaypoint;
+    if (selfWaypoint || leaderWaypoint || bossWanders)
+        return bossRoam > bossReach;
+    return movingNow;
+}
+
+float DungeonClearMath::BossRoamRadius2D(float hx, float hy,
+                                         std::vector<G3D::Vector3> const& route,
+                                         float wanderDist)
+{
+    float roam = std::max(wanderDist, 0.0f);
+    for (G3D::Vector3 const& n : route)
+        roam = std::max(roam, std::hypot(n.x - hx, n.y - hy));
+    return roam;
 }
 
 bool DungeonClearMath::IsPatrolPackmate(bool sameFormation, bool targetInFormation,
                                         bool candInFormation, bool linkedRespawn,
+                                        bool candIsBoss, bool candMoves,
                                         float distToTarget, float packRadius)
 {
-    if (sameFormation || linkedRespawn)
+    if (sameFormation)
         return true;
-    return !targetInFormation && !candInFormation && distToTarget <= packRadius;
+    if (candIsBoss)
+        return false;
+    bool const inPackRadius = distToTarget <= packRadius;
+    if (linkedRespawn && !candMoves && inPackRadius)
+        return true;
+    return !targetInFormation && !candInFormation && inPackRadius;
 }
 
 float DungeonClearMath::DistToClosedRoute2D(float px, float py,
@@ -370,6 +389,42 @@ float DungeonClearMath::DistToClosedRoute2D(float px, float py,
         best = std::min(best, DistSqToSegment2D(px, py, a.x, a.y, b.x, b.y));
     }
     return std::sqrt(best);
+}
+
+float DungeonClearMath::DistToClosedRouteOnFloor2D(float px, float py, float pz,
+                                                   std::vector<G3D::Vector3> const& route,
+                                                   float zTolerance)
+{
+    float best = std::numeric_limits<float>::max();
+    for (std::size_t i = 0; i < route.size(); ++i)
+    {
+        G3D::Vector3 const& a = route[i];
+        G3D::Vector3 const& b = route[(i + 1) % route.size()];
+        float const ex = b.x - a.x;
+        float const ey = b.y - a.y;
+        float const ez = b.z - a.z;
+        // The part of the leg on the point's floor: z is linear along it.
+        float lo = 0.0f;
+        float hi = 1.0f;
+        if (std::fabs(ez) > 1e-6f)
+        {
+            float const t1 = (pz - zTolerance - a.z) / ez;
+            float const t2 = (pz + zTolerance - a.z) / ez;
+            lo = std::max(lo, std::min(t1, t2));
+            hi = std::min(hi, std::max(t1, t2));
+            if (lo > hi)
+                continue;
+        }
+        else if (std::fabs(a.z - pz) > zTolerance)
+            continue;
+        float const len2 = ex * ex + ey * ey;
+        float t = len2 > 1e-6f ? ((px - a.x) * ex + (py - a.y) * ey) / len2 : 0.0f;
+        t = std::clamp(t, lo, hi);
+        float const dx = px - (a.x + t * ex);
+        float const dy = py - (a.y + t * ey);
+        best = std::min(best, std::sqrt(dx * dx + dy * dy));
+    }
+    return best;
 }
 
 bool DungeonClearMath::ShouldMusterForScriptedStage(bool stagePending, bool toppedUp,
@@ -656,6 +711,27 @@ bool DungeonClearMath::PathCursorIsJoinable(std::vector<G3D::Vector3> const& rou
     // 3D, for the same reason PathProgressCursor is: a vertex a storey overhead
     // is not one this bot can be joined to, however near it looks in plan view.
     return dx * dx + dy * dy + dz * dz <= maxGap * maxGap;
+}
+
+bool DungeonClearMath::IsAheadOnRoute(std::vector<G3D::Vector3> const& route,
+                                      float tankX, float tankY, float tankZ,
+                                      float memberX, float memberY, float memberZ,
+                                      float maxOffRoute, float tankMaxOffRoute,
+                                      std::size_t* memberCursor)
+{
+    if (route.size() < 2)
+        return false;
+
+    std::size_t const tankCursor = PathProgressCursor(route, tankX, tankY, tankZ);
+    std::size_t const cursor = PathProgressCursor(route, memberX, memberY, memberZ);
+    if (cursor <= tankCursor)
+        return false;
+    if (!PathCursorIsJoinable(route, tankCursor, tankX, tankY, tankZ, tankMaxOffRoute) ||
+        !PathCursorIsJoinable(route, cursor, memberX, memberY, memberZ, maxOffRoute))
+        return false;
+    if (memberCursor)
+        *memberCursor = cursor;
+    return true;
 }
 
 float DungeonClearMath::DoorTravelRemaining(std::vector<G3D::Vector3> const& route,

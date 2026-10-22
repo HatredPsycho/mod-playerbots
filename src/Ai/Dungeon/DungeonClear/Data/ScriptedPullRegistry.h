@@ -111,6 +111,16 @@ struct ScriptedPullStage
     // The stage only arms while this boss is the run's next objective, so the
     // plan can never fire on the way past the room after the boss is dead.
     uint32 bossEntry{0};
+    // A second objective the stage is also due under, 0 for none. Blackwing Lair's
+    // floor rows are due while Firemaw is next and again while Ebonroc is, so a
+    // pack left standing when Firemaw dies early is still pulled from its row.
+    uint32 alsoBossEntry{0};
+
+    // Is the stage due while `boss` is the run's next objective?
+    bool DueFor(uint32 boss) const
+    {
+        return boss != 0 && (boss == bossEntry || boss == alsoBossEntry);
+    }
     // Pull sequence within the map, ascending. Stage N+1 only arms once stage N's
     // volume holds no live pack member — i.e. once that pack has been peeled out
     // and killed. Must be unique per map (it is the stage's identity: the in-flight
@@ -297,6 +307,15 @@ struct ScriptedPullStage
     // for him to walk off instead. Live (the 10/21 run): a pack tagged in his path had
     // Firemaw in the fight 41s later, and the next pack 33s after that.
     bool patrolGuard{false};
+
+    // With patrolGuard: the only creature entries the guard holds the tag for. Empty
+    // holds for any patrol. The halls' floor rows name Firemaw alone: every other
+    // walker there is a pack's own Overseer on a two-point path inside its own
+    // cylinder, 9yd+ short of the next pack, and holding each tag for whichever one
+    // was paused on a waypoint (paused reads as closing) spent the soft budget and
+    // often the hard cap on every pull. Live (10/21 evening): 50-71s between floor
+    // pulls with the raid already standing at the camp.
+    std::vector<uint32> patrolGuardEntries;
 };
 
 // Vertical tolerance, in yards, for the arm-range test (a bot on the room's floor

@@ -80,6 +80,20 @@ constexpr uint32 DC_ENGAGE_WALK_TICK_GAP_MS = 2 * 1000;
 constexpr uint32 DC_BOSS_STANDOFF_TAG_GRACE_MS = 3000;
 constexpr float DC_BOSS_STANDOFF_TAG_RANGE = 40.0f;
 
+// How long the boss engage's patrol guard stays out of the way once it has let the
+// engage through (DcApproachState::bossPatrolCommit*): the tank's walk from the
+// standoff to the boss, ~30yd at run speed, with room to spare. A pull that has
+// not landed by then (the boss walked off, the walk-in was refused) is guarded
+// afresh. While the tank is still moving the commit holds up to
+// DC_BOSS_PATROL_COMMIT_MAX_MS, for a walk-in that has to catch a walking boss.
+constexpr uint32 DC_BOSS_PATROL_COMMIT_MS = 10000;
+constexpr uint32 DC_BOSS_PATROL_COMMIT_MAX_MS = 20000;
+
+// Advance holds short of a patrolling boss who is standing by another boss
+// (DcEngageGeometry::PatrollingBossNearOtherBoss) only once the tank is this close
+// to him (2D yd). Further out the walk in is the time he needs to move on.
+constexpr float DC_PATROL_BOSS_HOLD_RANGE = 100.0f;
+
 // How much closer the fresh blocking-trash pick must be than a quiet engage-trash
 // sticky before the sticky is dropped for it (DungeonClearMath::ShouldDropTrashSticky).
 // Wide enough that two roughly equidistant corridor mobs keep the sticky and never
@@ -398,6 +412,12 @@ constexpr float DC_EVENT_GATE_BAND = 12.0f;
 // Shared by IsLevelReachable (trash), IsAtBossEngage (boss-arrival floor guard),
 // and the dynamic-pull classification.
 constexpr float DC_Z_LEVEL_TOLERANCE = 5.0f;
+
+// On a raid map, a patrolling boss whose loop passes this close to a pulled pack
+// (2D, on its floor; plus the camp's drag) keeps the camp clear of its whole route
+// (DcTargeting::BossPatrolRoutesNear): Baron Geddon runs a ~554yd loop in ~35s,
+// and a trash fight held near any leg of it collects him when he comes round.
+constexpr float DC_BOSS_PATROL_CAMP_RANGE = 100.0f;
 
 // Vertical half-band for matching a trash candidate to a leg of the corridor in
 // the blocking-trash scans. The corridor band test is otherwise 2D, so a mob at

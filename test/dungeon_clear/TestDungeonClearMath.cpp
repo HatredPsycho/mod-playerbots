@@ -1487,26 +1487,70 @@ using DungeonClearMath::IsPatrolPackmate;
 
 TEST(DungeonClearPatrolGuardTest, WhoMovesOnItsOwn)
 {
-    EXPECT_TRUE(IsPatrolMover(true, false, false, false, false));   // waypoint mover
-    EXPECT_TRUE(IsPatrolMover(false, true, false, false, false));   // Lucifron's Protector
-    EXPECT_TRUE(IsPatrolMover(false, false, true, true, false));    // wandering boss
-    EXPECT_TRUE(IsPatrolMover(false, false, true, false, true));    // boss walking now
-    EXPECT_FALSE(IsPatrolMover(false, false, true, false, false));  // parked boss: skirt's job
-    EXPECT_FALSE(IsPatrolMover(false, false, false, true, true));   // wandering trash
+    // Args: selfWaypoint, leaderWaypoint, isBoss, bossWanders, movingNow,
+    //       bossRoam, bossReach.
+    EXPECT_TRUE(IsPatrolMover(true, false, false, false, false, 0.0f, 0.0f));   // waypoint mover
+    EXPECT_TRUE(IsPatrolMover(false, true, false, false, false, 0.0f, 0.0f));   // Lucifron's Protector
+    EXPECT_FALSE(IsPatrolMover(false, false, false, true, true, 0.0f, 0.0f));   // wandering trash
+    EXPECT_FALSE(IsPatrolMover(false, false, true, false, false, 0.0f, 31.0f)); // parked boss: skirt's job
+    EXPECT_TRUE(IsPatrolMover(false, false, true, false, true, 0.0f, 31.0f));   // boss on a scripted walk
+}
+
+// Molten Core: a boss counts only when his DB movement leaves his own reach.
+TEST(DungeonClearPatrolGuardTest, ABossPatrolsOnlyOutOfHisOwnReach)
+{
+    EXPECT_TRUE(IsPatrolMover(true, false, true, false, true, 48.1f, 31.0f));   // Lucifron's loop
+    EXPECT_TRUE(IsPatrolMover(true, false, true, false, true, 238.5f, 34.5f));  // Baron Geddon
+    EXPECT_FALSE(IsPatrolMover(true, false, true, false, true, 10.6f, 31.0f));  // Shazzrah's circle
+    EXPECT_FALSE(IsPatrolMover(false, false, true, true, true, 10.0f, 31.0f));  // Garr's wander
+    EXPECT_TRUE(IsPatrolMover(false, false, true, true, false, 45.0f, 31.0f));  // a wide wanderer
+
+    using DungeonClearMath::BossRoamRadius2D;
+    // Shazzrah's path 566080 around his spawn (587.303, -801.975).
+    std::vector<G3D::Vector3> const shaz{
+        {587.303f, -801.975f, 0}, {588.81f, -806.266f, 0}, {587.384f, -811.33f, 0},
+        {583.152f, -811.696f, 0}, {579.211f, -806.674f, 0}, {579.077f, -804.346f, 0},
+        {580.017f, -800.603f, 0}, {583.49f, -799.755f, 0}};
+    EXPECT_NEAR(BossRoamRadius2D(587.303f, -801.975f, shaz, 0.0f), 10.57f, 0.05f);
+    EXPECT_FLOAT_EQ(BossRoamRadius2D(691.0f, -498.4f, {}, 10.0f), 10.0f);        // Garr
+    EXPECT_FLOAT_EQ(BossRoamRadius2D(0.0f, 0.0f, {}, 0.0f), 0.0f);               // stands still
+    EXPECT_FLOAT_EQ(BossRoamRadius2D(0.0f, 0.0f, {{3.0f, 4.0f, 9.0f}}, 2.0f), 5.0f);
 }
 
 TEST(DungeonClearPatrolGuardTest, PackmatesAreNeverThreats)
 {
-    // Same formation, or linked respawn: part of the pull.
-    EXPECT_TRUE(IsPatrolPackmate(true, true, true, false, 30.0f, 12.0f));
-    EXPECT_TRUE(IsPatrolPackmate(false, true, false, true, 30.0f, 12.0f));
+    // Args: sameFormation, targetInFormation, candInFormation, linkedRespawn,
+    //       candIsBoss, candMoves, distToTarget, packRadius.
+    // Same formation: part of the pull, boss or not (Garr's Firesworn, Lucifron's
+    // Protectors).
+    EXPECT_TRUE(IsPatrolPackmate(true, true, true, false, false, true, 30.0f, 12.0f));
+    EXPECT_TRUE(IsPatrolPackmate(true, true, true, false, true, true, 30.0f, 12.0f));
     // A loose pack of individual waypoint movers (no formations) within 12yd.
-    EXPECT_TRUE(IsPatrolPackmate(false, false, false, false, 8.0f, 12.0f));
-    EXPECT_FALSE(IsPatrolPackmate(false, false, false, false, 14.0f, 12.0f));
+    EXPECT_TRUE(IsPatrolPackmate(false, false, false, false, false, true, 8.0f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, false, false, false, false, true, 14.0f, 12.0f));
     // Lucifron's formation 8.6yd from a hound formation: a threat, not a packmate.
-    EXPECT_FALSE(IsPatrolPackmate(false, true, true, false, 8.6f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, true, true, false, true, true, 8.6f, 12.0f));
     // A formation-less patrol passing a formation pack: a threat.
-    EXPECT_FALSE(IsPatrolPackmate(false, true, false, false, 6.0f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, true, false, false, false, true, 6.0f, 12.0f));
+}
+
+// creature_linked_respawn is a respawn dependency, not a pull: Molten Core links 30
+// trash to Baron Geddon, and he walked into their pulls (2026-10 logs).
+TEST(DungeonClearPatrolGuardTest, ALinkedRespawnNeverVouchesForAMoverOrABoss)
+{
+    // Geddon, formation-less and patrolling, linked to the pack: a threat at any
+    // distance, even walking right through a formation-less pack.
+    EXPECT_FALSE(IsPatrolPackmate(false, true, false, true, true, true, 30.0f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, false, false, true, true, true, 6.0f, 12.0f));
+    // A linked trash patroller (an Ancient Core Hound linked to Magmadar's pack):
+    // the link alone does not make it a packmate.
+    EXPECT_FALSE(IsPatrolPackmate(false, true, false, true, false, true, 6.0f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, false, false, true, false, true, 30.0f, 12.0f));
+    // A linked mob that stays put counts only within the pack radius.
+    EXPECT_TRUE(IsPatrolPackmate(false, true, false, true, false, false, 10.0f, 12.0f));
+    EXPECT_FALSE(IsPatrolPackmate(false, true, false, true, false, false, 30.0f, 12.0f));
+    // A boss is never a packmate by proximity either.
+    EXPECT_FALSE(IsPatrolPackmate(false, false, false, false, true, true, 4.0f, 12.0f));
 }
 
 TEST(DungeonClearPatrolGuardTest, RecedingMeansNoCloserAtTheDestination)
@@ -1540,6 +1584,26 @@ TEST(DungeonClearPatrolGuardTest, DistanceToAClosedPatrolRoute)
     // Degenerate routes.
     EXPECT_EQ(DistToClosedRoute2D(0.0f, 0.0f, {}), std::numeric_limits<float>::max());
     EXPECT_NEAR(DistToClosedRoute2D(3.0f, 4.0f, {{0, 0, 0}}), 5.0f, 1e-4f);
+}
+
+// A boss loop on the camp's floor binds; the same loop on a ledge overhead doesn't.
+TEST(DungeonClearPatrolGuardTest, DistanceToAPatrolRouteOnTheSameFloor)
+{
+    using DungeonClearMath::DistToClosedRouteOnFloor2D;
+    // A square loop at z 0, 100yd on a side.
+    std::vector<G3D::Vector3> const loop{{0, 0, 0}, {100, 0, 0}, {100, 100, 0}, {0, 100, 0}};
+    EXPECT_NEAR(DistToClosedRouteOnFloor2D(50.0f, 20.0f, 1.0f, loop, 5.0f), 20.0f, 1e-3f);
+    // 12yd below every leg: no leg on its floor.
+    EXPECT_EQ(DistToClosedRouteOnFloor2D(50.0f, 20.0f, -12.0f, loop, 5.0f),
+              std::numeric_limits<float>::max());
+    // A ramp leg: z interpolated where the leg comes closest. (50, -10) is closest to
+    // (50, 0), halfway up a leg from z 0 to z 20, so at z 10.
+    std::vector<G3D::Vector3> const ramp{{0, 0, 0}, {100, 0, 20}, {100, 100, 20}, {0, 100, 0}};
+    EXPECT_NEAR(DistToClosedRouteOnFloor2D(50.0f, -10.0f, 10.0f, ramp, 5.0f), 10.0f, 1e-3f);
+    // From z 0 that point of the ramp is 10yd up, but the foot of the ramp (up to z 5,
+    // x <= 25) is on its floor: (25, 0) is 26.9yd away.
+    EXPECT_NEAR(DistToClosedRouteOnFloor2D(50.0f, -10.0f, 0.0f, ramp, 5.0f), 26.93f, 0.01f);
+    EXPECT_EQ(DistToClosedRouteOnFloor2D(0.0f, 0.0f, 0.0f, {}, 5.0f), std::numeric_limits<float>::max());
 }
 
 // --- ShouldHandoffFizzledPull (advanced-pull engage-fizzle latch) ----------
@@ -2493,6 +2557,100 @@ TEST(DungeonClearPathCursorTest, FlatRouteIsUnaffectedByTheZTerm)
     };
     EXPECT_EQ(DungeonClearMath::PathProgressCursor(flat, 11.0f, 2.0f, 100.0f), 1u);
     EXPECT_EQ(DungeonClearMath::PathProgressCursor(flat, 19.0f, -3.0f, 100.5f), 2u);
+}
+
+// ---------------------------------------------------------------------------
+// IsAheadOnRoute — a member out past the tank on the route it is about to walk.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+    std::vector<G3D::Vector3> CorridorRoute()
+    {
+        return {
+            G3D::Vector3(0.0f, 0.0f, 100.0f),
+            G3D::Vector3(20.0f, 0.0f, 100.0f),
+            G3D::Vector3(40.0f, 0.0f, 100.0f),
+            G3D::Vector3(60.0f, 0.0f, 100.0f),
+            G3D::Vector3(80.0f, 0.0f, 100.0f),
+        };
+    }
+}
+
+TEST(DungeonClearAheadOnRouteTest, MemberAtTheNextPackIsAhead)
+{
+    // Tank at the start, the player 60yd on down the corridor.
+    EXPECT_TRUE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                 1.0f, 0.0f, 100.0f,
+                                                 61.0f, 2.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, MemberLeftBehindIsNotAhead)
+{
+    // The same 60yd gap the other way round: the tank is the one ahead.
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                  61.0f, 0.0f, 100.0f,
+                                                  1.0f, 2.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, MemberOnTheTanksVertexIsNotAhead)
+{
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                  40.0f, 0.0f, 100.0f,
+                                                  42.0f, 3.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, MemberFarOffTheRouteIsNotAhead)
+{
+    // Level with the far end of the route, but 50yd off to the side.
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                  1.0f, 0.0f, 100.0f,
+                                                  60.0f, 50.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, MemberOnTheFloorAboveIsNotAhead)
+{
+    // Directly over the far end of the corridor, one storey up: close in plan
+    // view, nowhere near the route in 3D.
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                  1.0f, 0.0f, 100.0f,
+                                                  60.0f, 0.0f, 140.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, PastTheEndOfTheRouteIsAhead)
+{
+    // Standing at the boss, a little beyond the route's last vertex.
+    EXPECT_TRUE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                 1.0f, 0.0f, 100.0f,
+                                                 90.0f, 0.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, TankFarOffTheRouteComparesNothing)
+{
+    // The tank was dragged 60yd off the corridor by a fight; its nearest vertex
+    // says nothing about how far along the walk it is.
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                  1.0f, 60.0f, 100.0f,
+                                                  61.0f, 2.0f, 100.0f, 25.0f, 45.0f));
+}
+
+TEST(DungeonClearAheadOnRouteTest, ReportsTheMembersCursor)
+{
+    std::size_t cursor = 0;
+    EXPECT_TRUE(DungeonClearMath::IsAheadOnRoute(CorridorRoute(),
+                                                 1.0f, 0.0f, 100.0f,
+                                                 61.0f, 2.0f, 100.0f, 25.0f, 45.0f,
+                                                 &cursor));
+    EXPECT_EQ(cursor, 3u);
+}
+
+TEST(DungeonClearAheadOnRouteTest, TooShortARouteIsNeverAhead)
+{
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute({}, 0.0f, 0.0f, 0.0f,
+                                                  50.0f, 0.0f, 0.0f, 25.0f, 45.0f));
+    EXPECT_FALSE(DungeonClearMath::IsAheadOnRoute({G3D::Vector3(0.0f, 0.0f, 0.0f)},
+                                                  0.0f, 0.0f, 0.0f,
+                                                  5.0f, 0.0f, 0.0f, 25.0f, 45.0f));
 }
 
 // ---------------------------------------------------------------------------
@@ -3526,6 +3684,65 @@ TEST(DungeonClearStraightPullTest, WalkToTheStandSpotCountsAgainstTheMargin)
                                                                 l.standX, l.standY);
         EXPECT_LE(l.margin, walk - 25.0f + 1e-3f);
     }
+}
+
+TEST(DungeonClearStraightPullTest, FirstMarginCountsTheFirstKeepAwayAlone)
+{
+    // Molten Core, 2026-10-21: every hound pack round Lucifron was refused and the
+    // last resort walked the tank 25yd past him (keep 40). The boss is the first
+    // keep-away; firstMargin is the lane against him alone, the last resort's
+    // floor. Pack at the origin, tank 40yd east; the boss north of the walk out,
+    // a second pack right on the west lane.
+    std::vector<DungeonClearMath::LaneKeepAway> const keep = {{20.0f, 30.0f, 25.0f},
+                                                              {-30.0f, 0.0f, 20.0f}};
+    auto const lanes = DungeonClearMath::RankStraightPullLanes(
+        0, 0, 40.0f, 0, 20.0f, 25.0f, 12.5f, keep, false, 0, 0, 0, 0);
+    ASSERT_FALSE(lanes.empty());
+    bool sawPackOnly = false;
+    for (auto const& l : lanes)
+    {
+        EXPECT_GE(l.firstMargin, l.margin - 1e-3f);
+        float boss = DungeonClearMath::PointSegmentDist2d(20.0f, 30.0f, l.standX, l.standY,
+                                                          l.campX, l.campY);
+        boss = std::min(boss, DungeonClearMath::PointSegmentDist2d(20.0f, 30.0f, 40.0f, 0,
+                                                                   l.standX, l.standY));
+        EXPECT_NEAR(l.firstMargin, std::min(boss - 25.0f, DungeonClearMath::StraightPullMarginCap),
+                    1e-3f);
+        // A lane only the other pack spoils: unclean, yet clear of the boss.
+        if (l.margin < 0.0f && l.firstMargin >= 0.0f)
+            sawPackOnly = true;
+    }
+    EXPECT_TRUE(sawPackOnly);
+}
+
+TEST(DungeonClearStraightPullTest, FirstMarginCountsTheWalkFromInsideTheBossKeep)
+{
+    // A tank waiting out a patrolling boss can end up inside his keep as he walks
+    // by. The margin leaves that walk out (it would sink every lane alike), but the
+    // boss's own margin keeps it: the walk out to the stand spot must still clear
+    // him. Boss 10yd north of the tank (keep 25), pack 40yd west.
+    std::vector<DungeonClearMath::LaneKeepAway> const keep = {{0.0f, 10.0f, 25.0f}};
+    auto const lanes = DungeonClearMath::RankStraightPullLanes(
+        -40.0f, 0, 0, 0, 20.0f, 25.0f, 12.5f, keep, false, 0, 0, 0, 0);
+    ASSERT_FALSE(lanes.empty());
+    for (auto const& l : lanes)
+    {
+        float const walk = DungeonClearMath::PointSegmentDist2d(0.0f, 10.0f, 0, 0,
+                                                                l.standX, l.standY);
+        EXPECT_LE(l.firstMargin, walk - 25.0f + 1e-3f);
+        EXPECT_LE(l.firstMargin, l.margin + 1e-3f);
+        EXPECT_LT(l.firstMargin, 0.0f);  // every walk starts 10yd from him
+    }
+}
+
+TEST(DungeonClearStraightPullTest, FirstMarginWithNoKeepAwaysIsTheCap)
+{
+    std::vector<DungeonClearMath::LaneKeepAway> const none;
+    auto const lanes = DungeonClearMath::RankStraightPullLanes(
+        0, 0, 0, -50.0f, 20.0f, 25.0f, 12.5f, none, false, 0, 0, 0, 0);
+    ASSERT_FALSE(lanes.empty());
+    for (auto const& l : lanes)
+        EXPECT_EQ(l.firstMargin, DungeonClearMath::StraightPullMarginCap);
 }
 
 TEST(DungeonClearStraightPullTest, AKeepAwayTheTankStandsInDoesNotSinkEveryWalk)

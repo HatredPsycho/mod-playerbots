@@ -5,12 +5,15 @@
 
 #include "Ai/Dungeon/DungeonClear/Data/Events/DungeonEventTables.h"
 #include "Ai/Dungeon/DungeonClear/Data/Events/DungeonRosterBuilders.h"
+#include "Ai/Dungeon/DungeonClear/Overrides/ObjectiveHookRegistry.h"
 
 // --- Molten Core (map 409) — raid-support Plan E1, the pilot raid ----------
 //
 // AUTHORED FROM THE CORE SCRIPTS (instance_molten_core.cpp,
 // boss_majordomo_executus.cpp, boss_ragnaros.cpp); not yet validated live —
-// the first `.dc test start mc size=10` runs are the acceptance test.
+// the first `.dc test start mc size=10` runs are the acceptance test. The
+// gossip chain below was checked against the world DB's gossip_menu_option
+// rows (2026-10-21), not in game.
 //
 // Eight static bosses auto-derive from BossSpawnIndex (kill-credit rows +
 // creature spawns, DBC bits 0-7) and need nothing here. The finale is two
@@ -30,8 +33,14 @@
 //     which will never exist. Engaging him normally starts the add fight; the
 //     playerbots `moltencore` strategy target-excludes Majordomo himself, so
 //     the raid fights the adds while the boss stand-down keeps DC's hands off.
-//   * RAGNAROS (11502, boss-state slot 9). Summoned only by GOSSIP (menu 4108,
-//     option 0) on the teleported, friendly Majordomo. ~48s of scripted RP
+//   * RAGNAROS (11502, boss-state slot 9). Summoned only by GOSSIP on the
+//     teleported, friendly Majordomo. His creature_template gossip_menu_id is
+//     4093, and the summon is three menus deep, option 0 at each:
+//     4093 "Tell me more." -> 4109 "What else do you have to say?" -> 4108
+//     "You challenged us and we have come..." — the script's sGossipSelect
+//     acts only on a select from menu 4108. The Gossip step clicks option 0 of
+//     the first and SelectGossip drills the rest (DB submenus change the menu
+//     id, so the drill-down sees each one). ~48s of scripted RP
 //     during which he is immune, then HE pulls the whole raid
 //     (DoZoneInCombat). The summon is DC's job: an objective anchor at
 //     Majordomo's Ragnaros-side position drives the gossip and waits for the
@@ -46,10 +55,14 @@
 // misread another boss's bit.
 //
 // Known combat losses accepted for v1 (the strategy's, not DC's): Magmadar
-// fear chaos and Ragnaros knockback/submerge inefficiency. Muster refinement
-// for the pre-gossip stage (the Plan C muster arms at BOSS anchors, so the
-// summon objective itself gets only the ordinary between-pulls readiness plus
-// the leading dwell below) is deliberately left to live iteration.
+// fear chaos and Ragnaros knockback/submerge inefficiency.
+//
+// The pre-gossip muster: the Plan C raid muster arms only at BOSS anchors, and
+// the summon is an objective, so on its own the raid would get nothing but the
+// ordinary between-pulls readiness before Ragnaros zone-pulls it. The event
+// opens with the raid muster hook (DC_HOOK_RAID_MUSTER, as Nightbane's urn and
+// Nefarian's gossip do): staged on the tank, topped off, rebuffed, before the
+// click.
 
 namespace
 {
@@ -57,6 +70,8 @@ namespace
 
     constexpr uint32 kMajordomo = 12018;
     constexpr uint32 kRagnaros  = 11502;
+    constexpr uint32 kShazzrah  = 12264;
+    constexpr uint32 kGeddon    = 12056;
 
     // molten_core.h boss-state slots.
     constexpr int32 kSlotMajordomo = 8;
@@ -75,11 +90,11 @@ namespace
 
 void RegisterMoltenCoreEvents(std::vector<DungeonEvent>& out)
 {
-    // Summon Ragnaros: dwell so the raid closes up at the anchor, gossip the
-    // friendly Majordomo (menu 4108 option 0 — the only option he offers
-    // there), then hold through the ~48s scripted intro until Ragnaros is a
-    // live unit. He zone-pulls the raid himself when the RP ends, which arms
-    // the boss stand-down; the boss anchor after this objective owns the rest.
+    // Summon Ragnaros: muster the raid at the anchor, dwell, gossip the
+    // friendly Majordomo (option 0 through 4093 -> 4109 -> 4108, see above),
+    // then hold through the ~48s scripted intro until Ragnaros is a live unit.
+    // He zone-pulls the raid himself when the RP ends, which arms the boss
+    // stand-down; the boss anchor after this objective owns the rest.
     DungeonEvent ev;
     ev.mapId = kMapId;
     ev.id = kEventSummonRagnaros;
@@ -87,6 +102,12 @@ void RegisterMoltenCoreEvents(std::vector<DungeonEvent>& out)
     ev.activation = EventActivation::Anchored;
     ev.orderIndex = 9;
     ev.required = true;
+
+    EventStep muster;
+    muster.kind = EventStepKind::Custom;
+    muster.hookId = DC_HOOK_RAID_MUSTER;
+    muster.timeoutMs = 240000;
+    ev.steps.push_back(muster);
 
     EventStep dwell;
     dwell.kind = EventStepKind::Wait;
@@ -130,7 +151,23 @@ void RegisterMoltenCoreRoster(std::vector<BossRosterPatch>& t)
     p.mapId = kMapId;
 
     // The eight statics keep their derived DBC order (bits 0-7 match the
-    // classic clear path). The finale slots in after them.
+    // classic clear path) but for one swap: Baron Geddon (bit 5) before
+    // Shazzrah (bit 4). Geddon RUNS a ~554yd loop (path 566550, move_type 1 on
+    // every node, ~16yd/s, ~35s a lap) from the top of his ramp down past
+    // Shazzrah, 8.8yd from his spawn, and back. Shazzrah first meant the raid
+    // waiting at Shazzrah, and fighting him, on that loop: Geddon came into the
+    // Shazzrah pull. Geddon first means he is fought at the top of his ramp,
+    // 234yd from Shazzrah: he cannot be chased, so the raid waits for him on his
+    // loop (BossAmbushRegistry) — and while he is by Shazzrah it neither chases
+    // nor pulls him (DcEngageGeometry::PatrollingBossNearOtherBoss) — and
+    // Shazzrah after him has nobody running in. Their kill bits are untouched;
+    // only the clear order key moves.
+    p.reorder = {
+        { kGeddon,   4 },
+        { kShazzrah, 5 },
+    };
+
+    // The finale slots in after them.
     p.add.push_back(MakeBoss(kMajordomo, kMapId, "Majordomo Executus",
                              kMajX, kMajY, kMajZ, /*completionFrom*/ 0,
                              /*orderOverride*/ 8, kSlotMajordomo));

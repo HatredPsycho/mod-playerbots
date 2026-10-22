@@ -1521,7 +1521,13 @@ end
 local function IsCompactFrame(frame)
 	-- A CompactUnitFrame: a unit and a "healthBar" (the old party and target frames have "healthbar"). Ascension's
 	-- CompactRaidFrameN have no "name" field.
-	return frame.healthBar and CompactUnit(frame)
+	-- A nameplate carries a healthBar and a unit of its own ("nameplate1"): only the frames of the group are ours,
+	-- and a nameplate's strata reads back as "UNKNOWN", which SetFrameStrata then refuses.
+	local unit = frame.healthBar and CompactUnit(frame)
+	if not unit or not (unit == "player" or string.find(unit, "^party%d") or string.find(unit, "^raid%d")) then
+		return nil
+	end
+	return unit
 end
 
 local function CompactOverlay(frame)
@@ -1574,7 +1580,9 @@ local function RefreshCompactOverlays()
 		local name = unit and not UnitIsUnit(unit, "player") and UnitName(unit)
 		if name then
 			overlay.unit = unit
-			overlay:SetFrameStrata(frame:GetFrameStrata())
+			-- A frame can report a strata SetFrameStrata does not take back ("UNKNOWN"): keep the one we have.
+			local strata = frame:GetFrameStrata()
+			if strata and strata ~= "UNKNOWN" then overlay:SetFrameStrata(strata) end
 			overlay:SetFrameLevel(frame:GetFrameLevel() + 10)
 			if frame.roleIcon then frame.roleIcon:SetAlpha(0) end
 			SetRoleIcon(overlay.icon, roleByName[name] or "none")
@@ -2369,6 +2377,10 @@ local function OnWhisper(message, sender)
 				break
 			end
 		end
+	end
+	-- A Wildcard Hero offers itself as "Hero" (class 10), in no class list above.
+	if not class and message:find("Hero", 1, true) then
+		class = SquidBotsLiteDB.lang == "fr" and "Héros" or "Hero"
 	end
 	local lower = string.lower(message)
 	if not class or not (lower:find("invite") or lower:find("service") or lower:find("ready") or lower:find("available") or lower:find("looking")) then

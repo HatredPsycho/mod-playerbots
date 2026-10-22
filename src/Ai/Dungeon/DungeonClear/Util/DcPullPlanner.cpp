@@ -439,6 +439,17 @@ bool DcPullPlanner::ClassifyPullAdvanced(PlayerbotAI* botAI, Unit* target,
     // Stage 2: linked respawn (secondary). Only bridges two candidates when at
     // least one carries no formation pack yet, and never overwrites an existing
     // formation pack — formations stay authoritative.
+    //
+    // INERT AS WRITTEN, and must not simply be "fixed". creature_linked_respawn
+    // is keyed by the spawn's DB guid, ObjectGuid::Create<HighGuid::Unit>(entry,
+    // spawnId) (ObjectMgr::LoadLinkedRespawn), while c->GetGUID() is the live
+    // guid the map generated, so the lookup below never finds a row and this
+    // stage has never bridged anything (DcEngageGeometry's patrol packmate check
+    // builds the DB guid correctly). A corrected lookup must also skip links
+    // whose master is a boss: in Molten Core every link is trash -> boss (47
+    // Flame Imps to Lucifron, 30 trash to Baron Geddon, 52 to Magmadar, ...), so
+    // a plain DB-guid lookup would make each boss and all its linked trash one
+    // pack. With the boss links skipped, Molten Core has no link left at all.
     for (std::size_t i = 0; i < hostiles.size(); ++i)
     {
         Creature* c = hostiles[i]->ToCreature();
@@ -1136,8 +1147,18 @@ std::optional<Position> DcPullPlanner::ComputeSafeCamp(PlayerbotAI* botAI, Unit*
     // route, or the camp lands 40yd from him on the leg he walks next. Empty
     // (no-op) unless a room-clear is active for a boss that walks a DB path.
     std::vector<G3D::Vector3> const bossRoute = DcTargeting::ActiveRoomPatrolRoute(bot, ctx);
+    // Any other patrolling boss whose loop comes near the pack (Baron Geddon's): the
+    // same, whether or not his room is the one being cleared. Measured on the camp's
+    // floor, so a loop on a ledge overhead doesn't push the camp back.
+    // The camp can end up maxDrag from the pack, so the routes are collected that
+    // much further out. The drag itself is not widened for them: the patrol guard
+    // and the party-ready spread are sized to it. A pack on the route itself, with
+    // the tank's trail along it, finds no clear crumb and takes the farthest one;
+    // that pull still rests on the patrol guard's timing.
+    std::vector<std::vector<G3D::Vector3>> const patrolRoutes = DcTargeting::BossPatrolRoutesNear(
+        bot, ctx, target->GetPosition(), DC_BOSS_PATROL_CAMP_RANGE + maxDrag, target);
 
-    auto clearanceAt = [&others, &bossRoute](Position const& p) -> float
+    auto clearanceAt = [&others, &bossRoute, &patrolRoutes](Position const& p) -> float
     {
         float nearest = std::numeric_limits<float>::max();
         for (Unit* u : others)
@@ -1145,6 +1166,10 @@ std::optional<Position> DcPullPlanner::ComputeSafeCamp(PlayerbotAI* botAI, Unit*
         if (!bossRoute.empty())
             nearest = std::min(nearest, DungeonClearMath::DistToClosedRoute2D(
                                             p.GetPositionX(), p.GetPositionY(), bossRoute));
+        for (std::vector<G3D::Vector3> const& route : patrolRoutes)
+            nearest = std::min(nearest, DungeonClearMath::DistToClosedRouteOnFloor2D(
+                                            p.GetPositionX(), p.GetPositionY(), p.GetPositionZ(),
+                                            route, DC_Z_LEVEL_TOLERANCE));
         return nearest;
     };
 
@@ -1354,7 +1379,7 @@ std::optional<Position> DcPullPlanner::ComputeSafeCamp(PlayerbotAI* botAI, Unit*
 }
 std::optional<DcPullPlanner::RoomClearLane> DcPullPlanner::ComputeRoomClearLane(
     PlayerbotAI* botAI, Unit* target, Unit* boss, float bossRadius, float standDist,
-    float setback, float safeRadius, bool requireClean)
+    float setback, float safeRadius, bool requireClean, bool requireBossClear)
 {
     if (!botAI || !target || !boss)
         return std::nullopt;
@@ -1382,6 +1407,10 @@ std::optional<DcPullPlanner::RoomClearLane> DcPullPlanner::ComputeRoomClearLane(
     // and a hound pack 9yd off his route has no stand spot 40yd from it anyway.
     std::vector<G3D::Vector3> const bossRoute =
         DcEngageGeometry::PatrolRouteOf(boss->ToCreature());
+    // Every other patrolling boss whose loop comes near the pack (Baron Geddon's):
+    // the camp keeps safeRadius from that route too, on its floor.
+    std::vector<std::vector<G3D::Vector3>> const patrolRoutes = DcTargeting::BossPatrolRoutesNear(
+        bot, ctx, target->GetPosition(), DC_BOSS_PATROL_CAMP_RANGE + setback, boss);
 
     GuidVector const& farTargets = ctx->GetValue<GuidVector>(DcKey::FarTargets)->Get();
     GuidVector const& possibleTargets =
@@ -1428,12 +1457,28 @@ std::optional<DcPullPlanner::RoomClearLane> DcPullPlanner::ComputeRoomClearLane(
         // can sit behind an unclean one that is merely closer.
         if (requireClean && lane.margin < 0.0f)
             continue;
+        // keepAways[0] is the boss.
+        if (requireBossClear && lane.firstMargin < 0.0f)
+            continue;
         // Pure arithmetic, so it does not spend the path-validation budget. No
         // last-resort exemption: a lane whose camp sits on the patrol is not taken
         // at all, and the pull falls back to ComputeSafeCamp, which keeps the same
         // route clearance with its own fallbacks.
         if (!bossRoute.empty() &&
             DungeonClearMath::DistToClosedRoute2D(lane.campX, lane.campY, bossRoute) < bossRadius)
+            continue;
+        // The camp snapped first (cheap), so a lane on another boss's route doesn't
+        // spend the path-validation budget; on the camp's own floor.
+        std::optional<Position> camp = snapOnFloor(lane.campX, lane.campY);
+        if (!camp)
+            continue;
+        if (std::any_of(patrolRoutes.begin(), patrolRoutes.end(),
+                        [&](std::vector<G3D::Vector3> const& route)
+                        {
+                            return DungeonClearMath::DistToClosedRouteOnFloor2D(
+                                       camp->GetPositionX(), camp->GetPositionY(),
+                                       camp->GetPositionZ(), route, DC_Z_LEVEL_TOLERANCE) < safeRadius;
+                        }))
             continue;
         if (tried++ >= kMaxValidated)
             break;
@@ -1443,9 +1488,6 @@ std::optional<DcPullPlanner::RoomClearLane> DcPullPlanner::ComputeRoomClearLane(
         if (!target->IsWithinLOS(stand->GetPositionX(), stand->GetPositionY(),
                                  stand->GetPositionZ() + 2.0f,
                                  VMAP::ModelIgnoreFlags::Nothing, LINEOFSIGHT_CHECK_VMAP))
-            continue;
-        std::optional<Position> camp = snapOnFloor(lane.campX, lane.campY);
-        if (!camp)
             continue;
         if (box && !RoomAggroRegistry::InCampBox(*box, camp->GetPositionX(),
                                                  camp->GetPositionY()))
@@ -1457,7 +1499,7 @@ std::optional<DcPullPlanner::RoomClearLane> DcPullPlanner::ComputeRoomClearLane(
         float const face = stand->GetAngle(target);
         stand->SetOrientation(face);
         camp->SetOrientation(face);
-        return RoomClearLane{*stand, *camp, lane.margin};
+        return RoomClearLane{*stand, *camp, lane.margin, lane.firstMargin};
     }
     return std::nullopt;
 }

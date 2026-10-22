@@ -501,15 +501,40 @@ namespace DungeonClearMath
     // waypoint-moving formation leader (Lucifron's Protectors), or a boss that
     // wanders or is walking right now. A boss parked on its spot is NOT: waiting
     // does not move it, so it is the room-aggro skirt's problem, not the guard's.
+    //
+    // A boss with DB movement (waypoint path, formation leader's path, random
+    // wander) counts only when that movement takes him OUT of his own aggro reach
+    // (`bossRoam` > `bossReach`, BossRoamRadius2D): Lucifron's loop runs 48yd from
+    // his spawn and Baron Geddon's 238yd, but Shazzrah's 35yd circle stays within 11yd
+    // and Garr wanders 10yd. Those two are where they always are, and holding every
+    // pull in their own rooms for them only burned the patrol budget. A boss with no
+    // DB movement counts while he is walking (a scripted walk).
     bool IsPatrolMover(bool selfWaypoint, bool leaderWaypoint, bool isBoss,
-                       bool bossWanders, bool movingNow);
+                       bool bossWanders, bool movingNow, float bossRoam, float bossReach);
+    // How far a creature's DB movement takes it from its spawn (hx, hy): the
+    // farthest node of its patrol `route` (closed or not), or its random
+    // `wanderDist`, whichever is larger. 0 for a creature that stands still.
+    float BossRoamRadius2D(float hx, float hy, std::vector<G3D::Vector3> const& route,
+                           float wanderDist);
     // Is the candidate part of the pack being pulled (so never a threat to it)?
-    // Same formation; a creature_linked_respawn partner; or, when NEITHER is in a
-    // formation, anything within `packRadius` (loose packs of individual waypoint
-    // movers). A formation-less mob near a FORMATION pack is a lone patrol passing
-    // by, and Lucifron's own formation is never the hounds' — those stay threats.
+    // Same formation; or, when NEITHER is in a formation, anything within
+    // `packRadius` (loose packs of individual waypoint movers). A formation-less
+    // mob near a FORMATION pack is a lone patrol passing by, and Lucifron's own
+    // formation is never the hounds' — those stay threats.
+    //
+    // A BOSS (`candIsBoss`) is a packmate by formation only (Garr's Firesworn,
+    // Lucifron's Protectors): Baron Geddon running within 12yd of a pack is the
+    // threat, not part of it. A creature_linked_respawn partner counts only when it
+    // does not move on its own (`candMoves`, IsPatrolMover) and stands within
+    // `packRadius`. creature_linked_respawn is a RESPAWN dependency: Molten Core
+    // ties nearly all its trash to a boss (Geddon 30, Gehennas 21, Garr 20,
+    // Lucifron 47 Flame Imps, Magmadar every hound and Surger), so treating a link
+    // as "pulls together" made every patrolling boss, and Magmadar's patrolling
+    // Ancient Core Hounds and Lava Surgers, invisible to the guard whenever its
+    // own linked trash was pulled.
     bool IsPatrolPackmate(bool sameFormation, bool targetInFormation,
                           bool candInFormation, bool linkedRespawn,
+                          bool candIsBoss, bool candMoves,
                           float distToTarget, float packRadius);
     // Walking away: the spline destination is no closer than the creature is now.
     inline bool IsReceding(float distNow, float distAtDestination)
@@ -520,6 +545,13 @@ namespace DungeonClearMath
     // Shortest 2D distance from (px, py) to a CLOSED patrol route (a waypoint
     // path loops last -> first). One node = a point; empty = +inf.
     float DistToClosedRoute2D(float px, float py, std::vector<G3D::Vector3> const& route);
+
+    // The same, counting only the parts of the legs on the point's own floor: where
+    // the leg's height (interpolated along it) is within zTolerance of pz. A patrol on
+    // the ledge above a camp never walks into it; one coming down a ramp beside it
+    // does, from where the ramp reaches its floor. +inf when no leg is on it.
+    float DistToClosedRouteOnFloor2D(float px, float py, float pz,
+                                     std::vector<G3D::Vector3> const& route, float zTolerance);
 
     // Scripted-stage MUSTER gate (pure). A ScriptedPullRegistry stage is a planned
     // fight against a hand-counted pack, and the party should arrive at it topped
@@ -1194,6 +1226,30 @@ namespace DungeonClearMath
                               std::size_t cursor,
                               float px, float py, float pz, float maxGap);
 
+    // True when the member stands on `route` FURTHER ALONG it than the tank:
+    // the member's progress cursor is past the tank's, the member is within
+    // `maxOffRoute` (3D) of that cursor vertex, so it is standing on the route
+    // and not in a side room or on a floor above that happens to be near it,
+    // and the tank is within `tankMaxOffRoute` of its own cursor vertex (a tank
+    // pulled far off the route has no meaningful progress to compare against).
+    // `memberCursor`, when given, receives the member's cursor so the caller can
+    // add the line-of-sight half of the "on the route" test — distance alone
+    // passes through a wall where a route folds back past where the party is.
+    //
+    // The between-pulls spread gate uses this to stop holding the tank for a
+    // human who ran on ahead. Measured only by distance, a player standing at
+    // the next pack is exactly as "out of range" as one left at the last
+    // pack, and the tank parks until they walk back to it — but the tank is
+    // about to walk to them. Both cursors are the 3D pick (PathProgressCursor),
+    // so a stacked floor cannot read as progress.
+    //
+    // False for a route of fewer than two points.
+    bool IsAheadOnRoute(std::vector<G3D::Vector3> const& route,
+                        float tankX, float tankY, float tankZ,
+                        float memberX, float memberY, float memberZ,
+                        float maxOffRoute, float tankMaxOffRoute,
+                        std::size_t* memberCursor = nullptr);
+
     // Travel still REMAINING from the bot to where `route` first enters the
     // door band of (doorX,doorY,doorZ), or FLT_MAX when the route never does
     // within `maxLookAhead` of the bot's progress cursor, or does so only well
@@ -1484,6 +1540,7 @@ namespace DungeonClearMath
         float campX = 0.0f;
         float campY = 0.0f;
         float margin = 0.0f;   // min over keep-aways of dist(lane) - radius
+        float firstMargin = 0.0f;  // the same against the first keep-away alone
         float walk = 0.0f;     // tank's straight-line distance to the stand spot
         float score = 0.0f;    // margin, less a small charge for the walk
     };
@@ -1526,7 +1583,9 @@ namespace DungeonClearMath
     // [minDrag, drag] that is inside the camp box (when there is one). The lane
     // scored is stand -> camp, where the tank and the fight stand, AND the tank's
     // walk out to the stand spot; its margin is the worst clearance over the
-    // keep-aways. Bearings with no in-box camp are dropped.
+    // keep-aways (`firstMargin`: against the first one alone, the room's boss for
+    // ComputeRoomClearLane, its walk term counted even when the tank stands inside
+    // it). Bearings with no in-box camp are dropped.
     //
     // The walk counts because that is where the second pack came from in
     // tr-20260927-210901-8: the lane itself cleared everything, and the tank woke
@@ -1579,20 +1638,27 @@ namespace DungeonClearMath
                 continue;
 
             lane.margin = StraightPullMarginCap;
-            for (LaneKeepAway const& k : keepAways)
+            for (std::size_t ki = 0; ki < keepAways.size(); ++ki)
             {
+                LaneKeepAway const& k = keepAways[ki];
                 lane.margin = std::min(
                     lane.margin, PointSegmentDist2d(k.x, k.y, lane.standX, lane.standY,
                                                     lane.campX, lane.campY) -
                                      k.radius);
                 float const tdx = tankX - k.x;
                 float const tdy = tankY - k.y;
+                float const walkClear = PointSegmentDist2d(k.x, k.y, tankX, tankY,
+                                                           lane.standX, lane.standY) -
+                                        k.radius;
                 if (tdx * tdx + tdy * tdy >= k.radius * k.radius)
-                    lane.margin = std::min(
-                        lane.margin, PointSegmentDist2d(k.x, k.y, tankX, tankY,
-                                                        lane.standX, lane.standY) -
-                                         k.radius);
+                    lane.margin = std::min(lane.margin, walkClear);
+                // The first keep-away's walk counts even from inside it: a tank
+                // waiting inside a patrolling boss's keep must not walk past him.
+                if (ki == 0)
+                    lane.firstMargin = std::min(lane.margin, walkClear);
             }
+            if (keepAways.empty())
+                lane.firstMargin = lane.margin;
             float const wx = lane.standX - tankX;
             float const wy = lane.standY - tankY;
             lane.walk = std::sqrt(wx * wx + wy * wy);
