@@ -114,6 +114,8 @@ namespace
         window.reserve(trail.size());
         for (Position const& p : trail)
             window.emplace_back(p.GetPositionX(), p.GetPositionY(), p.GetPositionZ());
+        if (!DcMovement::LayOnNavmesh(bot, window))
+            return false;
         return DcMovement::SplinePath(botAI, window);
     }
 
@@ -209,6 +211,40 @@ namespace
             DcMovement::StopBot(bot, DcMovement::Stop::Hold);
         return true;
     }
+}
+
+bool DungeonClearFollowTankAction::UnstickFromStall(Player* tank)
+{
+    uint32 const now = getMSTime();
+    if (lastUnstickMs && getMSTimeDiff(lastUnstickMs, now) < DungeonClearMath::kFollowerUnstickHoldMs && bot->isMoving())
+        return true;
+
+    float const toTank = bot->GetExactDist(tank);
+    if (bot->IsInCombat() || toTank <= DungeonClearMath::kFollowerUnstickLeash)
+    {
+        stallBestDist = -1.0f;
+        return false;
+    }
+    if (stallBestDist < 0.0f ||
+        DungeonClearMath::FollowerMadeProgress(bot->GetExactDist(&stallAnchor), stallBestDist - toTank))
+    {
+        stallAnchor = bot->GetPosition();
+        stallBestDist = toTank;
+        stallSinceMs = now;
+        return false;
+    }
+    uint32 const sinceLastUnstick = lastUnstickMs ? getMSTimeDiff(lastUnstickMs, now) : UINT32_MAX;
+    if (!DungeonClearMath::FollowerUnstickDue(toTank, getMSTimeDiff(stallSinceMs, now), sinceLastUnstick))
+        return false;
+
+    lastUnstickMs = now;
+    stallBestDist = -1.0f;
+    if (!DcMoveTo(tank->GetMapId(), tank->GetPositionX(), tank->GetPositionY(), tank->GetPositionZ(), false, false,
+                  false, false, MovementPriority::MOVEMENT_COMBAT))
+        return false;
+    DC_PULL_DEBUG("[DC:{}] follow-tank: stalled {:.1f}yd from the tank, re-pathing over the navmesh",
+                  bot->GetName(), toTank);
+    return true;
 }
 
 bool DungeonClearFollowTankAction::Execute(Event /*event*/)
@@ -636,6 +672,13 @@ bool DungeonClearFollowTankAction::Execute(Event /*event*/)
     // of mob aggro-radius arcs during the advance. Default followDistance
     // (~10yd) had them strung out by the time the tank engaged.
     float const dist = std::min<float>(DC_PB_CONFIG(FollowDistance, followDistance), 6.0f);
+
+    // A follower wedged on a door frame or pillar, or one that dropped off a ledge, keeps
+    // re-issuing the same glide and never arrives. Past the trail stagger and stalled for
+    // a few seconds it walks the navmesh path to the tank instead (no teleport); see
+    // DungeonClearMath::FollowerUnstickDue.
+    if (UnstickFromStall(tank))
+        return true;
 
     // Centered trail-follow. Stock Follow() / MoveFollow re-paths to the follow
     // slot through the core PathGenerator, which returns Detour's taut, wall-

@@ -184,6 +184,34 @@ namespace DungeonClearMath
         return toTank > trailEngage && toTank > lag;
     }
 
+    // FOLLOWER STALL — a follower wedged on a door frame, a pillar or a stair edge,
+    // or one that dropped off a ledge, keeps re-issuing the same glide / follow
+    // order and never arrives; nothing but the 60 s stranded rescue (a teleport)
+    // ever noticed. A follower counts as progressing while it either physically
+    // moves (kFollowerStallMove since the last progress sample) or closes on the
+    // tank (kFollowerStallClose). Only a follower beyond kFollowerUnstickLeash is
+    // watched, which keeps the whole trail stagger (dist + 3 * 3 = 10.5 yd) and the
+    // close follow fan out of it. After kFollowerStallMs without progress it
+    // re-paths to the tank over the navmesh, at most once per kFollowerStallMs,
+    // and owns its movement for kFollowerUnstickHoldMs so the glide does not
+    // re-take the wedged line the next tick.
+    constexpr float kFollowerUnstickLeash = 14.0f;
+    constexpr float kFollowerStallMove = 2.0f;
+    constexpr float kFollowerStallClose = 1.0f;
+    constexpr std::uint32_t kFollowerStallMs = 4000;
+    constexpr std::uint32_t kFollowerUnstickHoldMs = 3000;
+
+    inline bool FollowerMadeProgress(float moved, float closed)
+    {
+        return moved >= kFollowerStallMove || closed >= kFollowerStallClose;
+    }
+
+    inline bool FollowerUnstickDue(float toTank, std::uint32_t msSinceProgress, std::uint32_t msSinceLastUnstick)
+    {
+        return toTank > kFollowerUnstickLeash && msSinceProgress >= kFollowerStallMs &&
+               msSinceLastUnstick >= kFollowerStallMs;
+    }
+
     // One forward hostile for the Dynamic-pull aggro estimate. `chainEligible` is
     // pre-resolved by the caller from game state: true only when this mob is
     // navmesh-reachable from the pull target with a clear line of sight and no

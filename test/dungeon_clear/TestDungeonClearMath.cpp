@@ -3132,6 +3132,29 @@ TEST(DungeonClearMathTest, TrailFollowStillEngagesOnceTrulyBehind)
     EXPECT_TRUE(DungeonClearMath::TrailFollowShouldEngage(19.8f, 3.5f, 7.5f));
 }
 
+// A follower that moves, or closes on the tank, is progressing even when the tank
+// pulls away faster than it walks; only one that does neither counts as stalled.
+TEST(DungeonClearMathTest, FollowerProgressIsMovementOrClosing)
+{
+    EXPECT_TRUE(DungeonClearMath::FollowerMadeProgress(2.0f, -3.0f));
+    EXPECT_TRUE(DungeonClearMath::FollowerMadeProgress(0.0f, 1.0f));
+    EXPECT_FALSE(DungeonClearMath::FollowerMadeProgress(1.9f, 0.9f));
+    EXPECT_FALSE(DungeonClearMath::FollowerMadeProgress(0.3f, -0.5f));
+}
+
+// Wedged on a door frame 20 yd behind the tank for 4 s: re-path. The trail stagger
+// (up to 10.5 yd) never trips it, a fresh stall does not, and a follower that just
+// re-pathed waits a full stall window before the next attempt.
+TEST(DungeonClearMathTest, FollowerUnstickOnlyForALongStallBeyondTheStagger)
+{
+    EXPECT_TRUE(DungeonClearMath::FollowerUnstickDue(20.0f, 4000, UINT32_MAX));
+    EXPECT_FALSE(DungeonClearMath::FollowerUnstickDue(10.5f, 60000, UINT32_MAX));
+    EXPECT_FALSE(DungeonClearMath::FollowerUnstickDue(14.0f, 60000, UINT32_MAX));
+    EXPECT_FALSE(DungeonClearMath::FollowerUnstickDue(20.0f, 3999, UINT32_MAX));
+    EXPECT_FALSE(DungeonClearMath::FollowerUnstickDue(20.0f, 4000, 3999));
+    EXPECT_TRUE(DungeonClearMath::FollowerUnstickDue(20.0f, 4000, 4000));
+}
+
 // The leash still binds when it is the larger of the two: a follower inside the
 // follow bubble does not trail just because its slot is tighter still.
 TEST(DungeonClearMathTest, TrailFollowLeashStillBindsInsideTheBubble)
