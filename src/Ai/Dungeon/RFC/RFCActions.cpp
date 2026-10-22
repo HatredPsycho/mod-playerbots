@@ -75,6 +75,17 @@ bool TaragamanAvoidEarthBreakAction::Execute(Event /*event*/)
     return MoveTo(bot->GetMapId(), x, y, z, false, false, false, true, MovementPriority::MOVEMENT_FORCED);
 }
 
+bool TaragamanHoldCenterAction::Execute(Event /*event*/)
+{
+    Unit* boss = TaragamanPillar::Boss(botAI, context);
+    std::optional<Position> const spot = boss ? TaragamanArena::TankSpot(bot, boss) : std::nullopt;
+    if (!spot || bot->GetExactDist2d(spot->GetPositionX(), spot->GetPositionY()) <= TARAGAMAN_TANK_TOLERANCE)
+        return false;
+
+    return MoveTo(bot->GetMapId(), spot->GetPositionX(), spot->GetPositionY(), spot->GetPositionZ(), false, false,
+                  false, true, MovementPriority::MOVEMENT_COMBAT);
+}
+
 bool TaragamanHideBehindPillarAction::Execute(Event /*event*/)
 {
     Unit* boss = TaragamanPillar::Boss(botAI, context);

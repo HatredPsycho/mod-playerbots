@@ -51,6 +51,13 @@ public:
     bool Execute(Event event) override;
 };
 
+class TaragamanHoldCenterAction : public MovementAction
+{
+public:
+    TaragamanHoldCenterAction(PlayerbotAI* ai) : MovementAction(ai, "taragaman hold center") {}
+    bool Execute(Event event) override;
+};
+
 class TaragamanHideBehindPillarAction : public MovementAction
 {
 public:

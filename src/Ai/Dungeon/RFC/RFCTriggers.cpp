@@ -13,6 +13,8 @@
 #include <cmath>
 #include <list>
 #include <limits>
+#include <mutex>
+#include <unordered_map>
 
 namespace RagefireEscort
 {
@@ -180,6 +182,73 @@ namespace TaragamanPillar
     }
 }
 
+namespace TaragamanArena
+{
+    namespace
+    {
+        std::mutex armLock;
+        std::unordered_map<uint32, float> armAngles;
+
+        // How far rock leads from the spawn point in this direction.
+        float ArmLength(Map* map, uint32 phaseMask, Position const& center, float angle, float collisionHeight)
+        {
+            float reached = 0.0f;
+            for (float distance = 1.0f; distance <= TARAGAMAN_ARM_MAX; distance += 1.0f)
+            {
+                float const x = center.GetPositionX() + std::cos(angle) * distance;
+                float const y = center.GetPositionY() + std::sin(angle) * distance;
+                float const ground = map->GetHeight(phaseMask, x, y, center.GetPositionZ() + 3.0f);
+                if (ground <= INVALID_HEIGHT || std::fabs(ground - center.GetPositionZ()) > TARAGAMAN_ARM_MAX_DROP)
+                    break;
+                LiquidData const liquid = map->GetLiquidData(phaseMask, x, y, ground, collisionHeight, {});
+                if (liquid.Status != LIQUID_MAP_NO_WATER && liquid.Level > ground - 0.2f)
+                    break;
+                reached = distance;
+            }
+            return reached;
+        }
+    }
+
+    std::optional<Position> TankSpot(Player* bot, Unit* boss)
+    {
+        Creature* creature = boss ? boss->ToCreature() : nullptr;
+        if (!creature)
+            return std::nullopt;
+        Position const center = creature->GetHomePosition();
+
+        float angle = 0.0f;
+        {
+            std::lock_guard<std::mutex> guard(armLock);
+            auto itr = armAngles.find(bot->GetInstanceId());
+            if (itr != armAngles.end())
+                angle = itr->second;
+            else
+            {
+                float best = -1.0f;
+                for (float degrees = 0.0f; degrees < 360.0f; degrees += TARAGAMAN_ARM_STEP_ANGLE)
+                {
+                    float const candidate = degrees * float(M_PI) / 180.0f;
+                    float const length = ArmLength(bot->GetMap(), bot->GetPhaseMask(), center, candidate,
+                                                   bot->GetCollisionHeight());
+                    if (length > best)
+                    {
+                        best = length;
+                        angle = candidate;
+                    }
+                }
+                armAngles[bot->GetInstanceId()] = angle;
+            }
+        }
+
+        float const offset = TARAGAMAN_TANK_OFFSET + boss->GetCombatReach() * 0.5f;
+        float const x = center.GetPositionX() + std::cos(angle) * offset;
+        float const y = center.GetPositionY() + std::sin(angle) * offset;
+        float z = center.GetPositionZ();
+        bot->UpdateAllowedPositionZ(x, y, z);
+        return Position(x, y, z, Position::NormalizeOrientation(angle + float(M_PI)));
+    }
+}
+
 bool OggleflintAddsTrigger::IsActive()
 {
     // The Shaman is named first on purpose: it is the one that heals, and the action takes the
@@ -222,6 +291,18 @@ bool TaragamanFireNovaTrigger::IsActive()
 bool TaragamanEarthBreakTrigger::IsActive()
 {
     return TaragamanPillar::Boss(botAI, context) && TaragamanPillar::EruptingNear(bot);
+}
+
+bool TaragamanTankSpotTrigger::IsActive()
+{
+    if (!botAI->IsMainTank(bot))
+        return false;
+    Unit* boss = TaragamanPillar::Boss(botAI, context);
+    if (!boss || !boss->IsInCombat() || TaragamanPillar::ShouldHide(botAI, bot, context) ||
+        TaragamanPillar::EruptingNear(bot))
+        return false;
+    std::optional<Position> const spot = TaragamanArena::TankSpot(bot, boss);
+    return spot && bot->GetExactDist2d(spot->GetPositionX(), spot->GetPositionY()) > TARAGAMAN_TANK_TOLERANCE;
 }
 
 bool TaragamanMassiveFireNovaTrigger::IsActive()

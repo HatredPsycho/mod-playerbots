@@ -22,6 +22,7 @@ class VanillaDungeonRFCActionContext : public NamedObjectContext<Action>
             creators["avoid fire nova"] = &VanillaDungeonRFCActionContext::avoid_fire_nova;
             creators["avoid earth break"] = &VanillaDungeonRFCActionContext::avoid_earth_break;
             creators["hide behind earth pillar"] = &VanillaDungeonRFCActionContext::hide_behind_earth_pillar;
+            creators["taragaman hold center"] = &VanillaDungeonRFCActionContext::taragaman_hold_center;
         }
     private:
         static Action* attack_oggleflint_add(PlayerbotAI* ai) { return new AttackOggleflintAddAction(ai); }
@@ -30,6 +31,7 @@ class VanillaDungeonRFCActionContext : public NamedObjectContext<Action>
         static Action* avoid_fire_nova(PlayerbotAI* ai) { return new TaragamanAvoidFireNovaAction(ai); }
         static Action* avoid_earth_break(PlayerbotAI* ai) { return new TaragamanAvoidEarthBreakAction(ai); }
         static Action* hide_behind_earth_pillar(PlayerbotAI* ai) { return new TaragamanHideBehindPillarAction(ai); }
+        static Action* taragaman_hold_center(PlayerbotAI* ai) { return new TaragamanHoldCenterAction(ai); }
 };
 
 #endif
