@@ -5,6 +5,7 @@
  */
 
 #include "ListSpellsAction.h"
+#include "DBCStores.h"
 #include "Event.h"
 #include "PlayerbotSpellRepository.h"
 #include "Playerbots.h"
@@ -45,6 +46,14 @@ static bool CompareSpells(SpellListEntry const& lhSpell, SpellListEntry const& r
 std::vector<std::pair<uint32, std::string>> ListSpellsAction::GetSpellList(std::string filter)
 {
     uint32 skill = 0;
+
+    // "spells abilities": what the bot fights and travels with, without profession recipes, mounts and pets.
+    bool abilitiesOnly = false;
+    if (filter == "abilities" || filter.rfind("abilities ", 0) == 0)
+    {
+        abilitiesOnly = true;
+        filter = filter.size() > 10 ? filter.substr(10) : "";
+    }
 
     std::vector<std::string> ss = split(filter, ' ');
     if (!ss.empty())
@@ -140,8 +149,27 @@ std::vector<std::pair<uint32, std::string>> ListSpellsAction::GetSpellList(std::
         if (skill != SKILL_NONE && (!skillLine || skillLine->SkillLine != skill))
             continue;
 
-        std::string const comp = spellInfo->SpellName[0];
-        if (!(ignoreList.find(comp) == std::string::npos && alreadySeenList.find(comp) == std::string::npos))
+        if (abilitiesOnly)
+        {
+            uint32 const higherRank = sSpellMgr->GetNextSpellInChain(itr->first);
+            if (higherRank && bot->HasSpell(higherRank))
+                continue;
+        }
+
+        if (abilitiesOnly && skillLine)
+        {
+            if (skillLine->SkillLine == SKILL_MOUNTS || skillLine->SkillLine == SKILL_COMPANIONS)
+                continue;
+
+            SkillLineEntry const* skillEntry = sSkillLineStore.LookupEntry(skillLine->SkillLine);
+            if (skillEntry && (skillEntry->categoryId == SKILL_CATEGORY_PROFESSION ||
+                               skillEntry->categoryId == SKILL_CATEGORY_SECONDARY))
+                continue;
+        }
+
+        // Whole names between commas: "Strike" is not already seen because "Heroic Strike" is.
+        std::string const comp = "," + std::string(spellInfo->SpellName[0]) + ",";
+        if (ignoreList.find(comp) != std::string::npos || alreadySeenList.find(comp) != std::string::npos)
             continue;
 
         if (!filter.empty() && !strstri(spellInfo->SpellName[0], filter.c_str()))
