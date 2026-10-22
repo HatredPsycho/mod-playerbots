@@ -13,7 +13,7 @@ local STRINGS = {
 		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell grey items",
 		NO_VENDOR = "Nothing sold: the bot sells only standing right next to a vendor (Summon it there, or walk it there with Follow).", LINK = "Link in chat",
 		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat. Ctrl-click: mark it for selling.",
-		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all",
+		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all", BOUND_HINT = "Red frame: soulbound, cannot be traded.",
 		GEAR_HINT = "Right-click a piece to take it off.", TRADE_HINT = "Give it to me opens a trade with the bot: accept it.",
 		MOUNTS = "Mounts", AUTO_MOUNT = "Automatic choice", PREFERRED = "preferred",
 		FOR_GROUND = "favourite on the ground", FOR_FLYING = "favourite in the air",
@@ -56,7 +56,7 @@ local STRINGS = {
 		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre les gris",
 		NO_VENDOR = "Rien vendu : le bot ne vend que collé à un marchand (appelez-le devant le marchand, ou amenez-le avec Suivre).", LINK = "Lien dans le chat",
 		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat. Ctrl-clic : le marquer pour la vente.",
-		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer",
+		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer", BOUND_HINT = "Cadre rouge : lié, impossible à échanger.",
 		GEAR_HINT = "Clic droit sur une pièce pour la retirer.", TRADE_HINT = "Me le donner ouvre un échange avec le bot : acceptez-le.",
 		MOUNTS = "Montures", AUTO_MOUNT = "Choix automatique", PREFERRED = "préférée",
 		FOR_GROUND = "préférée au sol", FOR_FLYING = "préférée en vol",
@@ -639,9 +639,22 @@ local function BuildBags(page)
 			if self.item then
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
 				GameTooltip:SetHyperlink(self.item.link:match("|H(item:[^|]+)|h"))
+				-- The link shows the item as written ("Binds when equipped"), not the bot's copy of it.
+				if self.item.soulbound then GameTooltip:AddLine(T("SOULBOUND"), 1, 0.25, 0.25) end
 				GameTooltip:Show()
 			end
 		end)
+		b.bound = {}
+		for _, edge in ipairs({ { "TOPLEFT", "TOPRIGHT", nil, 2 }, { "BOTTOMLEFT", "BOTTOMRIGHT", nil, 2 },
+			{ "TOPLEFT", "BOTTOMLEFT", 2, nil }, { "TOPRIGHT", "BOTTOMRIGHT", 2, nil } }) do
+			local t = b:CreateTexture(nil, "OVERLAY")
+			t:SetTexture(0.9, 0.1, 0.1, 1)
+			t:SetPoint(edge[1])
+			t:SetPoint(edge[2])
+			if edge[3] then t:SetWidth(edge[3]) end
+			if edge[4] then t:SetHeight(edge[4]) end
+			table.insert(b.bound, t)
+		end
 		b.mark = b:CreateTexture(nil, "OVERLAY")
 		b.mark:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
 		b.mark:SetWidth(22)
@@ -663,12 +676,12 @@ local function BuildBags(page)
 	page.note:SetPoint("TOP", 0, -120)
 	page.hint = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	page.hint:SetPoint("TOPLEFT", 14, -282)
-	page.hint:SetWidth(360)
+	page.hint:SetWidth(430)
 	page.hint:SetJustifyH("LEFT")
 	page.trade = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.trade:SetWidth(130)
 	page.trade:SetHeight(22)
-	page.trade:SetPoint("TOPLEFT", 14, -330)
+	page.trade:SetPoint("TOPLEFT", 14, -336)
 	page.trade:SetScript("OnClick", function()
 		local unit = current and UnitOf(current)
 		if unit then InitiateTrade(unit) end
@@ -1410,7 +1423,7 @@ end
 local function RenderBags(page)
 	local list = bagMode == "bank" and bank or bags
 	page.note:SetText(#list == 0 and capture == nil and T("EMPTY_BAGS") or "")
-	page.hint:SetText(T("ITEM_HINT") .. " " .. T("DROP_HINT"))
+	page.hint:SetText(T("ITEM_HINT") .. " " .. T("BOUND_HINT") .. " " .. T("DROP_HINT"))
 	page.trade:SetText(T("TRADE"))
 	page.bank:SetText(bagMode == "bank" and T("BAGS_BTN") or T("BANK"))
 	page.grey:SetText(T("SELL_GREY"))
@@ -1432,6 +1445,7 @@ local function RenderBags(page)
 			b.icon:Show()
 			b.count:SetText(item.count > 1 and item.count or "")
 			if bagMode == "bags" and marked[item.id] then b.mark:Show() else b.mark:Hide() end
+			for _, t in ipairs(b.bound) do if item.soulbound then t:Show() else t:Hide() end end
 			b:Show()
 		else
 			b:Hide()
