@@ -12,6 +12,8 @@
 #include "PlayerbotAIConfig.h"
 #include "Trigger.h"
 
+#include <optional>
+
 enum RagefireChasmIDs
 {
     NPC_OGGLEFLINT                 = 11517,
@@ -57,6 +59,22 @@ constexpr float EARTH_PILLAR_COVER = 2.5f;
 constexpr float EARTH_PILLAR_TOLERANCE = 1.0f;
 constexpr float EARTH_PILLAR_CORE_SEARCH = 5.0f;
 constexpr float EARTH_PILLAR_SHADOW_MARGIN = 0.75f;
+
+// Taragaman stands on a cross of rock in the lava. Uppercut throws the tank straight away from him, so the tank holds
+// him on his own spawn point and stands on the longest arm of rock leading away from it: the throw slides it along
+// the rock instead of into the lava, and the pillars he raises under a player rise on rock too. The arm is found
+// once per instance by walking out from the spawn point in steps until the ground drops or lava covers it.
+constexpr float TARAGAMAN_ARM_STEP_ANGLE = 10.0f;
+constexpr float TARAGAMAN_ARM_MAX = 30.0f;
+constexpr float TARAGAMAN_ARM_MAX_DROP = 2.0f;
+constexpr float TARAGAMAN_TANK_OFFSET = 2.5f;
+constexpr float TARAGAMAN_TANK_TOLERANCE = 1.5f;
+
+namespace TaragamanArena
+{
+    // The spot the tank holds while Taragaman is engaged.
+    std::optional<Position> TankSpot(Player* bot, Unit* boss);
+}
 
 // The room a boss shares with its escort, measured from the spawns: Oggleflint stands within
 // thirteen yards of a Trogg and a Shaman, Jergosh and Bazzalan within twelve of their Cultists.
@@ -120,6 +138,13 @@ class TaragamanEarthBreakTrigger : public Trigger
 {
 public:
     TaragamanEarthBreakTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman earth break") {}
+    bool IsActive() override;
+};
+
+class TaragamanTankSpotTrigger : public Trigger
+{
+public:
+    TaragamanTankSpotTrigger(PlayerbotAI* ai) : Trigger(ai, "taragaman tank spot") {}
     bool IsActive() override;
 };
 
