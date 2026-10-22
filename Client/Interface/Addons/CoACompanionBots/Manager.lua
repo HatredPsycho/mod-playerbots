@@ -12,7 +12,8 @@ local STRINGS = {
 		EMPTY_BAGS = "Nothing in the bags.", NO_QUESTS = "No quest.",
 		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell grey items",
 		NO_VENDOR = "Nothing sold: the bot sells only standing right next to a vendor (Summon it there, or walk it there with Follow).", LINK = "Link in chat",
-		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat.",
+		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat. Ctrl-click: mark it for selling.",
+		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all",
 		GEAR_HINT = "Right-click a piece to take it off.", TRADE_HINT = "Give it to me opens a trade with the bot: accept it.",
 		MOUNTS = "Mounts", AUTO_MOUNT = "Automatic choice", PREFERRED = "preferred",
 		FOR_GROUND = "favourite on the ground", FOR_FLYING = "favourite in the air",
@@ -54,7 +55,8 @@ local STRINGS = {
 		EMPTY_BAGS = "Rien dans les sacs.", NO_QUESTS = "Aucune quête.",
 		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre les gris",
 		NO_VENDOR = "Rien vendu : le bot ne vend que collé à un marchand (appelez-le devant le marchand, ou amenez-le avec Suivre).", LINK = "Lien dans le chat",
-		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat.",
+		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat. Ctrl-clic : le marquer pour la vente.",
+		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer",
 		GEAR_HINT = "Clic droit sur une pièce pour la retirer.", TRADE_HINT = "Me le donner ouvre un échange avec le bot : acceptez-le.",
 		MOUNTS = "Montures", AUTO_MOUNT = "Choix automatique", PREFERRED = "préférée",
 		FOR_GROUND = "préférée au sol", FOR_FLYING = "préférée en vol",
@@ -124,6 +126,8 @@ local queue = {}
 local mountOffset = 0
 local spells, spellOffset = {}, 0
 local bagOffset = 0
+-- Items marked for selling, by item id: the bag list is read again after every change and its order moves.
+local marked = {}
 
 local function Print(text)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Lite|r: " .. text)
@@ -426,7 +430,41 @@ sellWatch:SetScript("OnUpdate", function()
 	end
 end)
 
-local function AfterChange()
+local AfterChange
+
+-- A whisper holds about 255 characters: the marked links go out a few at a time, one whisper every half second.
+local sellQueue, sellNextAt = {}, 0
+local sellQueueWatch = CreateFrame("Frame")
+sellQueueWatch:SetScript("OnUpdate", function()
+	if #sellQueue == 0 or GetTime() < sellNextAt then return end
+	local nextOne = table.remove(sellQueue, 1)
+	if nextOne.name ~= current then return end
+	Sell(nextOne.text, #sellQueue > 0)
+	sellNextAt = GetTime() + 0.5
+	if #sellQueue == 0 then AfterChange() end
+end)
+
+local function MarkedCount()
+	local n = 0
+	for _ in pairs(marked) do n = n + 1 end
+	return n
+end
+
+local function SellMarked(links)
+	local chunk = ""
+	for _, link in ipairs(links) do
+		if chunk ~= "" and #chunk + #link + 3 > 240 then
+			table.insert(sellQueue, { name = current, text = chunk })
+			chunk = ""
+		end
+		chunk = chunk == "" and link or (chunk .. " " .. link)
+	end
+	if chunk ~= "" then table.insert(sellQueue, { name = current, text = chunk }) end
+	marked = {}
+	Render()
+end
+
+AfterChange = function()
 	-- The bags changed: ask again once the server lets the same lines through.
 	local name = current
 	local again = CreateFrame("Frame")
@@ -604,10 +642,19 @@ local function BuildBags(page)
 				GameTooltip:Show()
 			end
 		end)
+		b.mark = b:CreateTexture(nil, "OVERLAY")
+		b.mark:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
+		b.mark:SetWidth(22)
+		b.mark:SetHeight(22)
+		b.mark:SetPoint("TOPRIGHT", 4, 4)
 		b:SetScript("OnClick", function(self)
 			if CursorHasItem() then DropOnBags() return end
 			if not self.item then return end
-			if IsShiftKeyDown() then ChatEdit_InsertLink(SendableLink(self.item)) else ItemMenu(self.item) end
+			if IsShiftKeyDown() then ChatEdit_InsertLink(SendableLink(self.item))
+			elseif IsControlKeyDown() and bagMode == "bags" then
+				marked[self.item.id] = not marked[self.item.id] and SendableLink(self.item) or nil
+				Render()
+			else ItemMenu(self.item) end
 		end)
 		b:SetScript("OnReceiveDrag", DropOnBags)
 		page.buttons[i] = b
@@ -635,6 +682,20 @@ local function BuildBags(page)
 	page.bank:SetWidth(110)
 	page.bank:SetHeight(22)
 	page.bank:SetPoint("LEFT", page.grey, "RIGHT", 8, 0)
+	page.sellMarked = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+	page.sellMarked:SetWidth(160)
+	page.sellMarked:SetHeight(22)
+	page.sellMarked:SetPoint("TOPLEFT", page.trade, "BOTTOMLEFT", 0, -4)
+	page.sellMarked:SetScript("OnClick", function()
+		local links = {}
+		for _, link in pairs(marked) do table.insert(links, link) end
+		if #links > 0 then SellMarked(links) end
+	end)
+	page.clearMarks = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+	page.clearMarks:SetWidth(130)
+	page.clearMarks:SetHeight(22)
+	page.clearMarks:SetPoint("LEFT", page.sellMarked, "RIGHT", 8, 0)
+	page.clearMarks:SetScript("OnClick", function() marked = {}; Render() end)
 	page.bank:SetScript("OnClick", function()
 		bagMode = bagMode == "bank" and "bags" or "bank"
 		bagOffset = 0
@@ -1353,6 +1414,11 @@ local function RenderBags(page)
 	page.trade:SetText(T("TRADE"))
 	page.bank:SetText(bagMode == "bank" and T("BAGS_BTN") or T("BANK"))
 	page.grey:SetText(T("SELL_GREY"))
+	local markCount = MarkedCount()
+	page.sellMarked:SetText(string.format(T("SELL_MARKED"), markCount))
+	page.clearMarks:SetText(T("CLEAR_MARKS"))
+	if bagMode == "bags" and markCount > 0 then page.sellMarked:Show(); page.clearMarks:Show()
+	else page.sellMarked:Hide(); page.clearMarks:Hide() end
 	local perPage = BAG_COLS * BAG_ROWS
 	local pageCount = math.max(1, math.ceil(#list / perPage))
 	bagOffset = math.min(bagOffset, (pageCount - 1) * perPage)
@@ -1365,6 +1431,7 @@ local function RenderBags(page)
 			b.icon:SetTexture((GetItemIcon and GetItemIcon(item.id)) or select(10, GetItemInfo(item.id)) or "Interface\\Icons\\INV_Misc_QuestionMark")
 			b.icon:Show()
 			b.count:SetText(item.count > 1 and item.count or "")
+			if bagMode == "bags" and marked[item.id] then b.mark:Show() else b.mark:Hide() end
 			b:Show()
 		else
 			b:Hide()
@@ -1528,7 +1595,7 @@ function SquidBotsLite_OpenSheet(name)
 	if not sheet then Build() end
 	if current ~= name then
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
-		spells, spellOffset, bagOffset = {}, 0, 0
+		spells, spellOffset, bagOffset, marked = {}, 0, 0, {}
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
 		bagMode = "bags"
