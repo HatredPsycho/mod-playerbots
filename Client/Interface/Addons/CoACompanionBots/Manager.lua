@@ -123,6 +123,7 @@ local bagMode = "bags"
 local queue = {}
 local mountOffset = 0
 local spells, spellOffset = {}, 0
+local bagOffset = 0
 
 local function Print(text)
 	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Lite|r: " .. text)
@@ -620,7 +621,7 @@ local function BuildBags(page)
 	page.trade = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.trade:SetWidth(130)
 	page.trade:SetHeight(22)
-	page.trade:SetPoint("TOPLEFT", 14, -310)
+	page.trade:SetPoint("TOPLEFT", 14, -330)
 	page.trade:SetScript("OnClick", function()
 		local unit = current and UnitOf(current)
 		if unit then InitiateTrade(unit) end
@@ -636,9 +637,27 @@ local function BuildBags(page)
 	page.bank:SetPoint("LEFT", page.grey, "RIGHT", 8, 0)
 	page.bank:SetScript("OnClick", function()
 		bagMode = bagMode == "bank" and "bags" or "bank"
+		bagOffset = 0
 		Ask(bagMode, bagMode == "bank" and "bank" or "c")
 		Render()
 	end)
+	local perPage = BAG_COLS * BAG_ROWS
+	local function Turn(delta)
+		local list = bagMode == "bank" and bank or bags
+		local last = math.max(0, math.ceil(#list / perPage) - 1) * perPage
+		bagOffset = math.max(0, math.min(last, bagOffset + delta * perPage))
+		Render()
+	end
+	page.up = CreateFrame("Button", nil, page, "UIPanelScrollUpButtonTemplate")
+	page.up:SetPoint("TOPRIGHT", -10, -2)
+	page.up:SetScript("OnClick", function() Turn(-1) end)
+	page.down = CreateFrame("Button", nil, page, "UIPanelScrollDownButtonTemplate")
+	page.down:SetPoint("TOPRIGHT", -10, -(BAG_ROWS * 46) + 22)
+	page.down:SetScript("OnClick", function() Turn(1) end)
+	page.pageText = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	page.pageText:SetPoint("TOPRIGHT", -6, -(BAG_ROWS * 23) + 4)
+	page:EnableMouseWheel(true)
+	page:SetScript("OnMouseWheel", function(_, delta) Turn(-delta) end)
 	page:EnableMouse(true)
 	page:SetScript("OnReceiveDrag", DropOnBags)
 	page:SetScript("OnMouseUp", function() if CursorHasItem() then DropOnBags() end end)
@@ -1334,8 +1353,13 @@ local function RenderBags(page)
 	page.trade:SetText(T("TRADE"))
 	page.bank:SetText(bagMode == "bank" and T("BAGS_BTN") or T("BANK"))
 	page.grey:SetText(T("SELL_GREY"))
+	local perPage = BAG_COLS * BAG_ROWS
+	local pageCount = math.max(1, math.ceil(#list / perPage))
+	bagOffset = math.min(bagOffset, (pageCount - 1) * perPage)
+	page.pageText:SetText(pageCount > 1 and string.format("%d/%d", bagOffset / perPage + 1, pageCount) or "")
+	if pageCount > 1 then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
 	for i, b in ipairs(page.buttons) do
-		local item = list[i]
+		local item = list[bagOffset + i]
 		b.item = item
 		if item then
 			b.icon:SetTexture((GetItemIcon and GetItemIcon(item.id)) or select(10, GetItemInfo(item.id)) or "Interface\\Icons\\INV_Misc_QuestionMark")
@@ -1504,7 +1528,7 @@ function SquidBotsLite_OpenSheet(name)
 	if not sheet then Build() end
 	if current ~= name then
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
-		spells, spellOffset = {}, 0
+		spells, spellOffset, bagOffset = {}, 0, 0
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
 		bagMode = "bags"
