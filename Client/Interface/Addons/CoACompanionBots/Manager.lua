@@ -1,7 +1,7 @@
 -- SquidBots Lite, bot sheet (beta): the gear, bags, quests and stats of one bot of the group, for players who
 -- keep a long-term party of alts. Everything goes through chat commands a player can whisper to their own
--- bots ("c", "quests all", "stats", "e", "ue", "u", "s", "t", "mount", "bank", "drop", "co ?", "nc ?", "talents ?"); the gear is read
--- by the client's own inspect.
+-- bots ("c", "quests all", "stats", "e", "ue", "u", "s", "t", "mount", "bank", "drop", "co ?", "nc ?", "talents ?",
+-- "trainer learn"); the gear is read by the client's own inspect.
 
 local STRINGS = {
 	en = {
@@ -41,6 +41,8 @@ local STRINGS = {
 		T_REQ = "level %d", T_COST = "cost %d",
 		T_CHOOSE_HINT = "+ adds a rank, - takes it back: nothing changes until Save. A saved rank cannot be taken back (Reset to the build can).",
 		T_NO_OPTIONS = "No talent to choose (CoA classes only, CoA Bots 2.1 or later).", T_SAVING = "Learning %d ranks...",
+		TRAIN = "Learn spells", TRAIN_NEED = "Target a trainer of the bot's class first, then click Learn spells.",
+		TRAIN_ASKED = "%s learns what %s teaches it, paid with its own gold. No answer: nothing to learn there.",
 	},
 	fr = {
 		TITLE = "Fiche du bot", GEAR = "Équipement", BAGS = "Sacs", QUESTS = "Quêtes", INFO = "Infos", REFRESH = "Actualiser",
@@ -79,6 +81,8 @@ local STRINGS = {
 		T_REQ = "niveau %d", T_COST = "coût %d",
 		T_CHOOSE_HINT = "+ ajoute un rang, - le retire : rien ne change avant Sauvegarder. Un rang sauvegardé ne se retire plus (Remettre le build, si).",
 		T_NO_OPTIONS = "Aucun talent à choisir (classes CoA seulement, CoA Bots 2.1 ou plus).", T_SAVING = "Apprentissage de %d rangs...",
+		TRAIN = "Apprendre sorts", TRAIN_NEED = "Ciblez d'abord un maître de la classe du bot, puis cliquez Apprendre sorts.",
+		TRAIN_ASKED = "%s apprend ce que %s lui enseigne, payé avec son propre or. Pas de réponse : rien à apprendre ici.",
 	},
 }
 local function T(key)
@@ -687,6 +691,12 @@ local function BuildInfo(page)
 		{ "SUMMON", function() Whisper("summon") end },
 		{ "TRADE", function() local u = current and UnitOf(current); if u then InitiateTrade(u) end end },
 		{ "LOGOUT", function() if current then SendChatMessage(".playerbots bot remove " .. current, "SAY"); sheet:Hide() end end },
+		{ "TRAIN", function()
+			if not current then return end
+			if not UnitExists("target") or UnitIsPlayer("target") then Print(T("TRAIN_NEED")); return end
+			Print(string.format(T("TRAIN_ASKED"), current, UnitName("target")))
+			SendChatMessage("trainer learn", "WHISPER", nil, current)
+		end },
 	}
 	for i, def in ipairs(defs) do
 		local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
