@@ -50,4 +50,4 @@ Our commits on top of jrad7/evermore in the `coa` branch, all part of the integr
 | Upstream | Last ported |
 |---|---|
 | jrad7/mod-dungeon-clear `master` | `fcb680f` (2026-10-23, #61) |
-| buildthehomelab/wow-mod-dungeon-clear `evermore` | `9972b71` (2026-10-23, #17-#19; #17 is README only) |
+| buildthehomelab/wow-mod-dungeon-clear `evermore` | `1f1632d` (2026-10-23, #20-#22) |
