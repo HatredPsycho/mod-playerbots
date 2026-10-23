@@ -5,6 +5,7 @@
  */
 
 #include "PlayerbotAI.h"
+#include "CurrentTargetValue.h"
 
 #include <functional>
 #include "RaceMgr.h"
@@ -1746,6 +1747,15 @@ void PlayerbotAI::ChangeEngine(BotState type)
 
     if (currentEngine != engine)
     {
+        if (CoaLogsTargets(bot))
+        {
+            Unit* target = aiObjectContext->GetValue<Unit*>("current target")->Get();
+            LOG_INFO("playerbots", "coa engine: {} {} -> {} (in combat {}, attackers {}, target {})", bot->GetName(),
+                     currentState == BOT_STATE_COMBAT ? "combat" : currentState == BOT_STATE_DEAD ? "dead" : "non-combat",
+                     type == BOT_STATE_COMBAT ? "combat" : type == BOT_STATE_DEAD ? "dead" : "non-combat",
+                     bot->IsInCombat() ? 1 : 0, aiObjectContext->GetValue<GuidVector>("attackers")->Get().size(),
+                     target ? target->GetName() : "none");
+        }
         currentEngine = engine;
         currentState = type;
         ReInitCurrentEngine();
@@ -2010,7 +2020,7 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
     static const std::vector<std::string> allInstanceStrategies =
     {
         "aq20", "blacktemple", "bwl", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon",
-        "moltencore", "naxx", "onyxia", "rs", "ssc", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub",
+        "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub",
         "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm", "vanilla-mara", "vanilla-rfc",
         "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda",
         "vanilla-wc", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk", "wotlk-eoe", "wotlk-fos", "wotlk-gd", "wotlk-hol",
@@ -2131,6 +2141,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 578:
             strategyName = "wotlk-occ";  // The Oculus
+            break;
+        case 580:
+            strategyName = "sunwell";  // The Sunwell Plateau
             break;
         case 585:
             strategyName = "tbc-mgt";  // Magisters' Terrace
@@ -2911,8 +2924,14 @@ ObjectGuid PlayerbotAI::GetMainTankGuid(Group* group)
     Group::MemberSlotList const& slots = group->GetMemberSlots();
     for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
     {
+        // A main tank set by the raid frame but dead stayed main tank: nobody took Maulgar after she died and he
+        // roamed 2:50, his Arcing Smash on the damage dealers (ladiabale, Gruul 2.5). The next living tank takes over.
         if (itr->flags & MEMBER_FLAG_MAINTANK)
-            return itr->guid;
+        {
+            Player* flagged = ObjectAccessor::FindPlayer(itr->guid);
+            if (flagged && flagged->IsAlive())
+                return itr->guid;
+        }
     }
 
     for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
@@ -4040,6 +4059,16 @@ bool PlayerbotAI::CanCastSpell(uint32 spellid, Unit* target, bool checkHasSpell,
 
         return false;
     }
+
+    // CoA: no cast bar while standing in an enemy ground effect the bot can step out of: "avoid aoe" goes first.
+    // Healers stood in raid ground effects to cast slow heals (Yeh, 21/10).
+    if (CastingTime && sPlayerbotAIConfig.autoAvoidAoe && bot->GetGroup())
+        if (Aura* ground = GetAiObjectContext()->GetValue<Aura*>("area debuff")->Get())
+            if (ground->GetType() == DYNOBJ_AURA_TYPE && !ground->IsRemoved())
+                if (DynamicObject* area = ground->GetDynobjOwner(); area && area->IsInWorld() && area->GetRadius() > 0.0f &&
+                    area->GetRadius() <= sPlayerbotAIConfig.maxAoeAvoidRadius &&
+                    !sPlayerbotAIConfig.aoeAvoidSpellWhitelist.count(ground->GetId()))
+                    return false;
 
     if (!itemTarget)
     {
