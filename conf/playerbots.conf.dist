@@ -1438,6 +1438,12 @@ AiPlayerbot.AutoLearnTradeskillSpells = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaClassesOnly = 1
 
+# Warcraft Reborn realms only: bots set Mystic Enchants like players at an altar, from the list of their talent tree
+# in playerbots_coa_wcr_enchants (taught to them, then placed by the core within level and quality limits). Turning it
+# off keeps the enchants already set; delete the bots' rows of coa_mystic_enchant_slot to remove them.
+# Default: 1 (enabled)
+AiPlayerbot.CoaWcrMysticEnchants = 1
+
 # Gathering bots (herbalism, mining, skinning) only gather what still raises their skill: green, yellow or orange
 # for their client, never grey (100 points or more below their skill). One bot can gather everything again with the
 # chat command "nc +gather all" ("nc -gather all" to go back).
@@ -1499,6 +1505,23 @@ AiPlayerbot.CoaCasterManaReserve = 15
 # you want to measure a run, and back to 0 afterwards.
 # Default: 0 (disabled)
 AiPlayerbot.CoaGroupTelemetry = 0
+
+# Raids too, with AiPlayerbot.CoaGroupTelemetry = 1: one block per raid fight, one line per member.
+# The data a raid report needs to tell whether bots are too strong or too weak (ladiabale, 20/10).
+# Default: 0 (5-player groups only)
+AiPlayerbot.CoaGroupTelemetryRaids = 0
+
+# One line in the log each time a bot changes its target or switches between its combat and out-of-combat engines,
+# with the reason when it is known (target dead, out of sight, no attackers left). Made to follow bots that lose
+# their enemy behind an arena pillar (ladiabale, 22/10). 0: off. 1: in arenas and battlegrounds. 2: every grouped bot.
+# Default: 0 (off)
+AiPlayerbot.CoaLogTargets = 0
+
+# In a dungeon or raid a dead bot waits for a resurrection once the fight is over: as long as a living healer of its
+# group is on the map, and for at most this many seconds. 0 releases at once when the fight ends; a large value keeps
+# bots down for players who raise them with GM commands (ladiabale, 20/10).
+# Default: 120
+AiPlayerbot.CoaReleaseDelay = 120
 
 # ".playerbots coa raid [size] [tanks] [healers]" fills the raid of the one who types it with bots.
 # Game masters have no limit. A player may build one raid every CoaRaidPlayerCooldown minutes, and

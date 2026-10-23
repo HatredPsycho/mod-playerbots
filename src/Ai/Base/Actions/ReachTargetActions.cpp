@@ -13,13 +13,53 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "ServerFacade.h"
+#include <cmath>
+#include "SpellMgr.h"
+#include "SpellInfo.h"
+#include "GridNotifiersImpl.h"
+#include "GridNotifiers.h"
+#include "DynamicObject.h"
+#include "CellImpl.h"
 
 static constexpr float GROUP_SIGHT_SPOT_DISTANCE = 3.0f;
 static constexpr uint32 REGAIN_GROUP_SIGHT_TELEPORT_DELAY_MS = 4000;
 
+
 bool ReachTargetAction::Execute(Event /*event*/)
 {
     Unit* target = AI_VALUE(Unit*, GetTargetName());
+
+    // A point next to the enemy that is not in a ground effect: the one nearest the straight way in, else, with the enemy
+    // standing in it, a damage dealer waits at its edge (the tank still goes in).
+    if (target && bot->IsValidAttackTarget(target) && bot->GetGroup() && !botAI->IsTank(bot))
+    {
+        std::vector<CoaGround> const zones = CoaHostileGround(bot);
+        if (!zones.empty() && !CoaInGround(zones, bot->GetPositionX(), bot->GetPositionY(), 0.0f))
+        {
+            float const reach = std::max(distance - 1.0f, 1.0f);
+            float const base = target->GetAngle(bot);
+            float const straightX = target->GetPositionX() + reach * std::cos(base);
+            float const straightY = target->GetPositionY() + reach * std::sin(base);
+            if (CoaInGround(zones, straightX, straightY))
+            {
+                for (float step : { 0.4f, -0.4f, 0.8f, -0.8f, 1.2f, -1.2f, 1.6f, -1.6f, 2.0f, -2.0f, 2.4f, -2.4f, float(M_PI) })
+                {
+                    float x = target->GetPositionX() + reach * std::cos(base + step);
+                    float y = target->GetPositionY() + reach * std::sin(base + step);
+                    float z = target->GetPositionZ();
+                    if (CoaInGround(zones, x, y))
+                        continue;
+                    bot->UpdateAllowedPositionZ(x, y, z);
+                    if (!target->IsWithinLOS(x, y, z + 2.0f))
+                        continue;
+                    if (bot->GetExactDist2d(x, y) <= 1.5f)
+                        return false;
+                    return MoveTo(bot->GetMapId(), x, y, z, false, false, false, true, MovementPriority::MOVEMENT_COMBAT, true);
+                }
+                return false;
+            }
+        }
+    }
     // Heal and resurrect reaches use this class too. Only hostile targets get the stack.
     if (target && bot->IsValidAttackTarget(target) && bot->GetGroup() && !botAI->IsTank(bot))
     {

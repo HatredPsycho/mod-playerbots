@@ -158,8 +158,9 @@ bool VoidReaverArcaneOrbIsIncomingTrigger::IsActive()
     if (botAI->IsTank(bot))
         return false;
 
+    // Orbs already in the air still land after he dies: one cast as he died hit a healer (ladiabale, Void Reaver 22/10).
     Unit* voidReaver = AI_VALUE2(Unit*, "find target", "void reaver");
-    if (!voidReaver || voidReaver->GetVictim() == bot)
+    if (voidReaver && voidReaver->GetVictim() == bot)
         return false;
 
     auto it = voidReaverArcaneOrbs.find(bot->GetMap()->GetInstanceId());
@@ -181,10 +182,14 @@ bool VoidReaverArcaneOrbIsIncomingTrigger::IsActive()
     return false;
 }
 
+// Only with something left to erase: it fired at priority 101 on every tick out of combat in the instance, 20,855
+// times in 12 minutes (ladiabale, TK 22/10).
 bool VoidReaverBotIsNotInCombatTrigger::IsActive()
 {
     return bot->GetMapId() == TEMPEST_KEEP_MAP_ID &&
            !AI_VALUE2(bool, "combat", "self target") &&
+           (voidReaverArcaneOrbs.count(bot->GetMap()->GetInstanceId()) ||
+            hasReachedVoidReaverPosition.count(bot->GetGUID())) &&
            !AI_VALUE2(Unit*, "find target", "void reaver");
 }
 
@@ -198,8 +203,11 @@ bool HighAstromancerSolarianBossCastsWrathOfTheAstromancerTrigger::IsActive()
     if (!botAI->IsRanged(bot))
         return false;
 
+    // Not while she is vanished: the stack anchor stepped out of the stack (ladiabale, Solarian 22/10).
     Unit* astromancer = AI_VALUE2(Unit*, "find target", "high astromancer solarian");
-    return astromancer && !astromancer->HasAura(SPELL_SOLARIAN_TRANSFORM);
+    Creature* astromancerCreature = astromancer ? astromancer->ToCreature() : nullptr;
+    return astromancerCreature && !astromancer->HasAura(SPELL_SOLARIAN_TRANSFORM) &&
+           astromancerCreature->GetReactState() != REACT_PASSIVE;
 }
 
 bool HighAstromancerSolarianBotHasWrathOfTheAstromancerTrigger::IsActive()
@@ -273,6 +281,13 @@ bool KaelthasSunstriderSanguinarEngagedByMainTankTrigger::IsActive()
     if (!botAI->IsMainTank(bot))
         return false;
 
+    // Once Kael'thas is in the fight he is the main tank's: when he joined on the timer with Sanguinar still up, the
+    // main tank swapped the star and its target between the two 112 times and Kael was never tanked (ladiabale, 22/10).
+    if (Unit* kaelthas = AI_VALUE2(Unit*, "find target", "kael'thas sunstrider"))
+        if (boss_kaelthas* kaelAI = dynamic_cast<boss_kaelthas*>(kaelthas->GetAI()))
+            if (kaelAI->GetPhase() == PHASE_FINAL)
+                return false;
+
     Unit* sanguinar = AI_VALUE2(Unit*, "find target", "lord sanguinar");
     return sanguinar && !sanguinar->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE) &&
            !sanguinar->HasAura(SPELL_PERMANENT_FEIGN_DEATH);
@@ -305,9 +320,6 @@ bool KaelthasSunstriderSanguinarCastsBellowingRoarTrigger::IsActive()
 
 bool KaelthasSunstriderCapernianShouldBeTankedByAWarlockTrigger::IsActive()
 {
-    if (bot->getClass() != CLASS_WARLOCK)
-        return false;
-
     Unit* capernian = AI_VALUE2(Unit*, "find target", "grand astromancer capernian");
     if (!capernian || capernian->HasUnitFlag(UNIT_FLAG_NON_ATTACKABLE) ||
         capernian->HasAura(SPELL_PERMANENT_FEIGN_DEATH))
@@ -352,7 +364,7 @@ bool KaelthasSunstriderBotsHaveSpecificRolesInPhase3Trigger::IsActive()
 
     return botAI->IsAssistHealOfIndex(bot, 0, true) ||
            botAI->IsMainTank(bot) || botAI->IsAssistTankOfIndex(bot, 0, true) ||
-           (bot->getClass() == CLASS_WARLOCK && GetCapernianTank(bot) == bot);
+           GetCapernianTank(bot) == bot;
 }
 
 bool KaelthasSunstriderDeterminingAdvisorKillOrderTrigger::IsActive()
@@ -523,8 +535,10 @@ bool KaelthasSunstriderBossIsCastingPyroblastTrigger::IsActive()
     if (!botAI->IsDps(bot))
         return false;
 
+    // Also once the barrier is broken and Pyroblast is still being cast: the interrupt branch of the action needs the
+    // barrier down, which this trigger never let happen (ladiabale, Kael 22/10).
     Unit* kaelthas = AI_VALUE2(Unit*, "find target", "kael'thas sunstrider");
-    return kaelthas && kaelthas->HasAura(SPELL_SHOCK_BARRIER);
+    return kaelthas && (kaelthas->HasAura(SPELL_SHOCK_BARRIER) || kaelthas->FindCurrentSpellBySpellId(SPELL_KAEL_PYROBLAST));
 }
 
 bool KaelthasSunstriderBossIsManipulatingGravityTrigger::IsActive()
