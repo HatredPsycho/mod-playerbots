@@ -111,6 +111,7 @@ if (BUILD_TESTING)
             "${MOD_PATH}/test/dungeon_clear/TestRaidScale.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestRaidMuster.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestMoltenCore.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestPartyHoldDecision.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestKarazhan.cpp"
     "${MOD_PATH}/test/dungeon_clear/TestKarazhanChess.cpp"
     "${MOD_PATH}/test/dungeon_clear/TestKarazhanChessSim.cpp"
