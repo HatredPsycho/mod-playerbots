@@ -17,6 +17,11 @@
 #include "Playerbots.h"
 #include "ServerFacade.h"
 
+namespace pba
+{
+    bool LootFilterAllows(Player* bot, ItemTemplate const* proto);
+}
+
 bool LootAction::Execute(Event /*event*/)
 {
     if (!AI_VALUE(bool, "has available loot"))
@@ -570,6 +575,11 @@ bool StoreLootAction::IsLootAllowed(uint32 itemid, PlayerbotAI* botAI)
             }
         }
     }
+
+    // mod-playerbots-auctions: the configured loot filter keeps ordinary vendor trash, food and
+    // configured items off random bots. Quest items and the always-loot list were handled above.
+    if (!pba::LootFilterAllows(botAI->GetBot(), proto))
+        return false;
 
     // if (proto->Bonding == BIND_QUEST_ITEM ||  //Still testing if it works ok without these lines.
     //     proto->Bonding == BIND_QUEST_ITEM1 || //Eventually this has to be removed.
