@@ -13,6 +13,11 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 
+namespace pba
+{
+    bool LootFilterAllows(Player* bot, ItemTemplate const* proto);
+}
+
 bool LootRollAction::Execute(Event /*event*/)
 {
     Group* group = bot->GetGroup();
@@ -39,6 +44,14 @@ bool LootRollAction::Execute(Event /*event*/)
         ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
         if (!proto)
             continue;
+
+        // mod-playerbots-auctions: a filtered item is passed on instead of rolled for.
+        if (!pba::LootFilterAllows(bot, proto))
+        {
+            group->CountRollVote(bot->GetGUID(), guid, PASS);
+            voted = true;
+            continue;
+        }
 
         std::string itemUsageParam;
         if (randomProperty != 0)
