@@ -1,5 +1,13 @@
 # CoA Bots — changelog
 
+## v2.8.2 (in progress)
+
+- **Duels in front of Orgrimmar and Stormwind**: a few random bots now duel outside the main gates, Horde bots at
+  Orgrimmar and Alliance bots at Stormwind, in pairs of close levels (by default two pairs near level 60 and one near
+  level 30), and are replaced by other bots every 20 minutes. On by default; `AiPlayerbot.CityDuels.Enable = 0` turns
+  it off, `AiPlayerbot.CityDuels.*` sets the number of bots, their levels and the places. Bots of a player's group
+  are never taken, and no duel starts while a player of the other faction is near.
+
 ## v2.8.1 — Latest CoA core, classic dungeon bosses, battleground fixes (October 2026)
 
 ### Highlights

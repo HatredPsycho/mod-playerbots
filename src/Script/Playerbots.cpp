@@ -10,6 +10,7 @@
 #include "CoaBossKnowledge.h"
 #include "BattlefieldScript.h"
 #include "Channel.h"
+#include "CityDuels.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
@@ -450,12 +451,14 @@ public:
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
         sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
+        CityDuels::Update(diff);
     }
 
     void OnShutdown() override
     {
         // Command server sessions run on detached threads that would otherwise outlive the world thread processor.
         PlayerbotCommandServer::instance().Stop();
+        CityDuels::ReleaseAll(false);
     }
 };
 
