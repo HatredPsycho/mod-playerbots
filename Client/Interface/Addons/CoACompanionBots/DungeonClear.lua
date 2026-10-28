@@ -617,6 +617,12 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
     if UpdateFrameHeight then
         UpdateFrameHeight()
     end
+
+    -- The bar greys its Auto pull out while a clear owns the bot. Paused counts: the multiplier keeps
+    -- proactive engagement suppressed while paused as well, so the tank would not pull anyway.
+    if CoACompanionBots_DcRunning then
+        CoACompanionBots_DcRunning(isDCOn)
+    end
 end
 
 -- Command sender via addon messages (silent, no audio cue)

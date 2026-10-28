@@ -16,6 +16,7 @@ local STRINGS = {
 		RAIDFRAMES_OFF = "Role icons and bot menus on the raid-style frames: off.",
 		TIP_PULL_ON = "The tank pulls on its own. Click so it waits: it only fights what you or the group attack.",
 		TIP_PULL_OFF = "The tank does not pull on its own: you choose the fights. Click to let it pull again.",
+		TIP_PULL_DC = "Dungeon clear is running: it chooses the pulls (pull mode in its window). Auto pull comes back when the clear stops.",
 		TIP_DUNGEON = "Dungeon mode: bots stick to you, avoid ground effects, engage with you.",
 		TIP_RECRUIT = "Ask for a tank, a healer or damage. Offers pop up above this bar.",
 		TIP_ALTS = "Your other characters: log them in as bots, summon them, open their sheet (gear, bags, quests, mounts).",
@@ -99,6 +100,7 @@ local STRINGS = {
 		RAIDFRAMES_OFF = "Icônes de rôle et menus des bots sur les cadres de style raid : désactivés.",
 		TIP_PULL_ON = "Le tank tire tout seul. Cliquez pour qu'il attende : il ne se bat que contre ce que vous ou le groupe attaquez.",
 		TIP_PULL_OFF = "Le tank ne tire pas tout seul : vous choisissez les combats. Cliquez pour qu'il tire de nouveau.",
+		TIP_PULL_DC = "Dungeon clear est en cours : c'est lui qui choisit les pulls (mode de pull dans sa fenêtre). Le pull auto revient quand le clear s'arrête.",
 		TIP_DUNGEON = "Mode donjon : les bots restent avec vous, évitent les zones au sol, engagent avec vous.",
 		TIP_RECRUIT = "Demandez un tank, un soigneur ou des DPS. Les offres s'affichent au-dessus de la barre.",
 		TIP_ALTS = "Vos autres personnages : connectez-les en bots, appelez-les, ouvrez leur fiche (équipement, sacs, quêtes, montures).",
@@ -1201,6 +1203,9 @@ Highlight = function()
 		pull.icon:SetTexture(state.autoPull and ICON_PULL_ON or ICON_PULL_OFF)
 		pull.label = state.autoPull and "PULL_ON" or "PULL_OFF"
 		pull.tip = state.autoPull and "TIP_PULL_ON" or "TIP_PULL_OFF"
+		-- While a clear runs it takes "coa auto pull" off the tank and puts it back after: greyed out.
+		if state.dcRunning then pull.tip = "TIP_PULL_DC" end
+		pull.icon:SetDesaturated(state.dcRunning and 1 or nil)
 		pull.caption:SetText(L[pull.label])
 	end
 end
@@ -1371,6 +1376,7 @@ local function BuildBar()
 			if SetPassive(not state.passive) then state.passive = not state.passive; Highlight() end
 		end },
 		{ "pull", ICON_PULL_ON, "PULL_ON", "TIP_PULL_ON", function()
+			if state.dcRunning then Print(L.TIP_PULL_DC) return end
 			SetAutoPull(not state.autoPull)
 		end },
 		{ "dungeon", "Interface\\Icons\\Achievement_Dungeon_ClassicDungeonMaster", "DUNGEON", "TIP_DUNGEON", function()
@@ -2538,6 +2544,14 @@ end
 
 function CoACompanionBots_Language()
 	return SquidBotsLiteDB and SquidBotsLiteDB.lang or ((GetLocale() == "frFR") and "fr" or "en")
+end
+
+-- DungeonClear.lua calls this on every status line: while a clear runs it owns the pulls, so the bar's
+-- Auto pull is greyed out and its click only says why.
+function CoACompanionBots_DcRunning(running)
+	if state.dcRunning == running then return end
+	state.dcRunning = running
+	if Highlight then Highlight() end
 end
 
 -- The bot sheet (Manager.lua) asks a bot its specialization the same way.

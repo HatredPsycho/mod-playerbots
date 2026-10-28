@@ -1293,6 +1293,9 @@ Player* GroupTank(Player* bot);
 // with what costs nothing, where alone it only kept AiPlayerbot.CoaHealerManaReserve. At 85 it was
 // saving nearly all fight long and chose its cheapest heals while members died (28/09).
 constexpr uint32 GroupHealerManaReserve = 60;
+// In a raid a healer whose damage is its healing still keeps a dispel and a heal: a Heretic hit 0% mana in all six
+// boss fights of a Kara 10 run and died to a Holy Fire her own dispel could not pay for (24/10).
+constexpr uint32 OffensiveHealerRaidManaFloor = 25;
 
 bool KnowsAHeal(Player* bot)
 {
@@ -1309,7 +1312,8 @@ bool SavingManaForHeals(Player* bot)
     // from damage would keep it from healing. AiPlayerbot.CoaOffensiveHealerSpecs.
     if (uint32 const specialization = GetAscensionActiveSpecialization(bot))
         if (sPlayerbotAIConfig.coaOffensiveHealerSpecs.count(specialization))
-            return false;
+            return bot->GetMap() && bot->GetMap()->IsRaid() && bot->IsInCombat() &&
+                   bot->GetPowerPct(POWER_MANA) < float(OffensiveHealerRaidManaFloor);
 
     uint32 reserve = GetCoaRole(bot) == CoaRole::Heal ? sPlayerbotAIConfig.coaHealerManaReserve
                                                       : sPlayerbotAIConfig.coaCasterManaReserve;
@@ -3314,6 +3318,17 @@ bool OwnTargetTurned(Player* bot, Unit* target)
            !HeldByOtherTank(bot, target);
 }
 
+// The taunts the bot knows that can take this enemy: Maiden of Virtue is immune, and a tank spent 29-79 taunts on her
+// each try of a Kara 10 run (24/10) while she killed the healers.
+std::vector<Usable> TauntsFor(Player* bot, Unit* target)
+{
+    std::vector<Usable> taunts = KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_TAUNT) != 0; });
+    if (target)
+        taunts.erase(std::remove_if(taunts.begin(), taunts.end(),
+            [target](Usable const& taunt) { return target->IsImmunedToSpell(taunt.info); }), taunts.end());
+    return taunts;
+}
+
 // Takes the current target back when it attacks someone else, or else an enemy on another member.
 class CoaTauntAction : public Action
 {
@@ -3329,8 +3344,7 @@ public:
         if (!target || !target->IsAlive())
             return false;
 
-        SpellInfo const* taunt = CastFirst(botAI, bot,
-            KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_TAUNT) != 0; }), target, USAGE_TAUNT);
+        SpellInfo const* taunt = CastFirst(botAI, bot, TauntsFor(bot, target), target, USAGE_TAUNT);
         if (taunt)
         {
             CoaTelemetryNoteTaunt(bot);
@@ -3366,8 +3380,7 @@ public:
         if (!target || !target->IsAlive() || target->GetVictim() == bot)
             return false;
 
-        SpellInfo const* taunt = CastFirst(botAI, bot,
-            KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_TAUNT) != 0; }), target, USAGE_TAUNT);
+        SpellInfo const* taunt = CastFirst(botAI, bot, TauntsFor(bot, target), target, USAGE_TAUNT);
         if (taunt)
             CoaTelemetryNoteTaunt(bot);
         return RecordUsage(USAGE_TAUNT, taunt);

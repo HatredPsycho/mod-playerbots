@@ -128,6 +128,8 @@ if (BUILD_TESTING)
             "${MOD_PATH}/test/dungeon_clear/TestOculus.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestGundrak.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestBlackwingLair.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestBlackfathomDeeps.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestStratTrapAlley.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestDungeonEvent.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestNavGeometry.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestSplineWindow.cpp"
