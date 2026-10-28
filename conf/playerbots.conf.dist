@@ -631,6 +631,21 @@ AiPlayerbot.CoaSelfFound = 0
 # Default: 59 (at 60 bots are geared as usual for the endgame)
 AiPlayerbot.CoaSelfFoundMaxLevel = 59
 
+# Random bot transmog: random bots show other models of their armor and weapon types, picked from a whole item
+# set when one fits, with a required level up to 15 below their own. Purely visual: their real gear and stats never
+# change and nothing is saved; a bot keeps the same look at every login until its level changes bracket.
+# Not applied to alt bots, to self-found levels (CoaSelfFound), or when CoA.CollectionsForBots >= 2.
+# Default: 1 (enabled)
+AiPlayerbot.RandomBotTransmog = 1
+
+# Share of random bots that use a transmog, in percent; the same bots every time.
+# Default: 50
+AiPlayerbot.RandomBotTransmogPercent = 50
+
+# Random bots below this level keep their real gear look.
+# Default: 10
+AiPlayerbot.RandomBotTransmogMinLevel = 10
+
 # If 1 (enabled) chat command: autogear bis, gives bots BiS gear from the playerbots_bis_gear table
 # whose item-level floor matches AutoGearScoreLimit (e.g. 290 = ICC, 245 = ToC,
 # 125 = Kara, 78 = MC). See the AutoGearScoreLimit comment below for the full list.
