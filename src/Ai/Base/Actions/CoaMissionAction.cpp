@@ -323,7 +323,8 @@ bool CoaMissionUpdateAction::DoTravel(CoaMission& mission, uint32 now)
         TeleportToSpot(mission);
         return true;
     }
-    if (dist < 30.0f)
+    // Arrived: near the spot, or already in the mission's zone (an alt teleported there by its player gathers there).
+    if (dist < 30.0f || (mission.zoneId && bot->GetZoneId() == mission.zoneId))
     {
         mission.state = CoaMissionState::Work;
         mission.workSinceMs = now;
