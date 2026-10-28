@@ -503,13 +503,21 @@ bool CheckMountStateAction::TryRandomMountFiltered(std::map<int32, std::vector<u
             if (bot->isMoving())
                 bot->StopMoving();
 
-            uint32 index = urand(0, ids.size() - 1);
-
-            if (botAI->CanCastSpell(ids[index], bot))
-            {
-                botAI->CastSpell(ids[index], bot);
-                return true;
-            }
+            // Every mount of the group is tried, in random order: one refused mount no longer blocks the others.
+            std::vector<uint32> order = ids;
+            for (size_t i = order.size(); i > 1; --i)
+                std::swap(order[i - 1], order[urand(0, i - 1)]);
+            for (uint32 spellId : order)
+                if (botAI->CanCastSpell(spellId, bot))
+                {
+                    botAI->CastSpell(spellId, bot);
+                    return true;
+                }
+            // CoA collection mounts are known and castable but fail CanCastSpell: cast a known one as the preferred
+            // mount path does.
+            for (uint32 spellId : order)
+                if (bot->HasSpell(spellId) && botAI->CastSpell(spellId, bot))
+                    return true;
         }
     }
     return false;
