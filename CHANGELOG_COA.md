@@ -1,5 +1,13 @@
 # CoA Bots — changelog
 
+## v2.8.2 (in progress)
+
+- **Gathering missions for your alts**: whisper `mission gather [minutes] [mining|herbalism]` to one of your own
+  characters played as a bot. It leaves the group, gathers ore or herbs in a zone of its level on its continent, and
+  mails you what it gathered when the time is up, its bags are full or you whisper `mission stop` (`mission status`
+  answers `MISSION;state;zone;minutes left;items;profession;deaths`). The mission resumes when the alt logs in again,
+  even after a server restart. Never for random bots, no selling during a mission. Settings: `AiPlayerbot.Missions.*`.
+
 ## v2.8.1 — Latest CoA core, classic dungeon bosses, battleground fixes (October 2026)
 
 ### Highlights

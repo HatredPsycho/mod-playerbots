@@ -9,6 +9,7 @@
 #include "BattleGroundTactics.h"
 #include "CoaBossKnowledge.h"
 #include "BattlefieldScript.h"
+#include "CoaMissionMgr.h"
 #include "Channel.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
@@ -91,17 +92,28 @@ public:
         PLAYERHOOK_ON_GIVE_EXP,
         PLAYERHOOK_ON_UPDATE_ZONE,
         PLAYERHOOK_ON_LOOT_ITEM,
-        PLAYERHOOK_ON_BEFORE_TELEPORT
+        PLAYERHOOK_ON_BEFORE_TELEPORT,
+        PLAYERHOOK_ON_PLAYER_JUST_DIED
     }) {}
+
+    // An alt on a gathering mission counts its deaths: it gives up at AiPlayerbot.Missions.MaxDeaths.
+    void OnPlayerJustDied(Player* player) override
+    {
+        if (player && GET_PLAYERBOT_AI(player))
+            sCoaMissionMgr.OnDied(player);
+    }
 
     // What the bots bring back. Only the finds worth a line, and only from bots: a server watching
     // its bots wants to know what dropped, not to read every piece of linen cloth. The bar is
     // AiPlayerbot.LootLogMinQuality (3, rare, by default; 4 for epics only).
     // Off unless worldserver.conf points "playerbots.loot" at an appender.
-    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid /*lootguid*/) override
+    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid lootguid) override
     {
         if (!player || !item || !GET_PLAYERBOT_AI(player))
             return;
+
+        // What an alt on a gathering mission gathers is mailed to its owner at the end.
+        sCoaMissionMgr.OnLoot(player, item, count, lootguid);
 
         ItemTemplate const* proto = item->GetTemplate();
         if (!proto || proto->Quality < sPlayerbotAIConfig.lootLogMinQuality)
