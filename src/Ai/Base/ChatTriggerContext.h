@@ -60,6 +60,7 @@ public:
         creators["nt"] = &ChatTriggerContext::nontrade;
         creators["talents"] = &ChatTriggerContext::talents;
         creators["wcr"] = &ChatTriggerContext::wcr;
+        creators["mission"] = &ChatTriggerContext::mission;
         creators["wildcard"] = &ChatTriggerContext::wildcard;
         creators["spells"] = &ChatTriggerContext::spells;
         creators["co"] = &ChatTriggerContext::co;
@@ -234,6 +235,7 @@ private:
     static Trigger* spells(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "spells"); }
     static Trigger* talents(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "talents"); }
     static Trigger* wcr(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "wcr"); }
+    static Trigger* mission(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "mission"); }
     static Trigger* wildcard(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "wildcard"); }
     static Trigger* equip(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "e"); }
     static Trigger* uneqip(PlayerbotAI* botAI) { return new ChatCommandTrigger(botAI, "ue"); }

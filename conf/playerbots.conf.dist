@@ -1778,6 +1778,31 @@ AiPlayerbot.CoaLootMakeRoom = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaAoeNoIdlePull = 1
 
+# Gathering missions for your own characters played as bots (alts): whisper "mission gather [minutes]
+# [mining|herbalism]" to the bot, then "mission status" or "mission stop". The bot leaves the group,
+# gathers in a zone of its level on its continent, then mails what it gathered to you. Never for
+# random bots. A mission resumes when the alt logs in again.
+# Default: 1 (enabled)
+AiPlayerbot.Missions.Enable = 1
+
+# Longest mission in minutes, and the length when none is given.
+# Default: 120 and 60
+AiPlayerbot.Missions.MaxMinutes = 120
+AiPlayerbot.Missions.DefaultMinutes = 60
+
+# Missions at the same time per player (0 = no limit).
+# Default: 3
+AiPlayerbot.Missions.MaxPerPlayer = 3
+
+# Deaths before the bot gives up and mails what it has.
+# Default: 3
+AiPlayerbot.Missions.MaxDeaths = 3
+
+# Teleport the bot to its gathering spot when it makes no progress on the way (else it gives up after
+# 3 failures).
+# Default: 1 (enabled)
+AiPlayerbot.Missions.TeleportFallback = 1
+
 # In an arena, a battleground or a duel, a CoA bot stunned, feared, polymorphed or charmed for 2
 # seconds or more uses the PvP trinket it wears (spell 42292) to break free. Bots wore it and never
 # used it.

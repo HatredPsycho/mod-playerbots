@@ -435,6 +435,13 @@ public:
     bool coaAvoidMarkedAlly;
     bool coaMeleeNoRangedHardcast;
     bool coaLootMakeRoom;
+    // AiPlayerbot.Missions.*: gathering missions of the alts ("mission gather <minutes>" whispered to the bot).
+    bool missionsEnable;
+    uint32 missionsMaxMinutes;
+    uint32 missionsDefaultMinutes;
+    uint32 missionsMaxPerPlayer;
+    uint32 missionsMaxDeaths;
+    bool missionsTeleportFallback;
     bool coaAoeNoIdlePull;
     bool coaPvpTrinket;
     bool coaArenaPurge;

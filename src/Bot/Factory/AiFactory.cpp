@@ -29,6 +29,7 @@
 #include "SharedDefines.h"
 #include "SpellInfo.h"
 #include "CoaAiObjectContext.h"
+#include "CoaMissionMgr.h"
 #include "SpellMgr.h"
 #include "WarlockAiObjectContext.h"
 #include "WarriorAiObjectContext.h"
@@ -805,6 +806,10 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
             nonCombatEngine->removeStrategy("mount", false);
         }
     }
+
+    // An alt on a gathering mission keeps its mission strategies through every reset.
+    if (!player->InBattleground() && sCoaMissionMgr.IsOnMission(player))
+        CoaMissionMgr::ApplyEngineStrategies(nonCombatEngine);
 }
 
 Engine* AiFactory::createNonCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)
