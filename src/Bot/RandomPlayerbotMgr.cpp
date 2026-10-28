@@ -3501,18 +3501,29 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
     SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
     PlayerbotFactory::DestroyEquippedGear(bot);
-    PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
+    // The configured RandomGearScoreLimit applies here too, as in every other way of gearing a random bot.
+    uint32 const gearScoreLimit = sPlayerbotAIConfig.randomGearScoreLimit
+                                      ? PlayerbotFactory::CalcMixedGearScore(sPlayerbotAIConfig.randomGearScoreLimit,
+                                                                            sPlayerbotAIConfig.randomGearQualityLimit)
+                                      : 0;
+    PlayerbotFactory factory(bot, bot->GetLevel(), quality, gearScoreLimit);
     factory.maxItemLevel = itemLevel;
     factory.preferResilience = pvp;
     factory.InitEquipment(false, false);
-    // A slot nothing filled under the limit is filled without it: a bot is never left without gear.
-    uint32 empty = 0;
-    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-        if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD && !bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-            ++empty;
-    if (empty > 3)
+    // Slots nothing filled under the limit: the item level limit is loosened step by step (never removed while the
+    // gear score limit stays), so a bot is never left without gear and never gets test or out-of-content items.
+    auto emptySlots = [bot]()
     {
-        factory.maxItemLevel = 0;
+        uint32 empty = 0;
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+            if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD &&
+                !bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                ++empty;
+        return empty;
+    };
+    for (uint32 step = 1; step <= 4 && emptySlots() > 3; ++step)
+    {
+        factory.maxItemLevel = itemLevel + itemLevel * 15 * step / 100;
         factory.InitEquipment(true, false);
     }
     factory.InitAmmo();
