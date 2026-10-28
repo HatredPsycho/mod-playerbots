@@ -20,6 +20,7 @@
 #include "SMActionContext.h"
 #include "StratActionContext.h"
 #include "UldaActionContext.h"
+#include "VaultsActionContext.h"
 #include "WCActionContext.h"
 
 #endif
