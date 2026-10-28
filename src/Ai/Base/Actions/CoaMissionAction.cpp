@@ -317,7 +317,14 @@ bool CoaMissionUpdateAction::DoTravel(CoaMission& mission, uint32 now)
     }
 
     float const dist = bot->GetExactDist2d(mission.x, mission.y);
-    if (dist < 30.0f)
+    // As when an alt is summoned: straight to the gathering spot, the mission time is spent gathering.
+    if (dist >= 30.0f && sPlayerbotAIConfig.missionsTeleportToSpot)
+    {
+        TeleportToSpot(mission);
+        return true;
+    }
+    // Arrived: near the spot, or already in the mission's zone (an alt teleported there by its player gathers there).
+    if (dist < 30.0f || (mission.zoneId && bot->GetZoneId() == mission.zoneId))
     {
         mission.state = CoaMissionState::Work;
         mission.workSinceMs = now;

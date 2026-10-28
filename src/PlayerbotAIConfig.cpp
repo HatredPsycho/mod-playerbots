@@ -821,6 +821,7 @@ bool PlayerbotAIConfig::Initialize()
     missionsMaxPerPlayer = sConfigMgr->GetOption<uint32>("AiPlayerbot.Missions.MaxPerPlayer", 3, false);
     missionsMaxDeaths = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.Missions.MaxDeaths", 3, false));
     missionsTeleportFallback = sConfigMgr->GetOption<bool>("AiPlayerbot.Missions.TeleportFallback", true, false);
+    missionsTeleportToSpot = sConfigMgr->GetOption<bool>("AiPlayerbot.Missions.TeleportToSpot", true, false);
     coaAoeNoIdlePull = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAoeNoIdlePull", true, false);
     coaPvpTrinket = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaPvpTrinket", true, false);
     coaArenaPurge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaArenaPurge", true, false);

@@ -1803,6 +1803,11 @@ AiPlayerbot.Missions.MaxDeaths = 3
 # Default: 1 (enabled)
 AiPlayerbot.Missions.TeleportFallback = 1
 
+# Teleport the bot straight to its gathering spot when the mission starts, as when you summon an alt: the whole
+# mission time is spent gathering. 0: it walks there (the walk counts in the mission time).
+# Default: 1 (enabled)
+AiPlayerbot.Missions.TeleportToSpot = 1
+
 # In an arena, a battleground or a duel, a CoA bot stunned, feared, polymorphed or charmed for 2
 # seconds or more uses the PvP trinket it wears (spell 42292) to break free. Bots wore it and never
 # used it.
