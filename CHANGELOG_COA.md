@@ -1,5 +1,12 @@
 # CoA Bots — changelog
 
+## v2.8.2 (in progress)
+
+- **Random bot transmog**: half of the random bots (`AiPlayerbot.RandomBotTransmogPercent = 50`) now show other
+  models of their armor and weapon types, a whole item set when one fits their level, from level 10
+  (`RandomBotTransmogMinLevel`). Purely visual: their real gear and stats never change and nothing is saved; a bot keeps
+  its look at every login. Not used on alt bots or self-found levels. `AiPlayerbot.RandomBotTransmog = 0` turns it off.
+
 ## v2.8.1 — Latest CoA core, classic dungeon bosses, battleground fixes (October 2026)
 
 ### Highlights

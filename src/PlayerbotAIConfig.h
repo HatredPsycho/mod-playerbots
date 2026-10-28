@@ -538,6 +538,10 @@ public:
     bool coaSelfFound;
     // Self-found applies up to this level; above it bots are geared and levelled as usual.
     uint32 coaSelfFoundMaxLevel;
+    // Random bots show other gear models of their armor and weapon types: visual only, nothing saved.
+    bool randomBotTransmog;
+    uint32 randomBotTransmogPercent;
+    uint32 randomBotTransmogMinLevel;
 
     uint32 useGroundMountAtMinLevel;
     uint32 useFastGroundMountAtMinLevel;
