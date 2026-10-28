@@ -25,6 +25,7 @@
 #include "NexStrategy.h"
 #include "OCStrategy.h"
 #include "OtherSideStrategy.h"
+#include "VaultsStrategy.h"
 #include "PoSStrategy.h"
 #include "RFCStrategy.h"
 #include "RFDStrategy.h"
@@ -63,6 +64,7 @@ class DungeonStrategyContext : public NamedObjectContext<Strategy>
             creators["vanilla-strat"] = &DungeonStrategyContext::vanilla_strat;  // Stratholme
             creators["vanilla-mara"] = &DungeonStrategyContext::vanilla_mara;  // Maraudon
             creators["coa-other-side"] = &DungeonStrategyContext::coa_other_side;  // Road to De Other Side
+            creators["coa-vaults"] = &DungeonStrategyContext::coa_vaults;  // Vaults of the Inquisition
 
             // Burning Crusade
             creators["tbc-ac"] = &DungeonStrategyContext::tbc_ac;           // Auchindoun: Auchenai Crypts
@@ -103,6 +105,7 @@ class DungeonStrategyContext : public NamedObjectContext<Strategy>
         static Strategy* vanilla_strat(PlayerbotAI* botAI) { return new VanillaDungeonStratStrategy(botAI); }
         static Strategy* vanilla_mara(PlayerbotAI* botAI) { return new VanillaDungeonMaraStrategy(botAI); }
         static Strategy* coa_other_side(PlayerbotAI* botAI) { return new CoaDungeonOtherSideStrategy(botAI); }
+        static Strategy* coa_vaults(PlayerbotAI* botAI) { return new CoaDungeonVaultsStrategy(botAI); }
         static Strategy* tbc_ac(PlayerbotAI* botAI) { return new TbcDungeonAuchenaiCryptsStrategy(botAI); }
         static Strategy* tbc_seth(PlayerbotAI* botAI) { return new TbcDungeonSethekkHallsStrategy(botAI); }
         static Strategy* tbc_mech(PlayerbotAI* botAI) { return new TbcDungeonMechanarStrategy(botAI); }

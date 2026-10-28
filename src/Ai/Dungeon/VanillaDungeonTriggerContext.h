@@ -20,6 +20,7 @@
 #include "SMTriggerContext.h"
 #include "StratTriggerContext.h"
 #include "UldaTriggerContext.h"
+#include "VaultsTriggerContext.h"
 #include "WCTriggerContext.h"
 
 #endif
