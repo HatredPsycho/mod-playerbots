@@ -442,6 +442,7 @@ public:
     uint32 missionsMaxPerPlayer;
     uint32 missionsMaxDeaths;
     bool missionsTeleportFallback;
+    bool missionsTeleportToSpot;
     bool coaAoeNoIdlePull;
     bool coaPvpTrinket;
     bool coaArenaPurge;
