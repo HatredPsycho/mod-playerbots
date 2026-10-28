@@ -15,6 +15,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 enum class BotCheatMask : uint32
@@ -99,6 +100,8 @@ public:
     bool Initialize();
     void LoadRandomBotLevelConfig();
     bool IsInRandomAccountList(uint32 id);
+    // "tradegoods,herb,7:9,5": item classes or class:subclass pairs, with a few names.
+    void LoadGuildBankDepositItems(std::string const& value);
     bool IsInRandomQuestItemList(uint32 id);
     bool IsPvpProhibited(uint32 zoneId, uint32 areaId);
     bool IsInPvpProhibitedZone(uint32 id);
@@ -443,6 +446,12 @@ public:
     uint32 missionsMaxDeaths;
     bool missionsTeleportFallback;
     bool missionsTeleportToSpot;
+    // AiPlayerbot.GuildBankDeposit.*: bots of a real player's guild fill the guild bank near a guild vault.
+    bool guildBankDepositEnable;
+    std::vector<std::pair<int32, int32>> guildBankDepositItems;  // item class, subclass (-1 = all)
+    uint32 guildBankDepositKeepGold;
+    uint32 guildBankDepositMinStack;
+    uint32 guildBankDepositTab;  // 1-6, 0 = first tab where the bot may deposit
     bool coaAoeNoIdlePull;
     bool coaPvpTrinket;
     bool coaArenaPurge;

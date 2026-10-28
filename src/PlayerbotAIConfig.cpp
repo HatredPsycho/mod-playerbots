@@ -8,6 +8,7 @@
 #include "BisListMgr.h"
 #include "CoaBotNames.h"
 #include "Config.h"
+#include "ItemTemplate.h"
 #include "NewRpgInfo.h"
 #include "PlayerbotDungeonRepository.h"
 #include "PlayerbotFactory.h"
@@ -822,6 +823,11 @@ bool PlayerbotAIConfig::Initialize()
     missionsMaxDeaths = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.Missions.MaxDeaths", 3, false));
     missionsTeleportFallback = sConfigMgr->GetOption<bool>("AiPlayerbot.Missions.TeleportFallback", true, false);
     missionsTeleportToSpot = sConfigMgr->GetOption<bool>("AiPlayerbot.Missions.TeleportToSpot", true, false);
+    guildBankDepositEnable = sConfigMgr->GetOption<bool>("AiPlayerbot.GuildBankDeposit.Enable", false, false);
+    LoadGuildBankDepositItems(sConfigMgr->GetOption<std::string>("AiPlayerbot.GuildBankDeposit.Items", "tradegoods", false));
+    guildBankDepositKeepGold = sConfigMgr->GetOption<uint32>("AiPlayerbot.GuildBankDeposit.KeepGold", 100, false);
+    guildBankDepositMinStack = std::max<uint32>(1, sConfigMgr->GetOption<uint32>("AiPlayerbot.GuildBankDeposit.MinStack", 1, false));
+    guildBankDepositTab = std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.GuildBankDeposit.Tab", 0, false), 6);
     coaAoeNoIdlePull = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAoeNoIdlePull", true, false);
     coaPvpTrinket = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaPvpTrinket", true, false);
     coaArenaPurge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaArenaPurge", true, false);
@@ -1132,6 +1138,58 @@ void PlayerbotAIConfig::LoadRandomBotLevelConfig()
 bool PlayerbotAIConfig::IsInRandomAccountList(uint32 id)
 {
     return find(randomBotAccounts.begin(), randomBotAccounts.end(), id) != randomBotAccounts.end();
+}
+
+void PlayerbotAIConfig::LoadGuildBankDepositItems(std::string const& value)
+{
+    static std::unordered_map<std::string, std::pair<int32, int32>> const names = {
+        {"tradegoods", {ITEM_CLASS_TRADE_GOODS, -1}},   {"consumables", {ITEM_CLASS_CONSUMABLE, -1}},
+        {"gems", {ITEM_CLASS_GEM, -1}},                 {"reagents", {ITEM_CLASS_REAGENT, -1}},
+        {"recipes", {ITEM_CLASS_RECIPE, -1}},           {"parts", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_PARTS}},
+        {"cloth", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_CLOTH}},
+        {"leather", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_LEATHER}},
+        {"ore", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_METAL_STONE}},
+        {"ores", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_METAL_STONE}},
+        {"meat", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_MEAT}},
+        {"herb", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_HERB}},
+        {"herbs", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_HERB}},
+        {"elemental", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_ELEMENTAL}},
+        {"enchanting", {ITEM_CLASS_TRADE_GOODS, ITEM_SUBCLASS_ENCHANTING}}};
+
+    guildBankDepositItems.clear();
+    for (std::string token : split(value, ','))
+    {
+        token.erase(std::remove_if(token.begin(), token.end(), [](unsigned char c) { return std::isspace(c); }),
+                    token.end());
+        std::transform(token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
+        if (token.empty())
+            continue;
+
+        auto named = names.find(token);
+        if (named != names.end())
+        {
+            guildBankDepositItems.push_back(named->second);
+            continue;
+        }
+
+        std::size_t const colon = token.find(':');
+        std::string const classText = token.substr(0, colon);
+        std::string const subClassText = colon == std::string::npos ? "" : token.substr(colon + 1);
+        auto const isDigit = [](unsigned char c) { return std::isdigit(c) != 0; };
+        bool const numeric = !classText.empty() && std::all_of(classText.begin(), classText.end(), isDigit) &&
+                             std::all_of(subClassText.begin(), subClassText.end(), isDigit) &&
+                             (colon == std::string::npos || !subClassText.empty());
+        if (!numeric || classText.size() > 3 || subClassText.size() > 3)
+        {
+            LOG_ERROR("playerbots", "AiPlayerbot.GuildBankDeposit.Items: unknown entry '{}' ignored", token);
+            continue;
+        }
+        int32 const itemClass = std::stoi(classText);
+        int32 const itemSubClass = subClassText.empty() ? -1 : std::stoi(subClassText);
+        if (itemClass == ITEM_CLASS_QUEST)
+            continue;
+        guildBankDepositItems.emplace_back(itemClass, itemSubClass);
+    }
 }
 
 bool PlayerbotAIConfig::IsInRandomQuestItemList(uint32 id)
