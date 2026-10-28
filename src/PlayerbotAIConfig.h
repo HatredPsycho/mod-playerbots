@@ -319,6 +319,8 @@ public:
     uint32 randombotStartingLevel;
     bool enablePeriodicOnlineOffline;
     float periodicOnlineOfflineRatio;
+    bool onlineSelectionFollowPlayerLevels;
+    uint32 onlineSelectionLevelWindow;
     bool gearscorecheck;
     bool randomBotPreQuests;
     bool botSendMailEnabled;

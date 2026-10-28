@@ -740,6 +740,8 @@ bool PlayerbotAIConfig::Initialize()
     enablePeriodicOnlineOffline = sConfigMgr->GetOption<bool>("AiPlayerbot.EnablePeriodicOnlineOffline", false);
     enableRandomBotTrading = sConfigMgr->GetOption<int32>("AiPlayerbot.EnableRandomBotTrading", 1);
     periodicOnlineOfflineRatio = sConfigMgr->GetOption<float>("AiPlayerbot.PeriodicOnlineOfflineRatio", 2.0);
+    onlineSelectionFollowPlayerLevels = sConfigMgr->GetOption<bool>("AiPlayerbot.OnlineSelection.FollowPlayerLevels", false);
+    onlineSelectionLevelWindow = sConfigMgr->GetOption<uint32>("AiPlayerbot.OnlineSelection.LevelWindow", 5);
     gearscorecheck = sConfigMgr->GetOption<bool>("AiPlayerbot.GearScoreCheck", false);
     randomBotPreQuests = sConfigMgr->GetOption<bool>("AiPlayerbot.PreQuests", false);
 

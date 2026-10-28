@@ -801,6 +801,13 @@ AiPlayerbot.EnablePeriodicOnlineOffline = 0
 # Default: 2.0 (total number of bots is twice the number of MaxRandomBots)
 AiPlayerbot.PeriodicOnlineOfflineRatio = 2.0
 
+# With EnablePeriodicOnlineOffline, the bots that go online are first taken among those within LevelWindow levels of a
+# real player online (several players: any of their windows), then at random. Bots are never re-leveled: only the
+# choice of who goes online changes. No real player online: random choice, as before.
+# Default: 0 (disabled), LevelWindow 5
+AiPlayerbot.OnlineSelection.FollowPlayerLevels = 0
+AiPlayerbot.OnlineSelection.LevelWindow = 5
+
 # Percentage ratio of Alliance and Horde randombots
 AiPlayerbot.RandomBotAllianceRatio = 50
 AiPlayerbot.RandomBotHordeRatio = 50

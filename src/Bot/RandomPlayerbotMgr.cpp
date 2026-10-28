@@ -756,6 +756,41 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
             std::vector<uint32> shuffledAccounts = rndBotTypeAccounts;
             std::shuffle(shuffledAccounts.begin(), shuffledAccounts.end(), rng);
 
+            // OnlineSelection.FollowPlayerLevels: accounts with a character near a real player's level go first.
+            if (sPlayerbotAIConfig.onlineSelectionFollowPlayerLevels && !shuffledAccounts.empty())
+            {
+                std::vector<uint32> playerLevels;
+                for (auto const& [id, session] : sWorldSessionMgr->GetAllSessions())
+                {
+                    Player* player = session ? session->GetPlayer() : nullptr;
+                    if (player && player->IsInWorld() && !GET_PLAYERBOT_AI(player))
+                        playerLevels.push_back(player->GetLevel());
+                }
+                if (!playerLevels.empty())
+                {
+                    int32 const window = int32(sPlayerbotAIConfig.onlineSelectionLevelWindow);
+                    auto const [minimum, maximum] = std::minmax_element(shuffledAccounts.begin(), shuffledAccounts.end());
+                    std::unordered_set<uint32> nearAccounts;
+                    if (QueryResult result = CharacterDatabase.Query(
+                            "SELECT account, level FROM characters WHERE account BETWEEN {} AND {}", *minimum, *maximum))
+                    {
+                        do
+                        {
+                            Field* fields = result->Fetch();
+                            int32 const level = fields[1].Get<uint8>();
+                            for (uint32 playerLevel : playerLevels)
+                                if (std::abs(level - int32(playerLevel)) <= window)
+                                {
+                                    nearAccounts.insert(fields[0].Get<uint32>());
+                                    break;
+                                }
+                        } while (result->NextRow());
+                    }
+                    std::stable_partition(shuffledAccounts.begin(), shuffledAccounts.end(),
+                                          [&nearAccounts](uint32 account) { return nearAccounts.contains(account); });
+                }
+            }
+
             for (uint32 i = 0; i < accountsToUseCount && i < shuffledAccounts.size(); i++)
             {
                 accountsToUse.push_back(shuffledAccounts[i]);
