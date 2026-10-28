@@ -16,6 +16,11 @@
   mails you what it gathered when the time is up, its bags are full or you whisper `mission stop` (`mission status`
   answers `MISSION;state;zone;minutes left;items;profession;deaths`). The mission resumes when the alt logs in again,
   even after a server restart. Never for random bots, no selling during a mission. Settings: `AiPlayerbot.Missions.*`.
+- **Automatic guild bank deposits** (off by default, `AiPlayerbot.GuildBankDeposit.Enable = 1`): a bot in the guild of
+  a real player (your alts, the bots you invited) that stands near a guild vault deposits its trade goods (ore, herbs,
+  leather, cloth...; `GuildBankDeposit.Items` sets the classes) and its gold above `KeepGold` (100 by default), with
+  no command. It needs the deposit right of its rank on the tab (`GuildBankDeposit.Tab`, else the first allowed one)
+  and room in it; bound, quest and equipped items are never moved. Never in random bot guilds, never during a mission.
 
 ## v2.8.1 — Latest CoA core, classic dungeon bosses, battleground fixes (October 2026)
 

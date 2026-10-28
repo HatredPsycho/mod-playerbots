@@ -1803,6 +1803,31 @@ AiPlayerbot.Missions.MaxDeaths = 3
 # Default: 1 (enabled)
 AiPlayerbot.Missions.TeleportFallback = 1
 
+# Automatic guild bank deposits: a bot in the guild of a real player (your alts, the bots you invited)
+# standing near a guild vault puts there the items of the classes below and the gold above KeepGold.
+# Never in a guild of random bots, never during a mission, never bound, quest or equipped items.
+# The rank of the bot needs the deposit right on the tab.
+# Default: 0 (disabled)
+AiPlayerbot.GuildBankDeposit.Enable = 0
+
+# Items to deposit, separated by commas: an item class or class:subclass (7 = trade goods, 7:9 = herbs),
+# or tradegoods, cloth, leather, ore, herb, meat, elemental, enchanting, parts, gems, reagents, recipes,
+# consumables. Empty = gold only.
+# Default: tradegoods
+AiPlayerbot.GuildBankDeposit.Items = "tradegoods"
+
+# Gold pieces the bot keeps; the rest goes to the guild bank.
+# Default: 100
+AiPlayerbot.GuildBankDeposit.KeepGold = 100
+
+# Smallest stack deposited (1 = every stack).
+# Default: 1
+AiPlayerbot.GuildBankDeposit.MinStack = 1
+
+# Guild bank tab (1-6); 0 = the first tabs where the bot may deposit, in order.
+# Default: 0
+AiPlayerbot.GuildBankDeposit.Tab = 0
+
 # In an arena, a battleground or a duel, a CoA bot stunned, feared, polymorphed or charmed for 2
 # seconds or more uses the PvP trinket it wears (spell 42292) to break free. Bots wore it and never
 # used it.
