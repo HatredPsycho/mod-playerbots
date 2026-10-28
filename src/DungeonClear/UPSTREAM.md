@@ -8,8 +8,12 @@ history with this repository; upstream changes are ported by hand.
 | | |
 |---|---|
 | Integrated from | HatredPsycho/mod-dungeon-clear, branch `coa`, commit `beb8d7189fe76c992d0f652381823fce9b139047` |
-| Original | jrad7/mod-dungeon-clear `master`, last merged commit `5c858d6` (2026-10-19) |
-| Further upstream | buildthehomelab/wow-mod-dungeon-clear `evermore`, fully merged as of 2026-10-17 |
+| Original | jrad7/mod-dungeon-clear `master`, last merged commit `7fb6ebd` (2026-10-26) |
+| Further upstream | buildthehomelab/wow-mod-dungeon-clear `evermore`, fully merged as of `5d49ee7` (2026-10-23) |
+
+Ported with a 3-way merge in the standalone clone `D:\Dev\mod-dungeon-clear-upstream`: our integrated state is
+committed there as a snapshot on branch `port-<date>`, both upstreams are merged into it, and the net diff is
+copied back along the layout table below. That keeps the merge base intact instead of replaying single commits.
 
 ## Layout
 
