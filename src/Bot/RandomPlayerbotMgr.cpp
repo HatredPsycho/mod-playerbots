@@ -15,6 +15,7 @@
 #include "CellImpl.h"
 #include "ChannelMgr.h"
 #include "CharacterCache.h"
+#include "CityDuels.h"
 #include "CoaBotRacePolicy.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
@@ -1958,6 +1959,10 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
         return false;
 
     if (bot->InBattlegroundQueue())
+        return false;
+
+    // Duelling in front of a capital (AiPlayerbot.CityDuels): no randomize nor teleport until it is handed back.
+    if (CityDuels::IsDuellist(bot->GetGUID()))
         return false;
 
     CoaApplyRuleset(bot);

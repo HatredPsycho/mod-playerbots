@@ -2376,6 +2376,31 @@ AiPlayerbot.RpgStatusProbWeight.GoCity = 10
 AiPlayerbot.CoaCityStayMinMinutes = 10
 AiPlayerbot.CoaCityStayMaxMinutes = 30
 
+# City duels: a few free random bots duel in front of the main gate of Orgrimmar (Horde bots) and of Stormwind
+# (Alliance bots), pairs of close levels, one duel after another; they go back to their random life after a while.
+# Never bots in a group, with a master, in a queue, a battleground or an instance; no new duel while a real player
+# of the other faction is near. All read again by ".reload config".
+#    Enable           1 = on (default), 0 = off: the duellists go back at once.
+#    BotsPerCity      Duellists per city, two per duel (default 6, at most 12).
+#    PairLevels       Wanted level of each pair, in turn (default "60,60,30"); the nearest free bots are taken.
+#    PairLevelGap     Most levels between the two bots of a pair (default 2).
+#    MinLevel         Lowest level taken (default 10).
+#    RotationMinutes  A pair is replaced by two other bots after this time (default 20).
+#    RestSeconds      Pause between two duels of a pair (default 15).
+#    UpdateSeconds    How often the duels are looked after (default 5).
+#    OrgrimmarSpot / StormwindSpot  "map x y z orientation" of the middle pair, the others in a row along the
+#                     orientation, 10 yards apart; empty = outside the main gate.
+AiPlayerbot.CityDuels.Enable = 1
+AiPlayerbot.CityDuels.BotsPerCity = 6
+AiPlayerbot.CityDuels.PairLevels = "60,60,30"
+AiPlayerbot.CityDuels.PairLevelGap = 2
+AiPlayerbot.CityDuels.MinLevel = 10
+AiPlayerbot.CityDuels.RotationMinutes = 20
+AiPlayerbot.CityDuels.RestSeconds = 15
+AiPlayerbot.CityDuels.UpdateSeconds = 5
+AiPlayerbot.CityDuels.OrgrimmarSpot = ""
+AiPlayerbot.CityDuels.StormwindSpot = ""
+
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel
 #
