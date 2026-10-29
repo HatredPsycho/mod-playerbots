@@ -473,6 +473,7 @@ public:
     bool coaStatusEnabled;
     std::set<uint32> coaExcludedSpecializations;
     std::set<uint32> coaOffensiveHealerSpecs;
+    uint32 zoneCrowdLimit;
     std::set<std::string> coaHealsExcluded;
     uint32 lootLogMinQuality;
     bool autoDoQuests;
