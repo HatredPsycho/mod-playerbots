@@ -75,6 +75,7 @@ public:
         creators["self resurrect"] = &WorldPacketActionContext::self_resurrect;
         creators["pet"] = &WorldPacketActionContext::pet;
         creators["equip upgrades packet action"] = &WorldPacketActionContext::equip_upgrades_packet_action;
+        creators["self found equip"] = &WorldPacketActionContext::self_found_equip;
 
         // quest
         creators["talk to quest giver"] = &WorldPacketActionContext::turn_in_quest;
@@ -150,6 +151,7 @@ private:
     static Action* tell_cannot_equip(PlayerbotAI* botAI) { return new InventoryChangeFailureAction(botAI); }
     static Action* self_resurrect(PlayerbotAI* botAI) { return new SelfResurrectAction(botAI); }
     static Action* pet(PlayerbotAI* botAI) { return new PetsAction(botAI); }
+    static Action* self_found_equip(PlayerbotAI* botAI) { return new SelfFoundEquipAction(botAI); }
     static Action* equip_upgrades_packet_action(PlayerbotAI* botAI) { return new EquipUpgradesPacketAction(botAI); }
 
     // quest
