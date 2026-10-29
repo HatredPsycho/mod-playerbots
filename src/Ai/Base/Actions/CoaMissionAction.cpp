@@ -49,6 +49,7 @@ constexpr uint32 NODE_GIVE_UP_MS = MINUTE * IN_MILLISECONDS;
 constexpr uint32 NO_NODE_MS = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 SAVE_EVERY_MS = MINUTE * IN_MILLISECONDS;
 constexpr uint32 MAX_FAILS = 3;
+constexpr float TELEPORT_MIN_DIST = 400.0f;
 }  // namespace
 
 bool CoaMissionAction::Execute(Event event)
@@ -328,7 +329,8 @@ bool CoaMissionUpdateAction::DoTravel(CoaMission& mission, uint32 now)
 
     float const dist = bot->GetExactDist2d(mission.x, mission.y);
     // As when an alt is summoned: straight to the gathering spot, the mission time is spent gathering.
-    if (dist >= 30.0f && sPlayerbotAIConfig.missionsTeleportToSpot)
+    // A next spot close by is reached on foot.
+    if (dist >= TELEPORT_MIN_DIST && sPlayerbotAIConfig.missionsTeleportToSpot)
     {
         TeleportToSpot(mission);
         return true;
@@ -408,6 +410,7 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
 
     if (best)
     {
+        mission.emptyPoints = 0;
         // A node it cannot reach in a minute (under water, up a cliff) is left for good.
         if (best->GetGUID() != mission.node)
         {
@@ -430,12 +433,18 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
         return false;
     }
 
-    // Nothing gathered for 10 minutes: another spot, a failure.
+    // Every spawn point visited with nothing up (gathered out, waiting for respawns), or
+    // nothing gathered for 10 minutes: another spot. Only a spot that never gave anything is a failure.
     uint32 const since = std::max(mission.lastLootMs, mission.workSinceMs);
-    if (since && getMSTimeDiff(since, now) >= NO_NODE_MS)
+    bool const roundDone = mission.emptyPoints >= std::max<uint32>(3, cell->points.size());
+    if (roundDone || (since && getMSTimeDiff(since, now) >= NO_NODE_MS))
     {
+        bool const gaveLoot = mission.lastLootMs && mission.workSinceMs &&
+                              int32(mission.lastLootMs - mission.workSinceMs) >= 0;
+        if (!gaveLoot)
+            ++mission.fails;
         TravelMgr::GatherCell const* next =
-            ++mission.fails < MAX_FAILS
+            mission.fails < MAX_FAILS
                 ? sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell)
                 : nullptr;
         if (!next)
@@ -451,6 +460,7 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
         mission.z = next->z;
         mission.zoneId = next->zoneId;
         mission.point = 0;
+        mission.emptyPoints = 0;
         mission.state = CoaMissionState::Travel;
         mission.progressCheckMs = 0;
         mission.workSinceMs = 0;
@@ -465,6 +475,7 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
     if (bot->GetExactDist(point.x, point.y, point.z) < 8.0f)
     {
         mission.point = (mission.point + 1) % cell->points.size();
+        ++mission.emptyPoints;
         return false;
     }
     return MoveFarTo(WorldPosition(cell->mapId, point.x, point.y, point.z));
