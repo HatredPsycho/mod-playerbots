@@ -2045,7 +2045,7 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
         "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an",
         "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
         "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os",
-        "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman"
+        "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman", "zulgurub"
     };
 
     for (std::string const& strat : allInstanceStrategies)
@@ -2089,6 +2089,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 289:
             strategyName = "vanilla-scholo";  // Scholomance
+            break;
+        case 309:
+            strategyName = "zulgurub";  // Zul'Gurub
             break;
         case 329:
             strategyName = "vanilla-strat";  // Stratholme

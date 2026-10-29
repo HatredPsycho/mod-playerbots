@@ -36,6 +36,7 @@ public:
         creators["bwl flamegor fire resistance"] = &RaidBwlActionContext::bwl_flamegor_fire_resistance_action;
         creators["bwl flamegor avoid breath"] = &RaidBwlActionContext::bwl_flamegor_avoid_breath;
 
+        creators["bwl chromaggus fire resistance"] = &RaidBwlActionContext::bwl_chromaggus_fire_resistance_action;
         creators["bwl use hourglass sand"] = &RaidBwlActionContext::bwl_use_hourglass_sand;
         creators["bwl nefarian rear flank"] = &RaidBwlActionContext::bwl_nefarian_rear_flank;
 
@@ -58,6 +59,7 @@ private:
     static Action* bwl_ebonroc_avoid_breath(PlayerbotAI* ai) { return new BwlBlackDrakeAvoidBreathAction(ai, "ebonroc"); }
     static Action* bwl_flamegor_fire_resistance_action(PlayerbotAI* ai) { return new BossFireResistanceAction(ai, "flamegor"); }
     static Action* bwl_flamegor_avoid_breath(PlayerbotAI* ai) { return new BwlBlackDrakeAvoidBreathAction(ai, "flamegor"); }
+    static Action* bwl_chromaggus_fire_resistance_action(PlayerbotAI* ai) { return new BossFireResistanceAction(ai, "chromaggus"); }
     static Action* bwl_use_hourglass_sand(PlayerbotAI* ai) { return new BwlUseHourglassSandAction(ai); }
     static Action* bwl_nefarian_rear_flank(PlayerbotAI* ai) { return new BossRearFlankAction(ai, "nefarian"); }
     static Action* bwl_death_talon_wyrmguard_tank_move_away(PlayerbotAI* ai) { return new BwlDeathTalonWyrmguardTankMoveAwayAction(ai); }

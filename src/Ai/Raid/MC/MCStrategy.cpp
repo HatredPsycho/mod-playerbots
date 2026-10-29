@@ -8,6 +8,7 @@
 #include "MCHelpers.h"
 #include "MCMultipliers.h"
 #include "Playerbots.h"
+#include "RtiTargetValue.h"
 #include "Strategy.h"
 
 using namespace MoltenCoreHelpers;
@@ -20,15 +21,34 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
                         { NextAction("mc lucifron shadow resistance", ACTION_RAID) }));
 
     // Magmadar
-    // TODO: tremor totem, or general anti-fear strat development. Same as King Dred (Drak'Tharon) and faction commander (Nexus).
+    // Panic fears everyone near him: ranged and healers stay out of it, and a tank takes him back from a
+    // non-tank while the main tank is feared.
     triggers.push_back(
         new TriggerNode("mc magmadar fire resistance",
                         { NextAction("mc magmadar fire resistance", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar standoff",
+                        { NextAction("mc magmadar standoff", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar backup taunt",
+                        { NextAction("mc magmadar backup taunt", ACTION_RAID + 1) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar lava bomb",
+                        { NextAction("mc move from ground effect", ACTION_RAID) }));
 
     // Gehennas
     triggers.push_back(
         new TriggerNode("mc gehennas shadow resistance",
                         { NextAction("mc gehennas shadow resistance", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas mark",
+                        { NextAction("mc gehennas mark", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas rain of fire",
+                        { NextAction("mc move from ground effect", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas flame orb",
+                        { NextAction("mc gehennas move from flame orb", ACTION_RAID) }));
 
     // Garr
     triggers.push_back(
@@ -50,6 +70,9 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     triggers.push_back(
         new TriggerNode("mc shazzrah ranged",
                         { NextAction("mc shazzrah move away", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc shazzrah backup taunt",
+                        { NextAction("mc shazzrah backup taunt", ACTION_RAID + 1) }));
 
     // Sulfuron Harbinger
     // Alternatively, shadow resistance is also possible.
@@ -81,6 +104,9 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     triggers.push_back(
         new TriggerNode("mc majordomo shadow resistance",
                         { NextAction("mc majordomo shadow resistance", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc majordomo damage shield",
+                        { NextAction("mc majordomo stop attack", ACTION_RAID + 1) }));
 
     // Ragnaros
     triggers.push_back(
@@ -103,6 +129,7 @@ void RaidMcStrategy::InitMultipliers(std::vector<Multiplier*>& multipliers)
     multipliers.push_back(new GarrDisableDpsAoeMultiplier(botAI));
     multipliers.push_back(new BaronGeddonAbilityMultiplier(botAI));
     multipliers.push_back(new GolemaggMultiplier(botAI));
+    multipliers.push_back(new MajordomoReflectionMultiplier(botAI));
 }
 
 void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExclusionType type)
@@ -112,11 +139,15 @@ void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExcl
         return;
 
     // Damage into these is wasted: Core Ragers are unkillable while Golemagg
-    // lives (full heal at 50%), and Majordomo reflects and cannot die; his
-    // encounter ends when the eight adds are dead. Tanks still pick them up
-    // through their own target selection.
+    // lives (full heal at 50%). Tanks still pick them up through their own
+    // target selection.
     AiObjectContext* context = botAI->GetAiObjectContext();
     bool const golemaggAlive = AI_VALUE2(Unit*, "find target", "golemagg the incinerator") != nullptr;
+    // The DPS target search skips the moon (crowd control) mark, so a moon-marked healer does not count.
+    Group const* group = botAI->GetBot()->GetGroup();
+    ObjectGuid const moonGuid = group ? group->GetTargetIcon(RtiTargetValue::moonIndex) : ObjectGuid::Empty;
+    bool flamewakerHealerAlive = false;
+    GuidVector flamewakerElites;
     for (ObjectGuid const guid : AI_VALUE(GuidVector, "attackers"))
     {
         Unit* unit = botAI->GetUnit(guid);
@@ -127,5 +158,13 @@ void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExcl
         // attack by itself); stock AzerothCore's "never attack him" stalled the encounter (raid report, 08/10).
         if (golemaggAlive && unit->GetEntry() == NPC_CORE_RAGER)
             exclusions.insert(guid);
+        else if (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_HEALER) && unit->IsAlive() && guid != moonGuid)
+            flamewakerHealerAlive = true;
+        else if (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_ELITE))
+            flamewakerElites.push_back(guid);
     }
+
+    // Majordomo's healers first: they heal the elites and each other.
+    if (type == TargetValueExclusionType::DpsTarget && flamewakerHealerAlive)
+        exclusions.insert(flamewakerElites.begin(), flamewakerElites.end());
 }

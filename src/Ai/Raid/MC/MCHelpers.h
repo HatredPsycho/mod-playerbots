@@ -23,11 +23,17 @@ namespace MoltenCoreHelpers
 {
 enum MoltenCoreNPCs
 {
+    // Gehennas
+    NPC_FLAMEWAKER = 11661,
+    NPC_COA_GEHENNAS_FLAME_ORB = 80644,  // CoA: summoned orb that pulses fire around it
+
     // Golemagg
     NPC_CORE_RAGER = 11672,
 
     // Majordomo Executus
     NPC_MAJORDOMO_EXECUTUS = 12018,
+    NPC_FLAMEWAKER_HEALER = 11663,
+    NPC_FLAMEWAKER_ELITE = 11664,
 
     // Core Hound (trash)
     NPC_CORE_HOUND = 11671,
@@ -40,6 +46,12 @@ constexpr uint32 MC_ENTRY_OFFSET_ASCENDED = 300000;
 
 enum MoltenCoreSpells
 {
+    // Magmadar
+    SPELL_LAVA_BOMB_DOT = 19428,  // periodic fire while standing in the bomb's patch (GO 177704)
+
+    // Gehennas
+    SPELL_RAIN_OF_FIRE = 19717,
+
     // Baron Geddon
     SPELL_INFERNO = 19695,                 // SpellDifficulty row 369: 19695/350084/350084/350084
     SPELL_INFERNO_DIFF_1_3 = 350084,
@@ -55,6 +67,10 @@ enum MoltenCoreSpells
     SPELL_GOLEMAGGS_TRUST = 20553,
     SPELL_MAGMA_SPLASH = 13880,            // SpellDifficulty row 295: 13880/13880/350099/350099
     SPELL_MAGMA_SPLASH_DIFF_2_3 = 350099,
+
+    // Majordomo Executus
+    SPELL_MAGIC_REFLECTION = 20619,
+    SPELL_DAMAGE_SHIELD = 21075,
 };
 
 // Aura on Baron Geddon while Inferno is active
@@ -72,6 +88,12 @@ constexpr float MAGMA_SPLASH_BACK_OFF_DISTANCE = 12.0f;
 
 // Shazzrah's Arcane Explosion radius (stock 19712: 18 yd, CoA 2105601: 20 yd)
 constexpr float ARCANE_EXPLOSION_DISTANCE = 26.0f;
+
+// Ranged and healers stay out of Magmadar's Panic (19408)
+constexpr float MAGMADAR_STANDOFF_DISTANCE = 35.0f;
+
+// Distance kept from Gehennas' Flame Orb
+constexpr float FLAME_ORB_AVOID_DISTANCE = 8.0f;
 
 template <std::size_t N>
 inline bool HasAnyAura(Unit const* unit, uint32 const (&spellIds)[N])
@@ -117,6 +139,12 @@ inline bool IsMcEntry(uint32 entry, uint32 baseEntry)
 {
     return entry == baseEntry || entry == baseEntry + MC_ENTRY_OFFSET_HEROIC ||
            entry == baseEntry + MC_ENTRY_OFFSET_MYTHIC || entry == baseEntry + MC_ENTRY_OFFSET_ASCENDED;
+}
+
+inline bool IsMajordomoAdd(Unit const* unit)
+{
+    return unit &&
+           (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_HEALER) || IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_ELITE));
 }
 }  // namespace MoltenCoreHelpers
 
