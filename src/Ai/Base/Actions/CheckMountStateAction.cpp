@@ -122,6 +122,22 @@ bool CheckMountStateAction::Execute(Event /*event*/)
     bool inBattleground = bot->InBattleground();
     bool const noRealMaster = (!master || master == bot);
 
+    // In a battleground, an enemy player hitting the bot from close by gets it off its mount at once, before it has
+    // even picked a target: it stayed mounted a few seconds under attack (Discord, FeelSoClose).
+    if (inBattleground && bot->IsMounted() && !bot->IsFlying() && bot->IsInCombat())
+    {
+        float const reach = CalculateDismountDistance() + 5.0f;
+        for (ObjectGuid const& guid : AI_VALUE(GuidVector, "attackers"))
+        {
+            Unit* attacker = botAI->GetUnit(guid);
+            if (attacker && attacker->IsPlayer() && attacker->IsAlive() && bot->IsWithinDistInMap(attacker, reach))
+            {
+                Dismount();
+                return true;
+            }
+        }
+    }
+
     // If there is a master and bot not in BG, follow master's mount state regardless of group leader
     if (!noRealMaster && !inBattleground)
     {
