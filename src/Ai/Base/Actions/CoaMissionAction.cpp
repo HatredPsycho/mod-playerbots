@@ -293,6 +293,10 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
     CoaMissionState const before = mission.state;
     bool const acted = mission.state == CoaMissionState::Travel ? DoTravel(mission, now) : DoWork(mission, now);
 
+    if (mission.state != before)
+        LOG_INFO("playerbots", "Mission {}: {} -> {} (zone {}, {:.0f} yd from the spot, {} min left)", bot->GetName(),
+                 uint32(before), uint32(mission.state), bot->GetZoneId(), bot->GetExactDist2d(mission.x, mission.y),
+                 mission.remainingMs / MINUTE / IN_MILLISECONDS);
     bool const save = mission.state != before || getMSTimeDiff(mission.lastSaveMs, now) >= SAVE_EVERY_MS;
     if (save)
         mission.lastSaveMs = now;
@@ -380,12 +384,34 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
     if (!cell || cell->points.empty())
         return false;
 
-    // The loot strategy is on a node: let it gather.
-    if (bot->IsNonMeleeSpellCast(false) || bot->GetLootGUID())
+    // The loot strategy is on a node: let it gather, but not forever on one it cannot open or empty.
+    if (bot->IsNonMeleeSpellCast(false))
         return false;
+    ObjectGuid const looting = bot->GetLootGUID();
     LootObject target = AI_VALUE(LootObject, "loot target");
-    if (!target.IsEmpty() && target.IsLootPossible(bot))
+    ObjectGuid const busy = looting ? looting : (!target.IsEmpty() && target.IsLootPossible(bot) ? target.guid : ObjectGuid::Empty);
+    if (busy)
+    {
+        if (busy != mission.node)
+        {
+            mission.node = busy;
+            mission.nodeSinceMs = now;
+        }
+        else if (getMSTimeDiff(mission.nodeSinceMs, now) >= NODE_GIVE_UP_MS)
+        {
+            if (looting)
+                bot->GetSession()->DoLootRelease(looting);
+            if (mission.skippedNodes.size() >= 50)
+                mission.skippedNodes.clear();
+            mission.skippedNodes.insert(busy);
+            LOG_INFO("playerbots", "Mission {}: node {} left after a minute without gathering it", bot->GetName(),
+                     busy.GetCounter());
+            AI_VALUE(LootObjectStack*, "available loot")->Remove(busy);
+            context->GetValue<LootObject>("loot target")->Set(LootObject());
+            mission.node.Clear();
+        }
         return false;
+    }
 
     // The nearest node of the mission's profession in sight.
     GameObject* best = nullptr;
@@ -453,6 +479,8 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
             mission.endReason = "I found nothing more to gather";
             return false;
         }
+        LOG_INFO("playerbots", "Mission {}: next spot ({}, {} empty points, fails {})", bot->GetName(),
+                 roundDone ? "spot gathered out" : "nothing gathered for 10 min", mission.emptyPoints, mission.fails);
         mission.cell = next;
         mission.mapId = next->mapId;
         mission.x = next->x;
