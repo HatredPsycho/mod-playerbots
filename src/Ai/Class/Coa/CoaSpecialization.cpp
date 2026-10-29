@@ -791,7 +791,7 @@ static bool CoaRecruitNeedsRebuild(Player* master, Player* bot, uint32 levelTole
                               (master->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) &&
                                bot->GetLevel() < master->GetLevel());
     // Self-found: a bot is never raised to the master's level, so one up to 2 levels away is taken as it is.
-    if (PlayerbotFactory::SelfFoundAt(master->GetLevel()))
+    if (PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot))
         levelTolerance = std::max<uint32>(levelTolerance, 2);
     return blocksFinder || std::abs(int32(bot->GetLevel()) - int32(master->GetLevel())) > int32(levelTolerance);
 }
@@ -838,7 +838,8 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
             continue;
 
         // Self-found: no bot is rebuilt at the master's level, only one already near it is taken.
-        if (PlayerbotFactory::SelfFoundAt(master->GetLevel()) && CoaRecruitNeedsRebuild(master, bot, levelTolerance))
+        if ((PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot)) &&
+            CoaRecruitNeedsRebuild(master, bot, levelTolerance))
             continue;
 
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
@@ -945,7 +946,7 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
 
     if (CoaRecruitNeedsRebuild(master, chosen, levelTolerance))
     {
-        if (PlayerbotFactory::SelfFoundAt(master->GetLevel()))
+        if (PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(chosen))
         {
             message = "No bot of your level is available in self-found mode.";
             return false;
