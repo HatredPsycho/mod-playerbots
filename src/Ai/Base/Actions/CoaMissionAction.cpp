@@ -294,7 +294,7 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
     bool const acted = mission.state == CoaMissionState::Travel ? DoTravel(mission, now) : DoWork(mission, now);
 
     if (mission.state != before)
-        LOG_INFO("playerbots", "Mission {}: {} -> {} (zone {}, {:.0f} yd from the spot, {} min left)", bot->GetName(),
+        LOG_INFO("playerbots.coa", "Mission {}: {} -> {} (zone {}, {:.0f} yd from the spot, {} min left)", bot->GetName(),
                  uint32(before), uint32(mission.state), bot->GetZoneId(), bot->GetExactDist2d(mission.x, mission.y),
                  mission.remainingMs / MINUTE / IN_MILLISECONDS);
     bool const save = mission.state != before || getMSTimeDiff(mission.lastSaveMs, now) >= SAVE_EVERY_MS;
@@ -404,7 +404,7 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
             if (mission.skippedNodes.size() >= 50)
                 mission.skippedNodes.clear();
             mission.skippedNodes.insert(busy);
-            LOG_INFO("playerbots", "Mission {}: node {} left after a minute without gathering it", bot->GetName(),
+            LOG_INFO("playerbots.coa", "Mission {}: node {} left after a minute without gathering it", bot->GetName(),
                      busy.GetCounter());
             AI_VALUE(LootObjectStack*, "available loot")->Remove(busy);
             context->GetValue<LootObject>("loot target")->Set(LootObject());
@@ -479,7 +479,7 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
             mission.endReason = "I found nothing more to gather";
             return false;
         }
-        LOG_INFO("playerbots", "Mission {}: next spot ({}, {} empty points, fails {})", bot->GetName(),
+        LOG_INFO("playerbots.coa", "Mission {}: next spot ({}, {} empty points, fails {})", bot->GetName(),
                  roundDone ? "spot gathered out" : "nothing gathered for 10 min", mission.emptyPoints, mission.fails);
         mission.cell = next;
         mission.mapId = next->mapId;
