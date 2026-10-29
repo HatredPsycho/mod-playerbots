@@ -43,6 +43,7 @@ public:
         creators["mc magmadar backup taunt"] = &RaidMcActionContext::magmadar_backup_taunt;
         creators["mc move from ground effect"] = &RaidMcActionContext::move_from_ground_effect;
         creators["mc gehennas mark"] = &RaidMcActionContext::gehennas_mark;
+        creators["mc magmadar mark"] = &RaidMcActionContext::magmadar_mark;
         creators["mc gehennas move from flame orb"] = &RaidMcActionContext::gehennas_move_from_flame_orb;
         creators["mc shazzrah backup taunt"] = &RaidMcActionContext::shazzrah_backup_taunt;
     }
@@ -75,6 +76,10 @@ private:
     }
     static Action* magmadar_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntAction(botAI, "mc magmadar backup taunt", "magmadar"); }
     static Action* move_from_ground_effect(PlayerbotAI* botAI) { return new RaidMoveFromGroundEffectAction(botAI, "mc move from ground effect"); }
+    static Action* magmadar_mark(PlayerbotAI* botAI)
+    {
+        return new RaidKillOrderMarkAction(botAI, "mc magmadar mark", "magmadar", {});
+    }
     static Action* gehennas_mark(PlayerbotAI* botAI)
     {
         return new RaidKillOrderMarkAction(botAI, "mc gehennas mark", "gehennas", { MoltenCoreHelpers::NPC_FLAMEWAKER });

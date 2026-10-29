@@ -23,6 +23,11 @@ namespace MoltenCoreHelpers
 {
 enum MoltenCoreNPCs
 {
+    // Magmadar
+    NPC_MAGMADAR = 11982,
+    NPC_COA_MAGMADAR_RIGHT_HEAD = 80642,  // CoA: summoned heads, every hit is passed on to the body
+    NPC_COA_MAGMADAR_LEFT_HEAD = 80643,
+
     // Gehennas
     NPC_FLAMEWAKER = 11661,
     NPC_COA_GEHENNAS_FLAME_ORB = 80644,  // CoA: summoned orb that pulses fire around it
@@ -48,6 +53,10 @@ enum MoltenCoreSpells
 {
     // Magmadar
     SPELL_LAVA_BOMB_DOT = 19428,  // periodic fire while standing in the bomb's patch (GO 177704)
+    SPELL_LAVA_BOMB_COA_D0 = 2105367,  // CoA: the heads' ground fire (persistent area aura),
+    SPELL_LAVA_BOMB_COA_D1 = 2105368,  // SpellDifficulty row 2100
+    SPELL_LAVA_BOMB_COA_D2 = 2105369,
+    SPELL_LAVA_BOMB_COA_D3 = 2105370,
 
     // Gehennas
     SPELL_RAIN_OF_FIRE = 19717,
@@ -73,6 +82,10 @@ enum MoltenCoreSpells
     SPELL_DAMAGE_SHIELD = 21075,
 };
 
+// Fire patches under Magmadar's bombs: the body's stock trap and the CoA heads' ground fire
+constexpr uint32 MAGMADAR_LAVA_BOMB_AURAS[] = {SPELL_LAVA_BOMB_DOT, SPELL_LAVA_BOMB_COA_D0, SPELL_LAVA_BOMB_COA_D1,
+                                               SPELL_LAVA_BOMB_COA_D2, SPELL_LAVA_BOMB_COA_D3};
+
 // Aura on Baron Geddon while Inferno is active
 constexpr uint32 INFERNO_AURAS[] = {SPELL_INFERNO, SPELL_INFERNO_DIFF_1_3, SPELL_INFERNO_COA};
 
@@ -89,7 +102,7 @@ constexpr float MAGMA_SPLASH_BACK_OFF_DISTANCE = 12.0f;
 // Shazzrah's Arcane Explosion radius (stock 19712: 18 yd, CoA 2105601: 20 yd)
 constexpr float ARCANE_EXPLOSION_DISTANCE = 26.0f;
 
-// Ranged and healers stay out of Magmadar's Panic (19408)
+// Ranged and healers stay out of Magmadar's Panic (stock 19408, CoA 2105309)
 constexpr float MAGMADAR_STANDOFF_DISTANCE = 35.0f;
 
 // Distance kept from Gehennas' Flame Orb
@@ -139,6 +152,13 @@ inline bool IsMcEntry(uint32 entry, uint32 baseEntry)
 {
     return entry == baseEntry || entry == baseEntry + MC_ENTRY_OFFSET_HEROIC ||
            entry == baseEntry + MC_ENTRY_OFFSET_MYTHIC || entry == baseEntry + MC_ENTRY_OFFSET_ASCENDED;
+}
+
+// CoA: Magmadar's two heads cast at their own victim and pass every hit on to the body.
+inline bool IsMagmadarHead(Unit const* unit)
+{
+    return unit && (IsMcEntry(unit->GetEntry(), NPC_COA_MAGMADAR_RIGHT_HEAD) ||
+                    IsMcEntry(unit->GetEntry(), NPC_COA_MAGMADAR_LEFT_HEAD));
 }
 
 inline bool IsMajordomoAdd(Unit const* unit)

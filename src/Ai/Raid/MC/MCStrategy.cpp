@@ -32,6 +32,10 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     triggers.push_back(
         new TriggerNode("mc magmadar backup taunt",
                         { NextAction("mc magmadar backup taunt", ACTION_RAID + 1) }));
+    // CoA: his Core Hounds come back while another one fights, so the skull and the damage stay on him.
+    triggers.push_back(
+        new TriggerNode("mc magmadar mark",
+                        { NextAction("mc magmadar mark", ACTION_RAID) }));
     triggers.push_back(
         new TriggerNode("mc magmadar lava bomb",
                         { NextAction("mc move from ground effect", ACTION_RAID) }));
@@ -134,6 +138,32 @@ void RaidMcStrategy::InitMultipliers(std::vector<Multiplier*>& multipliers)
 
 void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExclusionType type)
 {
+    AiObjectContext* context = botAI->GetAiObjectContext();
+
+    // CoA Magmadar summons two Core Hounds every 50 s. A hound that drops plays dead and comes back at full
+    // health while another hound fights within 80 yd, and the next pair arrives before the last one is down:
+    // they cannot be killed during the encounter and despawn with him. Skulling them (the trash rule) sent the
+    // whole raid onto them for minutes until the tanks fell (NUC bench, 29/10, 8 wipes out of 8). Damage
+    // dealers leave them to the off-tanks; the main tank keeps the body, his heads only pass hits on to it.
+    if (AI_VALUE2(Unit*, "find target", "magmadar"))
+    {
+        bool const mainTank = PlayerbotAI::IsMainTank(botAI->GetBot());
+        if (type == TargetValueExclusionType::DpsTarget || type == TargetValueExclusionType::DebuffTarget ||
+            (type == TargetValueExclusionType::TankTarget && mainTank))
+        {
+            for (ObjectGuid const guid : AI_VALUE(GuidVector, "attackers"))
+            {
+                Unit* unit = botAI->GetUnit(guid);
+                if (!unit)
+                    continue;
+
+                if (IsMcEntry(unit->GetEntry(), NPC_CORE_HOUND) ||
+                    (type == TargetValueExclusionType::TankTarget && IsMagmadarHead(unit)))
+                    exclusions.insert(guid);
+            }
+        }
+    }
+
     if (type == TargetValueExclusionType::TankTarget ||
         (type == TargetValueExclusionType::Aoe && PlayerbotAI::IsTank(botAI->GetBot())))
         return;
@@ -141,7 +171,6 @@ void RaidMcStrategy::AppendTargetExclusions(GuidSet& exclusions, TargetValueExcl
     // Damage into these is wasted: Core Ragers are unkillable while Golemagg
     // lives (full heal at 50%). Tanks still pick them up through their own
     // target selection.
-    AiObjectContext* context = botAI->GetAiObjectContext();
     bool const golemaggAlive = AI_VALUE2(Unit*, "find target", "golemagg the incinerator") != nullptr;
     // The DPS target search skips the moon (crowd control) mark, so a moon-marked healer does not count.
     Group const* group = botAI->GetBot()->GetGroup();

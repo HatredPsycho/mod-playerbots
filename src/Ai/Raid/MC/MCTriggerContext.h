@@ -41,6 +41,7 @@ public:
         creators["mc magmadar standoff"] = &RaidMcTriggerContext::magmadar_standoff;
         creators["mc magmadar backup taunt"] = &RaidMcTriggerContext::magmadar_backup_taunt;
         creators["mc magmadar lava bomb"] = &RaidMcTriggerContext::magmadar_lava_bomb;
+        creators["mc magmadar mark"] = &RaidMcTriggerContext::magmadar_mark;
         creators["mc gehennas mark"] = &RaidMcTriggerContext::gehennas_mark;
         creators["mc gehennas rain of fire"] = &RaidMcTriggerContext::gehennas_rain_of_fire;
         creators["mc gehennas flame orb"] = &RaidMcTriggerContext::gehennas_flame_orb;
@@ -76,8 +77,9 @@ private:
     static Trigger* magmadar_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntTrigger(botAI, "mc magmadar backup taunt", "magmadar"); }
     static Trigger* magmadar_lava_bomb(PlayerbotAI* botAI)
     {
-        return new RaidGroundEffectAuraTrigger(botAI, "mc magmadar lava bomb", MoltenCoreHelpers::SPELL_LAVA_BOMB_DOT);
+        return new McMagmadarLavaBombTrigger(botAI);
     }
+    static Trigger* magmadar_mark(PlayerbotAI* botAI) { return new RaidKillOrderMarkTrigger(botAI, "mc magmadar mark", "magmadar"); }
     static Trigger* gehennas_mark(PlayerbotAI* botAI) { return new RaidKillOrderMarkTrigger(botAI, "mc gehennas mark", "gehennas"); }
     static Trigger* gehennas_rain_of_fire(PlayerbotAI* botAI)
     {

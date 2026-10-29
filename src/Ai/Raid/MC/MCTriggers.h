@@ -60,6 +60,14 @@ public:
     bool IsActive() override;
 };
 
+// Standing in one of Magmadar's fire patches (stock trap or CoA heads' ground fire)
+class McMagmadarLavaBombTrigger : public Trigger
+{
+public:
+    McMagmadarLavaBombTrigger(PlayerbotAI* botAI) : Trigger(botAI, "mc magmadar lava bomb") {}
+    bool IsActive() override;
+};
+
 class McCoreHoundMarkTrigger : public Trigger
 {
 public:

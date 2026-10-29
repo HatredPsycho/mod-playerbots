@@ -92,9 +92,16 @@ bool McGolemaggIsHealerTrigger::IsActive()
     return PlayerbotAI::IsHeal(bot) && AI_VALUE2(Unit*, "find target", "golemagg the incinerator");
 }
 
+bool McMagmadarLavaBombTrigger::IsActive()
+{
+    return HasAnyAura(bot, MAGMADAR_LAVA_BOMB_AURAS);
+}
+
 bool McCoreHoundMarkTrigger::IsActive()
 {
-    return PlayerbotAI::IsMainTank(bot) && AI_VALUE2(Unit*, "find target", "core hound");
+    // Magmadar's hounds cannot die while he lives: the skull stays on him.
+    return PlayerbotAI::IsMainTank(bot) && AI_VALUE2(Unit*, "find target", "core hound") &&
+           !AI_VALUE2(Unit*, "find target", "magmadar");
 }
 
 bool McMajordomoDamageShieldTrigger::IsActive()
