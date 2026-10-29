@@ -600,6 +600,7 @@ public:
 void AddPlayerbotsSecureLoginScripts();
 void AddPlayerbotsSelfBotAfkScripts();
 
+void AddSC_ZulGurubBotScripts();
 void AddSC_MagtheridonBotScripts();
 void AddSC_TempestKeepBotScripts();
 void AddSC_HyjalSummitBotScripts();
@@ -625,6 +626,7 @@ void AddPlayerbotsScripts()
     AddPlayerbotsSelfBotAfkScripts();
     AddPlayerbotsCommandscripts();
     PlayerBotsGuildValidationScript();
+    AddSC_ZulGurubBotScripts();
     AddSC_MagtheridonBotScripts();
     AddSC_TempestKeepBotScripts();
     AddSC_HyjalSummitBotScripts();
