@@ -557,7 +557,7 @@ public:
     bool coaSelfFound;
     // Self-found applies up to this level; above it bots are geared and levelled as usual.
     uint32 coaSelfFoundMaxLevel;
-    // Share (0-10 %) of the random bots that are self-found on their own while the realm is geared as usual: from
+    // Share (0-100 %, the launcher's self-found preset sets 20) of the random bots that are self-found on their own while the realm is geared as usual: from
     // level 10 they keep the gear they loot, and Dungeon Clear sends groups of them through dungeons.
     uint32 coaSelfFoundBotsPercent;
     // Random bots show other gear models of their armor and weapon types: visual only, nothing saved.
