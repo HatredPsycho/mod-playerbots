@@ -38,7 +38,6 @@ public:
         creators["mc golemagg magma splash"] = &RaidMcTriggerContext::golemagg_magma_splash;
         creators["mc golemagg is healer"] = &RaidMcTriggerContext::golemagg_is_healer;
         creators["mc majordomo damage shield"] = &RaidMcTriggerContext::majordomo_damage_shield;
-        creators["mc magmadar standoff"] = &RaidMcTriggerContext::magmadar_standoff;
         creators["mc magmadar backup taunt"] = &RaidMcTriggerContext::magmadar_backup_taunt;
         creators["mc magmadar lava bomb"] = &RaidMcTriggerContext::magmadar_lava_bomb;
         creators["mc magmadar mark"] = &RaidMcTriggerContext::magmadar_mark;
@@ -69,11 +68,6 @@ private:
     static Trigger* golemagg_magma_splash(PlayerbotAI* botAI) { return new McGolemaggMagmaSplashTrigger(botAI); }
     static Trigger* golemagg_is_healer(PlayerbotAI* botAI) { return new McGolemaggIsHealerTrigger(botAI); }
     static Trigger* majordomo_damage_shield(PlayerbotAI* botAI) { return new McMajordomoDamageShieldTrigger(botAI); }
-    static Trigger* magmadar_standoff(PlayerbotAI* botAI)
-    {
-        return new RaidStandoffTrigger(botAI, "mc magmadar standoff", "magmadar",
-                                       MoltenCoreHelpers::MAGMADAR_STANDOFF_DISTANCE);
-    }
     static Trigger* magmadar_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntTrigger(botAI, "mc magmadar backup taunt", "magmadar"); }
     static Trigger* magmadar_lava_bomb(PlayerbotAI* botAI)
     {

@@ -39,7 +39,6 @@ public:
         creators["mc golemagg back off"] = &RaidMcActionContext::golemagg_back_off;
         creators["mc golemagg healer position"] = &RaidMcActionContext::golemagg_healer_position;
         creators["mc majordomo stop attack"] = &RaidMcActionContext::majordomo_stop_attack;
-        creators["mc magmadar standoff"] = &RaidMcActionContext::magmadar_standoff;
         creators["mc magmadar backup taunt"] = &RaidMcActionContext::magmadar_backup_taunt;
         creators["mc move from ground effect"] = &RaidMcActionContext::move_from_ground_effect;
         creators["mc gehennas mark"] = &RaidMcActionContext::gehennas_mark;
@@ -69,11 +68,6 @@ private:
     static Action* golemagg_back_off(PlayerbotAI* botAI) { return new McGolemaggBackOffAction(botAI); }
     static Action* golemagg_healer_position(PlayerbotAI* botAI) { return new McGolemaggHealerPositionAction(botAI); }
     static Action* majordomo_stop_attack(PlayerbotAI* botAI) { return new McMajordomoStopAttackAction(botAI); }
-    static Action* magmadar_standoff(PlayerbotAI* botAI)
-    {
-        return new RaidStandoffAction(botAI, "mc magmadar standoff", "magmadar",
-                                      MoltenCoreHelpers::MAGMADAR_STANDOFF_DISTANCE);
-    }
     static Action* magmadar_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntAction(botAI, "mc magmadar backup taunt", "magmadar"); }
     static Action* move_from_ground_effect(PlayerbotAI* botAI) { return new RaidMoveFromGroundEffectAction(botAI, "mc move from ground effect"); }
     static Action* magmadar_mark(PlayerbotAI* botAI)

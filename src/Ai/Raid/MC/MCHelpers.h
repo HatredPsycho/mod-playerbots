@@ -102,9 +102,6 @@ constexpr float MAGMA_SPLASH_BACK_OFF_DISTANCE = 12.0f;
 // Shazzrah's Arcane Explosion radius (stock 19712: 18 yd, CoA 2105601: 20 yd)
 constexpr float ARCANE_EXPLOSION_DISTANCE = 26.0f;
 
-// Ranged and healers stay out of Magmadar's Panic (stock 19408, CoA 2105309)
-constexpr float MAGMADAR_STANDOFF_DISTANCE = 35.0f;
-
 // Distance kept from Gehennas' Flame Orb
 constexpr float FLAME_ORB_AVOID_DISTANCE = 8.0f;
 
