@@ -21,15 +21,34 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
                         { NextAction("mc lucifron shadow resistance", ACTION_RAID) }));
 
     // Magmadar
-    // TODO: tremor totem, or general anti-fear strat development. Same as King Dred (Drak'Tharon) and faction commander (Nexus).
+    // Panic fears everyone near him: ranged and healers stay out of it, and a tank takes him back from a
+    // non-tank while the main tank is feared.
     triggers.push_back(
         new TriggerNode("mc magmadar fire resistance",
                         { NextAction("mc magmadar fire resistance", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar standoff",
+                        { NextAction("mc magmadar standoff", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar backup taunt",
+                        { NextAction("mc magmadar backup taunt", ACTION_RAID + 1) }));
+    triggers.push_back(
+        new TriggerNode("mc magmadar lava bomb",
+                        { NextAction("mc move from ground effect", ACTION_RAID) }));
 
     // Gehennas
     triggers.push_back(
         new TriggerNode("mc gehennas shadow resistance",
                         { NextAction("mc gehennas shadow resistance", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas mark",
+                        { NextAction("mc gehennas mark", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas rain of fire",
+                        { NextAction("mc move from ground effect", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc gehennas flame orb",
+                        { NextAction("mc gehennas move from flame orb", ACTION_RAID) }));
 
     // Garr
     triggers.push_back(
@@ -51,6 +70,9 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
     triggers.push_back(
         new TriggerNode("mc shazzrah ranged",
                         { NextAction("mc shazzrah move away", ACTION_RAID) }));
+    triggers.push_back(
+        new TriggerNode("mc shazzrah backup taunt",
+                        { NextAction("mc shazzrah backup taunt", ACTION_RAID + 1) }));
 
     // Sulfuron Harbinger
     // Alternatively, shadow resistance is also possible.
