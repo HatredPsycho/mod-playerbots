@@ -809,7 +809,7 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
 
     // An alt on a gathering mission keeps its mission strategies through every reset.
     if (!player->InBattleground() && sCoaMissionMgr.IsOnMission(player))
-        CoaMissionMgr::ApplyEngineStrategies(nonCombatEngine);
+        CoaMissionMgr::ApplyEngineStrategies(nonCombatEngine, sCoaMissionMgr.IsBench(player));
 }
 
 Engine* AiFactory::createNonCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)
