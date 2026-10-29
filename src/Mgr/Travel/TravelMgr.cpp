@@ -4949,8 +4949,31 @@ void TravelMgr::PrepareGatherNodeCache()
         ++nodes;
     }
 
+    // The hostile creatures of each 200-yard square: an alt sent there must not meet stronger ones.
+    std::map<std::tuple<uint32, int32, int32>, std::vector<uint32>> hostileLevels;
+    for (auto const& [spawnId, data] : sObjectMgr->GetAllCreatureData())
+    {
+        CreatureTemplate const* creature = sObjectMgr->GetCreatureTemplate(data.id);
+        if (!creature || creature->npcflag || creature->type == CREATURE_TYPE_CRITTER)
+            continue;
+        FactionTemplateEntry const* faction = sFactionTemplateStore.LookupEntry(creature->faction);
+        if (!faction || !faction->IsHostileToPlayers())
+            continue;
+        int32 const cx = static_cast<int32>(std::floor(data.posX / cellSize));
+        int32 const cy = static_cast<int32>(std::floor(data.posY / cellSize));
+        hostileLevels[std::make_tuple(uint32(data.mapid), cx, cy)].push_back(creature->maxlevel);
+    }
+
     for (auto& [key, cell] : cells)
     {
+        auto const hostile = hostileLevels.find(std::make_tuple(std::get<0>(key), std::get<2>(key), std::get<3>(key)));
+        if (hostile != hostileLevels.end() && hostile->second.size() >= 3)
+        {
+            std::vector<uint32>& levels = hostile->second;
+            std::sort(levels.begin(), levels.end());
+            cell.dangerLevel = levels[(levels.size() * 3) / 4];
+        }
+
         // A lone node is not worth the trip.
         if (cell.points.size() < 3)
             continue;
@@ -5039,7 +5062,12 @@ TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 ski
         // A node raises the skill until the skill is 100 points over it; grey ones still count a little, as the
         // bot gathers them too. A zone whose creatures may outlevel the bot only if nothing safer is found.
         float score = 0.0f;
-        float const risk = bracket->second.high > level + 2 ? 0.3f : 1.0f;
+        // Creatures of the spot itself: far above the bot, never; a little above, only if nothing safer.
+        if (cell.dangerLevel > level + 3)
+            continue;
+        float risk = bracket->second.high > level + 2 ? 0.3f : 1.0f;
+        if (cell.dangerLevel > level)
+            risk *= 0.1f;
         for (GatherPoint const& p : cell.points)
         {
             if (p.reqSkill > skillValue)

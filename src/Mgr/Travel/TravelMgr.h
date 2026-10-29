@@ -904,6 +904,8 @@ public:
         float z = 0.0f;
         // Every spawn point of the cell in walking order: only part of them is up at a time (pools).
         std::vector<GatherPoint> points;
+        // Level of the hostile creatures of the cell (three quarters of them are at most this level); 0: none.
+        uint32 dangerLevel = 0;
     };
 
     // The cell of the bot's continent, in a zone of its level, where most nodes still raise skillValue.
