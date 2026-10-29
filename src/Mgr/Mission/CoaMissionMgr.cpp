@@ -150,7 +150,9 @@ bool CoaMissionMgr::Begin(Player* bot, CoaMission const& mission, std::string& e
         error = "you already have " + std::to_string(sPlayerbotAIConfig.missionsMaxPerPlayer) + " characters on a mission";
         return false;
     }
-    missions[bot->GetGUID().GetCounter()] = mission;
+    CoaMission& added = missions[bot->GetGUID().GetCounter()];
+    added = mission;
+    added.lootClockMs = getMSTime();
     active.store(uint32(missions.size()));
     return true;
 }
