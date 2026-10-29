@@ -25,6 +25,9 @@ namespace
 {
 // CoA ruleset aura (core: AscensionRulesets.cpp): a lone gatherer would be killed again and again.
 constexpr uint32 MISSION_HIGH_RISK_AURA = 1004019;
+// Mind Vision: the player sees through the alt's eyes. An aura, so the core ends the view by itself when the alt
+// leaves the map or logs out.
+constexpr uint32 MISSION_WATCH_SPELL = 2096;
 
 // The picks LootObject::IsLootPossible accepts for a mining node.
 bool HasMiningPick(Player* bot)
@@ -63,7 +66,8 @@ bool CoaMissionAction::Execute(Event event)
     in >> word;
 
     // Any other word stays unanswered: "mission" also starts sentences said in party chat.
-    if (!word.empty() && word != "status" && word != "stop" && word != "gather" && word != "help")
+    if (!word.empty() && word != "status" && word != "stop" && word != "gather" && word != "help" && word != "watch" &&
+        word != "unwatch")
         return true;
 
     if (!sPlayerbotAIConfig.missionsEnable)
@@ -82,6 +86,39 @@ bool CoaMissionAction::Execute(Event event)
     if (word.empty() || word == "status")
     {
         botAI->TellMasterNoFacing(sCoaMissionMgr.StatusLine(bot));
+        return true;
+    }
+
+    // "mission watch": the camera of the player follows the alt, on the same continent only; "mission unwatch" ends it.
+    if (word == "watch" || word == "unwatch")
+    {
+        Aura* const seen = bot->GetAura(MISSION_WATCH_SPELL, requester->GetGUID());
+        if (word == "unwatch")
+        {
+            if (seen)
+                bot->RemoveAura(seen);
+            return true;
+        }
+        std::string refused;
+        if (!sCoaMissionMgr.IsOnMission(bot))
+            refused = "I am not on a mission";
+        else if (requester->GetMapId() != bot->GetMapId())
+            refused = "you are on another continent";
+        else if (!seen && (requester->GetViewpoint() || requester->GetVehicle() || requester->GetCharmGUID()))
+            refused = "you already see through other eyes";
+        else if (!seen)
+        {
+            Aura* const aura = requester->AddAura(MISSION_WATCH_SPELL, bot);
+            if (!aura)
+                refused = "the view would not hold";
+            else
+            {
+                aura->SetMaxDuration(-1);
+                aura->SetDuration(-1);
+            }
+        }
+        botAI->TellMasterNoFacing(refused.empty() ? "Watch on: " + ZoneNameOf(bot->GetZoneId()) + "."
+                                                  : "Watch refused: " + refused + ".");
         return true;
     }
 
@@ -318,6 +355,11 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
 
 void CoaMissionUpdateAction::TeleportToSpot(CoaMission const& mission)
 {
+    if (bot->GetMapId() != mission.mapId && bot->HasAura(MISSION_WATCH_SPELL))
+    {
+        bot->RemoveAurasDueToSpell(MISSION_WATCH_SPELL);
+        botAI->TellMasterNoFacing("Watch off: I am going to another continent.");
+    }
     bot->StopMoving();
     bot->RemoveAurasWithInterruptFlags(AURA_INTERRUPT_FLAG_TELEPORTED | AURA_INTERRUPT_FLAG_CHANGE_MAP);
     bot->TeleportTo(mission.mapId, mission.x, mission.y, mission.z + 0.5f, bot->GetOrientation());
