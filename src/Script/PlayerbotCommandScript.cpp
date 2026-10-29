@@ -436,7 +436,9 @@ public:
 
             CoaMissionAction action(botAI);
             std::string error;
-            if (!action.Start(nullptr, minutes, skillId, error))
+            // One bot in three takes an order instead: 10 Copper Ore or 10 Peacebloom.
+            uint32 const order = (started % 3 == 2) ? (skillId == SKILL_MINING ? 2770u : 2447u) : 0u;
+            if (!action.Start(nullptr, minutes, order ? 0 : skillId, error, order, order ? 10 : 0))
             {
                 handler->PSendSysMessage("{} lvl {}: {}", bot->GetName(), bot->GetLevel(), error);
                 continue;

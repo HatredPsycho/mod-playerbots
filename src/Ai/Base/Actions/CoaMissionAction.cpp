@@ -312,8 +312,9 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
     if (mission.bench)
     {
         botAI->ChangeStrategy("-grind,-rpg,-new rpg,-move random,-start duel,-bg,-quest", BOT_STATE_NON_COMBAT);
-        LOG_INFO("playerbots.coa", "MISSION BENCH START {} lvl {} {} {} -> zone {} for {} min", bot->GetName(),
-                 bot->GetLevel(), CoaMissionMgr::SkillName(skillId), skillValue, cell->zoneId, minutes);
+        LOG_INFO("playerbots.coa", "MISSION BENCH START {} lvl {} {} {} -> zone {} for {} min{}", bot->GetName(),
+                 bot->GetLevel(), CoaMissionMgr::SkillName(skillId), skillValue, cell->zoneId, minutes,
+                 orderItem ? " order " + std::to_string(orderCount) + "x" + std::to_string(orderItem) : "");
         return true;
     }
     sCoaMissionMgr.Save(bot);
