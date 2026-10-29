@@ -414,7 +414,7 @@ public:
             if (started >= wanted)
                 break;
             PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
-            if (!botAI || bot->GetLevel() < 10 || !bot->IsAlive() || bot->IsInCombat() || bot->GetGroup() ||
+            if (!botAI || bot->GetLevel() < 5 || !bot->IsAlive() || bot->IsInCombat() || bot->GetGroup() ||
                 sCoaMissionMgr.IsOnMission(bot))
                 continue;
 
