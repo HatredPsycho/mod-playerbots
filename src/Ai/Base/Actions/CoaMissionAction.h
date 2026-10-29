@@ -21,7 +21,7 @@ public:
 
     bool Execute(Event event) override;
 
-private:
+    // requester null: a mission of the .playerbots missiontest bench, for a random bot.
     bool Start(Player* requester, uint32 minutes, uint32 skillId, std::string& error);
 };
 

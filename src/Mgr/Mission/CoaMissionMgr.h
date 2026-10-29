@@ -54,6 +54,8 @@ struct CoaMission
     std::string endReason;
 
     // Not saved
+    bool bench = false;             // a random bot sent by .playerbots missiontest: no owner, nothing mailed
+    uint32 benchStartMs = 0;
     TravelMgr::GatherCell const* cell = nullptr;  // TravelMgr's cells never move once loaded
     uint32 lastTickMs = 0;
     uint32 lastSaveMs = 0;
@@ -108,7 +110,8 @@ public:
     static bool IsMissionBot(Player* bot, Player* requester);
     static std::string SkillName(uint32 skillId);
     // The non-combat strategies of a bot on a mission, kept through every strategy reset.
-    static void ApplyEngineStrategies(Engine* nonCombatEngine);
+    static void ApplyEngineStrategies(Engine* nonCombatEngine, bool bench = false);
+    bool IsBench(Player* bot) const;
     static uint32 ReadStrategyFlags(PlayerbotAI* botAI);
 
     void Save(Player* bot);

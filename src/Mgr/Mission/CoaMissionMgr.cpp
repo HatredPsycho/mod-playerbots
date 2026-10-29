@@ -144,7 +144,8 @@ bool CoaMissionMgr::Begin(Player* bot, CoaMission const& mission, std::string& e
         error = "I am already on a mission";
         return false;
     }
-    if (sPlayerbotAIConfig.missionsMaxPerPlayer && CountForOwner(mission.owner) >= sPlayerbotAIConfig.missionsMaxPerPlayer)
+    if (!mission.bench && sPlayerbotAIConfig.missionsMaxPerPlayer &&
+        CountForOwner(mission.owner) >= sPlayerbotAIConfig.missionsMaxPerPlayer)
     {
         error = "you already have " + std::to_string(sPlayerbotAIConfig.missionsMaxPerPlayer) + " characters on a mission";
         return false;
@@ -181,10 +182,23 @@ std::string CoaMissionMgr::SkillName(uint32 skillId)
     return skillId == SKILL_MINING ? "mining" : skillId == SKILL_HERBALISM ? "herbalism" : "?";
 }
 
-void CoaMissionMgr::ApplyEngineStrategies(Engine* nonCombatEngine)
+bool CoaMissionMgr::IsBench(Player* bot) const
+{
+    if (!active.load() || !bot)
+        return false;
+    std::lock_guard<std::mutex> guard(lock);
+    auto const it = missions.find(bot->GetGUID().GetCounter());
+    return it != missions.end() && it->second.bench;
+}
+
+void CoaMissionMgr::ApplyEngineStrategies(Engine* nonCombatEngine, bool bench)
 {
     if (!nonCombatEngine)
         return;
+    // A random bot of the bench: none of its own wandering while it gathers.
+    if (bench)
+        for (char const* name : {"grind", "rpg", "new rpg", "move random", "start duel", "bg", "quest"})
+            nonCombatEngine->removeStrategy(name, false);
     nonCombatEngine->removeStrategy("follow", false);
     nonCombatEngine->removeStrategy("stay", false);
     nonCombatEngine->removeStrategy("lfg", false);
@@ -232,7 +246,7 @@ std::string CoaMissionMgr::StatusLine(Player* bot) const
 void CoaMissionMgr::Save(Player* bot)
 {
     CoaMission mission;
-    if (!Get(bot, mission))
+    if (!Get(bot, mission) || mission.bench)
         return;
 
     std::ostringstream out;
@@ -399,6 +413,27 @@ void CoaMissionMgr::Finish(Player* bot, std::string const& reason)
         return;
 
     Remove(bot);
+
+    if (mission.bench)
+    {
+        uint32 count = 0;
+        std::string items;
+        for (auto const& [entry, n] : mission.items)
+        {
+            count += n;
+            items += (items.empty() ? "" : ",") + std::to_string(entry) + "x" + std::to_string(n);
+        }
+        uint32 const minutes = mission.benchStartMs ? getMSTimeDiff(mission.benchStartMs, getMSTime()) / MINUTE / IN_MILLISECONDS : 0;
+        LOG_INFO("playerbots.coa", "MISSION BENCH END {} lvl {} {} {}: {} items in {} min ({}), deaths {}, fails {}, zone {}: {}",
+                 bot->GetName(), bot->GetLevel(), SkillName(mission.skillId), bot->GetSkillValue(mission.skillId), count,
+                 minutes, items.empty() ? "-" : items, mission.deaths, mission.fails, bot->GetZoneId(), reason);
+        // Its random bot strategies back, as the "reset" command does; not while it logs out.
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+        if (botAI && bot->IsInWorld() && reason != "logged out")
+            botAI->ResetStrategies();
+        return;
+    }
+
     ClearSaved(bot);
 
     uint32 const sent = Deliver(bot, mission.owner, mission.items);
@@ -467,6 +502,11 @@ void CoaMissionMgr::OnBotLogout(Player* bot)
 {
     if (!IsOnMission(bot))
         return;
+    if (IsBench(bot))
+    {
+        Finish(bot, "logged out");
+        return;
+    }
     Save(bot);
     Remove(bot);
 }

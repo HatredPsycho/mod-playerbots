@@ -180,7 +180,9 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
     minutes = std::min(minutes, sPlayerbotAIConfig.missionsMaxMinutes);
 
     CoaMission mission;
-    mission.owner = requester->GetGUID().GetCounter();
+    mission.owner = requester ? requester->GetGUID().GetCounter() : 0;
+    mission.bench = !requester;
+    mission.benchStartMs = requester ? 0 : getMSTime();
     mission.skillId = skillId;
     mission.state = CoaMissionState::Travel;
     mission.remainingMs = int32(minutes * MINUTE * IN_MILLISECONDS);
@@ -200,6 +202,13 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
     // master all the same.
     botAI->LeaveOrDisbandGroup();
     botAI->ChangeStrategy("-follow,-stay,-lfg,+loot,+gather,+gather all,+mission", BOT_STATE_NON_COMBAT);
+    if (mission.bench)
+    {
+        botAI->ChangeStrategy("-grind,-rpg,-new rpg,-move random,-start duel,-bg,-quest", BOT_STATE_NON_COMBAT);
+        LOG_INFO("playerbots.coa", "MISSION BENCH START {} lvl {} {} {} -> zone {} for {} min", bot->GetName(),
+                 bot->GetLevel(), CoaMissionMgr::SkillName(skillId), skillValue, cell->zoneId, minutes);
+        return true;
+    }
     sCoaMissionMgr.Save(bot);
 
     botAI->TellMasterNoFacing("Mission started: " + CoaMissionMgr::SkillName(skillId) + " in " +
@@ -230,7 +239,8 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
         sCoaMissionMgr.Finish(bot, "missions are disabled on this server");
         return true;
     }
-    if (!master || !CoaMissionMgr::IsMissionBot(bot, master) || master->GetGUID().GetCounter() != mission.owner)
+    if (!mission.bench &&
+        (!master || !CoaMissionMgr::IsMissionBot(bot, master) || master->GetGUID().GetCounter() != mission.owner))
     {
         sCoaMissionMgr.Finish(bot, "my owner changed");
         return true;
@@ -433,6 +443,14 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
         LootObject node(bot, guid);
         if (node.IsEmpty() || node.skillId != mission.skillId || !node.IsLootPossible(bot))
             continue;
+        // Up a cave wall or under a ledge: right next to it and still out of reach.
+        if (bot->GetExactDist2d(go) < 4.0f && std::fabs(go->GetPositionZ() - bot->GetPositionZ()) > 3.5f)
+        {
+            mission.skippedNodes.insert(guid);
+            LOG_INFO("playerbots.coa", "Mission {}: node {} (entry {}) out of reach, {:.1f} yd above", bot->GetName(),
+                     guid.GetCounter(), guid.GetEntry(), go->GetPositionZ() - bot->GetPositionZ());
+            continue;
+        }
         float const dist = bot->GetExactDist(go);
         if (!best || dist < bestDist)
         {

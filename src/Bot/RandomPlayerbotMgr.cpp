@@ -16,6 +16,7 @@
 #include "ChannelMgr.h"
 #include "CharacterCache.h"
 #include "CoaBotRacePolicy.h"
+#include "CoaMissionMgr.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "DatabaseEnv.h"
@@ -1986,6 +1987,10 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
 
         return false;
     }
+
+    // A random bot of the mission bench: no teleport nor randomize until its mission ends.
+    if (sCoaMissionMgr.IsOnMission(bot))
+        return false;
 
     // leave group if leader is rndbot
     Group* group = bot->GetGroup();
