@@ -315,9 +315,13 @@ ItemUsage ItemUsageValue::QueryItemUsageForEquip(ItemTemplate const* itemProto, 
 
     if (itemProto->Class == ITEM_CLASS_WEAPON && !sRandomItemMgr.CanEquipWeapon(itemProto, bot->getClass()))
         shouldEquip = false;
+    // A self-found bot wears what it finds: a lighter armor beats the grey or empty slot it would keep, the score
+    // below decides (levels 10-15 of a self-found server stood at item level 7 with greens of cloth and leather in
+    // their bags).
+    bool const selfFound = PlayerbotFactory::SelfFoundAt(bot->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot);
     if (itemProto->Class == ITEM_CLASS_ARMOR &&
         !sRandomItemMgr.CanEquipArmor(itemProto, bot->getClass(),
-                                      lookahead ? uint32(itemProto->RequiredLevel) : bot->GetLevel()))
+                                      lookahead ? uint32(itemProto->RequiredLevel) : bot->GetLevel(), selfFound))
         shouldEquip = false;
 
     uint8 possibleSlots = 1;
