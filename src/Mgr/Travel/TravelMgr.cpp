@@ -4945,7 +4945,7 @@ void TravelMgr::PrepareGatherNodeCache()
         GatherCell& cell = cells[std::make_tuple(uint32(data.mapid), skillId, cx, cy)];
         cell.mapId = data.mapid;
         cell.skillId = skillId;
-        cell.points.push_back({data.posX, data.posY, data.posZ, reqSkill});
+        cell.points.push_back({data.posX, data.posY, data.posZ, reqSkill, data.id});
         ++nodes;
     }
 
@@ -5009,7 +5009,8 @@ void TravelMgr::PrepareGatherNodeCache()
 }
 
 TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 skillId, uint32 skillValue,
-                                                         GatherCell const* exclude) const
+                                                         GatherCell const* exclude,
+                                                         std::set<uint32> const* nodes) const
 {
     if (!bot || !skillValue)
         return nullptr;
@@ -5042,7 +5043,10 @@ TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 ski
         {
             if (p.reqSkill > skillValue)
                 continue;
-            score += (p.reqSkill + 100 > skillValue) ? 1.0f : 0.25f;
+            if (nodes)
+                score += nodes->count(p.entry) ? 1.0f : 0.0f;
+            else
+                score += (p.reqSkill + 100 > skillValue) ? 1.0f : 0.25f;
         }
         if (score < 3.0f)
             continue;
@@ -5058,6 +5062,46 @@ TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 ski
               [](auto const& a, auto const& b) { return a.first > b.first; });
     size_t const pool = std::min<size_t>(5, candidates.size());
     return candidates[urand(0, uint32(pool - 1))].second;
+}
+
+std::set<uint32> TravelMgr::NodesYielding(uint32 itemId, uint32& skillId, uint32& reqSkill)
+{
+    std::set<uint32> nodes;
+    skillId = 0;
+    reqSkill = 0;
+
+    std::set<uint32> lootIds;
+    if (QueryResult result = WorldDatabase.Query("SELECT Entry FROM gameobject_loot_template WHERE Item = {}", itemId))
+        do
+            lootIds.insert(result->Fetch()[0].Get<uint32>());
+        while (result->NextRow());
+    if (lootIds.empty())
+        return nodes;
+
+    for (auto const& [entry, goInfo] : *sObjectMgr->GetGameObjectTemplates())
+    {
+        if (goInfo.type != GAMEOBJECT_TYPE_CHEST || !lootIds.count(goInfo.GetLootId()))
+            continue;
+        LockEntry const* lock = sLockStore.LookupEntry(goInfo.GetLockId());
+        if (!lock)
+            continue;
+        for (uint8 i = 0; i < MAX_LOCK_CASE; ++i)
+        {
+            if (lock->Type[i] != LOCK_KEY_SKILL)
+                continue;
+            SkillType const skill = SkillByLockType(LockType(lock->Index[i]));
+            if (skill != SKILL_HERBALISM && skill != SKILL_MINING)
+                continue;
+            if (skillId && skill != skillId)
+                break;
+            skillId = skill;
+            uint32 const req = std::max<uint32>(1, lock->Skill[i]);
+            reqSkill = reqSkill ? std::min(reqSkill, req) : req;
+            nodes.insert(entry);
+            break;
+        }
+    }
+    return nodes;
 }
 
 TravelMgr::GatherCell const* TravelMgr::FindGatherCell(uint32 mapId, uint32 skillId, float x, float y) const

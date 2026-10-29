@@ -51,9 +51,12 @@ struct CoaMission
     uint32 deaths = 0;
     uint32 fails = 0;               // trips that made no progress, cells without a node
     uint32 prevFlags = 0;           // the non-combat strategies to give back at the end
+    uint32 orderItem = 0;           // "mission order": the item ordered, and how many; 0 for a plain mission
+    uint32 orderCount = 0;
     std::string endReason;
 
     // Not saved
+    std::set<uint32> orderNodes;    // the nodes that yield orderItem (TravelMgr::NodesYielding)
     bool bench = false;             // a random bot sent by .playerbots missiontest: no owner, nothing mailed
     uint32 benchStartMs = 0;
     TravelMgr::GatherCell const* cell = nullptr;  // TravelMgr's cells never move once loaded
