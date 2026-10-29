@@ -12,6 +12,7 @@
 #include "CoaSpecialization.h"
 #include "CoaWildcard.h"
 #include "CoaReborn.h"
+#include "CoaMissionMgr.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
 #include "CellImpl.h"
@@ -5412,6 +5413,10 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
 
     // bot is waiting in a BG queue — stay active to speed up join
     if (bot->InBattlegroundQueue())
+        return true;
+
+    // bot is gathering on a mission — far from any player, it still has to walk and gather
+    if (sCoaMissionMgr.IsOnMission(bot))
         return true;
 
     // bot is in a guild that contains a real player
