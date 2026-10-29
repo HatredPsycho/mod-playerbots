@@ -2038,7 +2038,7 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
 {
     static const std::vector<std::string> allInstanceStrategies =
     {
-        "aq20", "blacktemple", "bwl", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon",
+        "aq20", "blacktemple", "bwl", "coa-other-side", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon",
         "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub",
         "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm", "vanilla-mara", "vanilla-rfc",
         "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda",
@@ -2217,6 +2217,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 724:
             strategyName = "rs";  // Ruby Sanctum
+            break;
+        case 937:
+            strategyName = "coa-other-side";  // Road to De Other Side
             break;
         default:
             break;
