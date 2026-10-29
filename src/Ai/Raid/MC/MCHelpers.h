@@ -28,6 +28,8 @@ enum MoltenCoreNPCs
 
     // Majordomo Executus
     NPC_MAJORDOMO_EXECUTUS = 12018,
+    NPC_FLAMEWAKER_HEALER = 11663,
+    NPC_FLAMEWAKER_ELITE = 11664,
 
     // Core Hound (trash)
     NPC_CORE_HOUND = 11671,
@@ -55,6 +57,10 @@ enum MoltenCoreSpells
     SPELL_GOLEMAGGS_TRUST = 20553,
     SPELL_MAGMA_SPLASH = 13880,            // SpellDifficulty row 295: 13880/13880/350099/350099
     SPELL_MAGMA_SPLASH_DIFF_2_3 = 350099,
+
+    // Majordomo Executus
+    SPELL_MAGIC_REFLECTION = 20619,
+    SPELL_DAMAGE_SHIELD = 21075,
 };
 
 // Aura on Baron Geddon while Inferno is active
@@ -117,6 +123,12 @@ inline bool IsMcEntry(uint32 entry, uint32 baseEntry)
 {
     return entry == baseEntry || entry == baseEntry + MC_ENTRY_OFFSET_HEROIC ||
            entry == baseEntry + MC_ENTRY_OFFSET_MYTHIC || entry == baseEntry + MC_ENTRY_OFFSET_ASCENDED;
+}
+
+inline bool IsMajordomoAdd(Unit const* unit)
+{
+    return unit &&
+           (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_HEALER) || IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_ELITE));
 }
 }  // namespace MoltenCoreHelpers
 
