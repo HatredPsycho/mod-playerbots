@@ -2653,7 +2653,7 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
     }
 
     // Self-found: a new bot stays at the level it was made at, an older one at the level it earned.
-    if (PlayerbotFactory::SelfFoundAt(level))
+    if (PlayerbotFactory::SelfFoundAt(level) || PlayerbotFactory::IsSelfFoundBot(bot))
         level = bot->GetLevel();
 
     SetValue(bot, "level", level);
@@ -3481,7 +3481,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         !sPlayerbotAIConfig.IsInRandomAccountList(bot->GetSession()->GetAccountId()))
         return;
     // Self-found: a bot keeps the gear it found, PvP or not.
-    if (PlayerbotFactory::SelfFoundAt(bot->GetLevel()))
+    if (PlayerbotFactory::SelfFoundAt(bot->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot))
         return;
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
     if (!botAI)
@@ -3645,7 +3645,8 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
     {
         uint32 const levelCap = std::min<uint32>(sPlayerbotAIConfig.randomBotMaxLevel,
                                                  sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
-        if (levelCap && bot->GetLevel() > levelCap && !PlayerbotFactory::SelfFoundAt(levelCap))
+        if (levelCap && bot->GetLevel() > levelCap && !PlayerbotFactory::SelfFoundAt(levelCap) &&
+            !PlayerbotFactory::IsSelfFoundBot(bot))
         {
             uint32 const oldLevel = bot->GetLevel();
             if (bot->IsMounted())
@@ -3695,7 +3696,7 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
         for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END && !overLevel; ++slot)
             if (Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 overLevel = item->GetTemplate()->RequiredLevel > bot->GetLevel();
-        if (overLevel && !PlayerbotFactory::SelfFoundAt(bot->GetLevel()))
+        if (overLevel && !PlayerbotFactory::SelfFoundAt(bot->GetLevel()) && !PlayerbotFactory::IsSelfFoundBot(bot))
         {
             PlayerbotFactory::DestroyEquippedGear(bot);
             PlayerbotFactory factory(bot, bot->GetLevel());

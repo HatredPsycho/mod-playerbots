@@ -350,7 +350,8 @@ namespace
     {
         if (!TransmogCatalog.loaded || TransmogCatalog.collectionsForBots || !sPlayerbotAIConfig.randomBotTransmog)
             return false;
-        if (level < sPlayerbotAIConfig.randomBotTransmogMinLevel || PlayerbotFactory::SelfFoundAt(level))
+        if (level < sPlayerbotAIConfig.randomBotTransmogMinLevel || PlayerbotFactory::SelfFoundAt(level) ||
+            PlayerbotFactory::IsSelfFoundBot(bot))
             return false;
 
         WorldSession* session = bot->GetSession();

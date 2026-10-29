@@ -107,6 +107,11 @@ public:
     static bool MayGearItself(Player* bot);
     // AiPlayerbot.CoaSelfFound applies at this level (no gear made, no level given).
     static bool SelfFoundAt(uint32 level);
+    // AiPlayerbot.CoaSelfFoundBotsPercent: a random bot of that share, from level 10, wears only what it finds.
+    // The share is fixed by the guid, so a bot stays in it or out of it across restarts.
+    static bool IsSelfFoundBot(Player* bot);
+    static bool IsSelfFoundGuid(ObjectGuid::LowType guid);
+    static constexpr uint32 SELF_FOUND_BOTS_MIN_LEVEL = 10;
     // An item of the honor quartermasters or with resilience.
     static bool IsCoaPvpItem(ItemTemplate const* proto);
     static void DestroyEquippedGear(Player* bot);
@@ -260,6 +265,9 @@ private:
     void IterateItemsInBank(IterateItemsVisitor* visitor);
     EnchantContainer::const_iterator GetEnchantContainerBegin() { return m_EnchantContainer.begin(); }
     EnchantContainer::const_iterator GetEnchantContainerEnd() { return m_EnchantContainer.end(); }
+    // Self-found by the realm's level range or as one of the self-found random bots.
+    bool SelfFound() const { return SelfFoundAt(level) || IsSelfFoundBot(bot); }
+
     uint32 level;
     uint32 itemQuality;
     uint32 gearScoreLimit;

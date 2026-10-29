@@ -631,6 +631,14 @@ AiPlayerbot.CoaSelfFound = 0
 # Default: 59 (at 60 bots are geared as usual for the endgame)
 AiPlayerbot.CoaSelfFoundMaxLevel = 59
 
+# Self-found random bots on a realm geared as usual: this share of the random bots (0 to 10 percent, picked by
+# character, always the same ones) wear only what they loot, earn from quests or are traded from level 10 on. No
+# gear, gems, enchantments, level roll or level bracket is given to them, and the autogear and bis commands are
+# refused. With mod-dungeon-clear, groups of five of them clear dungeons of their level now and then
+# (DungeonClear.SelfFound.* in mod_dungeon_clear.conf). Players' characters and alts are never in the share.
+# Default: 0 (disabled, every random bot is geared as usual)
+AiPlayerbot.CoaSelfFoundBotsPercent = 0
+
 # Random bot transmog: random bots show other models of their armor and weapon types, picked from a whole item
 # set when one fits, with a required level up to 15 below their own. Purely visual: their real gear and stats never
 # change and nothing is saved; a bot keeps the same look at every login until its level changes bracket.

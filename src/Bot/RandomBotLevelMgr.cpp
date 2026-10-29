@@ -143,7 +143,7 @@ static bool IsBotSafeForLevelReset(Player* bot)
     if (!bot || !bot->GetSession() || bot->GetSession()->isLogingOut() || bot->IsDuringRemoveFromWorld())
         return false;
 
-    if (RandomBotLevelMgr::IsHeld(bot->GetGUID()))
+    if (RandomBotLevelMgr::IsHeld(bot->GetGUID()) || PlayerbotFactory::IsSelfFoundBot(bot))
         return false;
 
     if (!bot->IsInWorld())
@@ -764,6 +764,9 @@ void RandomBotLevelMgr::RunLevelBracketsDistribution()
         if (IsNameInExcludeList(player, sPlayerbotAIConfig.levelBracketsExcludeNames))
             continue;
         if (IsHeld(player->GetGUID()))
+            continue;
+        // A self-found random bot keeps the level it earned: no bracket moves it.
+        if (PlayerbotFactory::IsSelfFoundBot(player))
             continue;
 
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(player);
