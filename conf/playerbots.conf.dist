@@ -631,16 +631,20 @@ AiPlayerbot.CoaSelfFound = 0
 # Default: 59 (at 60 bots are geared as usual for the endgame)
 AiPlayerbot.CoaSelfFoundMaxLevel = 59
 
-# Self-found random bots: this share of the random bots (0 to 100 percent, picked by character whatever its level,
-# always the same ones) wear only what they loot, earn from quests or are traded from level 10 on. No gear, gems,
-# enchantments, level roll or level bracket is given to them, and the autogear and bis commands are refused. With
-# mod-dungeon-clear, parties of five of them clear the dungeons of their level (RFC at 11-18, Wailing Caverns and
-# Deadmines around 20, ... up to the level 60 dungeons): DungeonClear.SelfFound.* in mod_dungeon_clear.conf. On a
-# self-found realm (AiPlayerbot.CoaSelfFound = 1) every bot up to CoaSelfFoundMaxLevel is self-found already: the
-# share then only says which bots go to dungeons, and keeps them self-found at level 60 too.
-# Players' characters and alts are never in the share. The launcher's self-found preset sets 20.
-# Default: 0 (disabled, every random bot is geared as usual and no self-found party is formed)
-AiPlayerbot.CoaSelfFoundBotsPercent = 0
+# Self-found random bots in dungeons: share of the random bots (0 to 100 percent, picked by character whatever
+# its level, always the same ones) that wear only what they loot, earn from quests or are traded from level 10 on.
+# No gear, gems, enchantments, level roll or level bracket is given to them, and the autogear and bis commands are
+# refused. With mod-dungeon-clear, parties of five self-found bots clear the dungeons of their level (RFC at 13-18,
+# Wailing Caverns and Deadmines around 20, ... up to the level 60 dungeons), with at most this share of the online
+# random bots in dungeons at once: DungeonClear.SelfFound.* in mod_dungeon_clear.conf. On a self-found realm
+# (AiPlayerbot.CoaSelfFound = 1) every bot up to CoaSelfFoundMaxLevel is self-found already: the share then only
+# says how many go to dungeons, and keeps them self-found at level 60 too.
+# Players' characters and alts are never in the share.
+#    -1 - automatic: 20 when AiPlayerbot.CoaSelfFound = 1 (Solo self-found), 0 otherwise
+#     0 - disabled: every random bot is geared as usual and no self-found party is formed
+# 1-100 - this share, whatever AiPlayerbot.CoaSelfFound
+# Default: -1 (automatic)
+AiPlayerbot.CoaSelfFoundBotsPercent = -1
 
 # Random bot transmog: random bots show other models of their armor and weapon types, picked from a whole item
 # set when one fits, with a required level up to 15 below their own. Purely visual: their real gear and stats never
