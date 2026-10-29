@@ -55,6 +55,7 @@ constexpr uint32 NO_NODE_MS = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 SAVE_EVERY_MS = MINUTE * IN_MILLISECONDS;
 constexpr uint32 MAX_FAILS = 3;
 constexpr float TELEPORT_MIN_DIST = 400.0f;
+constexpr uint32 MAX_EMPTY_SPOTS = 4;
 }  // namespace
 
 bool CoaMissionAction::Execute(Event event)
@@ -622,10 +623,13 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
     {
         bool const gaveLoot = mission.lastLootMs && mission.workSinceMs &&
                               int32(mission.lastLootMs - mission.workSinceMs) >= 0;
-        if (!gaveLoot)
+        // Only spots that gave nothing in a row end the mission: a gathered-out spot that gave starts over.
+        if (gaveLoot)
+            mission.fails = 0;
+        else
             ++mission.fails;
         TravelMgr::GatherCell const* next =
-            mission.fails < MAX_FAILS
+            mission.fails < MAX_EMPTY_SPOTS
                 ? sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell,
                                               mission.orderNodes.empty() ? nullptr : &mission.orderNodes)
                 : nullptr;
