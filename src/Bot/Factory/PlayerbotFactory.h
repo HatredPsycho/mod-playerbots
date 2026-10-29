@@ -107,7 +107,7 @@ public:
     static bool MayGearItself(Player* bot);
     // AiPlayerbot.CoaSelfFound applies at this level (no gear made, no level given).
     static bool SelfFoundAt(uint32 level);
-    // AiPlayerbot.CoaSelfFoundBotsPercent: a random bot of that share, from level 10, wears only what it finds.
+    // AiPlayerbot.CoaSelfFoundBotsPercent (0-100): a random bot of that share, from level 10, wears only what it finds.
     // The share is fixed by the guid, so a bot stays in it or out of it across restarts.
     static bool IsSelfFoundBot(Player* bot);
     static bool IsSelfFoundGuid(ObjectGuid::LowType guid);
