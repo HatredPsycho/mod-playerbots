@@ -441,8 +441,6 @@ public:
                 handler->PSendSysMessage("{} lvl {}: {}", bot->GetName(), bot->GetLevel(), error);
                 continue;
             }
-            // Kept in the world for the whole mission: no log out by the random bot rotation.
-            sRandomPlayerbotMgr.SetEventValue(bot->GetGUID().GetCounter(), "add", 1, minutes * MINUTE + HOUR);
             ++started;
         }
         handler->PSendSysMessage("{} bench missions started for {} min ({} bots taught a gathering skill).", started,

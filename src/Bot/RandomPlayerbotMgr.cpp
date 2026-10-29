@@ -1848,6 +1848,9 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
     }
 
     uint32 isValid = GetEventValue(bot, "add");
+    // A bot of the mission bench stays in the world until its mission ends.
+    if (!isValid && player && sCoaMissionMgr.IsOnMission(player))
+        isValid = 1;
     if (!isValid)
     {
         if (!player || !player->GetGroup())
