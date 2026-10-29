@@ -835,6 +835,12 @@ void PlayerbotFactory::Randomize(bool incremental)
     // if (sPlayerbotAIConfig.disableRandomLevels)
     //     return;
 
+    // Self-found: a bot is never moved to a level of the self-found range, it keeps the one it earned and everything
+    // it carries. A rebuild above the range (a recruit raised to the cap) goes on as usual.
+    if (SelfFoundAt(level))
+        level = bot->GetLevel();
+    bool const selfFound = SelfFoundAt(level);
+
     LOG_DEBUG("playerbots", "{} randomizing {} (level {} class = {})...", (incremental ? "Incremental" : "Full"),
              bot->GetName().c_str(), level, bot->getClass());
     // LOG_DEBUG("playerbots", "Preparing to {} randomize...", (incremental ? "incremental" : "full"));
@@ -856,13 +862,14 @@ void PlayerbotFactory::Randomize(bool incremental)
         ClearSpells();
         ResetQuests();
 
-        if (!sPlayerbotAIConfig.equipAndSpecPersistence ||
-            level < uint32(sPlayerbotAIConfig.equipAndSpecPersistenceLevel) || level < oldLevel)
+        if (!selfFound && (!sPlayerbotAIConfig.equipAndSpecPersistence ||
+            level < uint32(sPlayerbotAIConfig.equipAndSpecPersistenceLevel) || level < oldLevel))
         {
             ClearAllItems();
         }
     }
-    ClearInventory();
+    if (!selfFound)
+        ClearInventory();
     bot->RemoveAllSpellCooldown();
     UnbindInstance();
 
@@ -1106,29 +1113,33 @@ void PlayerbotFactory::Refresh()
     //     InitEquipment(true);
     // }
     InitAttunementQuests();
-    // mod-playerbots-auctions: a refresh no longer empties the bags - the bots keep what they looted, bought
-    // and made. Only food, drink and potions are renewed, because InitFood() and InitPotions() below hand out
-    // fresh ones every time (potions also ones the bot cannot use, which would pile up). A realm built without
-    // that module has no PlayerbotsAuctions.Enable and empties the bags as before.
-    if (!sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Enable", false, false))
-        ClearInventory();
-    else
+    // Self-found: the bot keeps everything it found, so a refresh leaves its bags alone.
+    if (!SelfFoundAt(level))
     {
-        std::vector<Item*> renewed;
-        auto look = [&renewed](Item* item)
+        // mod-playerbots-auctions: a refresh no longer empties the bags - the bots keep what they looted, bought
+        // and made. Only food, drink and potions are renewed, because InitFood() and InitPotions() below hand out
+        // fresh ones every time (potions also ones the bot cannot use, which would pile up). A realm built without
+        // that module has no PlayerbotsAuctions.Enable and empties the bags as before.
+        if (!sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Enable", false, false))
+            ClearInventory();
+        else
         {
-            if (item && item->GetTemplate() && item->GetTemplate()->Class == ITEM_CLASS_CONSUMABLE &&
-                (item->GetTemplate()->SubClass == ITEM_SUBCLASS_FOOD || item->GetTemplate()->SubClass == ITEM_SUBCLASS_POTION))
-                renewed.push_back(item);
-        };
-        for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
-            look(bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
-        for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
-            if (Bag* bag = bot->GetBagByPos(bagSlot))
-                for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
-                    look(bag->GetItemByPos(slot));
-        for (Item* item : renewed)
-            bot->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
+            std::vector<Item*> renewed;
+            auto look = [&renewed](Item* item)
+            {
+                if (item && item->GetTemplate() && item->GetTemplate()->Class == ITEM_CLASS_CONSUMABLE &&
+                    (item->GetTemplate()->SubClass == ITEM_SUBCLASS_FOOD || item->GetTemplate()->SubClass == ITEM_SUBCLASS_POTION))
+                    renewed.push_back(item);
+            };
+            for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
+                look(bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
+            for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
+                if (Bag* bag = bot->GetBagByPos(bagSlot))
+                    for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
+                        look(bag->GetItemByPos(slot));
+            for (Item* item : renewed)
+                bot->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
+        }
     }
     InitAmmo();
     InitFood();
@@ -2804,6 +2815,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
         return;
     }
 
+    // Self-found: past its starting outfit above, a bot wears only what it loots, earns or is given.
+    if (SelfFoundAt(level))
+        return;
+
     std::unordered_map<uint8, std::vector<std::pair<uint32, int32>>> items;
     // int tab = AiFactory::GetPlayerSpecTab(bot);
 
@@ -4387,7 +4402,9 @@ void PlayerbotFactory::InitInstanceQuests()
     // quest rewards boost bot level, so reduce back
     bot->GiveLevel(level);
 
-    ClearInventory();
+    // Self-found: InitQuests already took the reward items back, the bags hold what the bot found.
+    if (!SelfFoundAt(level))
+        ClearInventory();
     bot->SetUInt32Value(PLAYER_XP, currentXP);
 }
 
@@ -4462,6 +4479,23 @@ void PlayerbotFactory::InitAmmo()
     }
 
     bot->SetAmmo(entry);
+}
+
+bool PlayerbotFactory::SelfFoundAt(uint32 level)
+{
+    return sPlayerbotAIConfig.coaSelfFound && level <= sPlayerbotAIConfig.coaSelfFoundMaxLevel;
+}
+
+// A player's bot with AutoGearCommandAltBots off is geared by what it loots or is given only ("loot only" realm).
+bool PlayerbotFactory::MayGearItself(Player* bot)
+{
+    // Self-found: no bot of the self-found range gears itself, random bots included.
+    if (SelfFoundAt(bot->GetLevel()))
+        return false;
+    if (sPlayerbotAIConfig.autoGearCommandAltBots)
+        return true;
+    PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+    return !botAI || !botAI->HasGameClientMaster();
 }
 
 uint32 PlayerbotFactory::CalcMixedGearScore(uint32 gs, uint32 quality)
@@ -5712,6 +5746,9 @@ void PlayerbotFactory::ApplyEnchantTemplate(uint8 spec)
 
 void PlayerbotFactory::ApplyEnchantAndGemsNew(bool /*destroyOld*/)
 {
+    // Self-found: no gem or enchantment is made for a bot of the self-found range.
+    if (SelfFoundAt(level))
+        return;
     //int32 bestGemEnchantId[4] = {-1, -1, -1, -1};  // 1, 2, 4, 8 color //not used, line marked for removal.
     //float bestGemScore[4] = {0, 0, 0, 0}; //not used, line marked for removal.
     std::vector<uint32> curCount = GetCurrentGemsCount();

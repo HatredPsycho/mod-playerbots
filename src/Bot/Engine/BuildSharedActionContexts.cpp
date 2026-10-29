@@ -79,6 +79,7 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     actionContexts.Add(new VanillaDungeonMaraActionContext());
     actionContexts.Add(new VanillaDungeonUldaActionContext());
     actionContexts.Add(new VanillaDungeonDMActionContext());
+    actionContexts.Add(new CoaDungeonOtherSideActionContext());
     actionContexts.Add(new WotlkDungeonUKActionContext());
     actionContexts.Add(new WotlkDungeonNexActionContext());
     actionContexts.Add(new WotlkDungeonANActionContext());

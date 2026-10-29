@@ -74,6 +74,7 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     triggerContexts.Add(new VanillaDungeonMaraTriggerContext());
     triggerContexts.Add(new VanillaDungeonUldaTriggerContext());
     triggerContexts.Add(new VanillaDungeonDMTriggerContext());
+    triggerContexts.Add(new CoaDungeonOtherSideTriggerContext());
     triggerContexts.Add(new TbcDungeonAuchenaiCryptsTriggerContext());
     triggerContexts.Add(new TbcDungeonSethekkHallsTriggerContext());
     triggerContexts.Add(new TbcDungeonMechanarTriggerContext());
