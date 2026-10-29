@@ -12,6 +12,7 @@
 #include "GameObject.h"
 #include "LFGMgr.h"
 #include "LootObjectStack.h"
+#include "ObjectMgr.h"
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 #include "Timer.h"
@@ -19,6 +20,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <set>
 #include <sstream>
 
 namespace
@@ -67,7 +69,7 @@ bool CoaMissionAction::Execute(Event event)
 
     // Any other word stays unanswered: "mission" also starts sentences said in party chat.
     if (!word.empty() && word != "status" && word != "stop" && word != "gather" && word != "help" && word != "watch" &&
-        word != "unwatch")
+        word != "unwatch" && word != "order")
         return true;
 
     if (!sPlayerbotAIConfig.missionsEnable)
@@ -122,6 +124,45 @@ bool CoaMissionAction::Execute(Event event)
         return true;
     }
 
+    // "mission order <item link or id> [count] [minutes]": gather that ore or herb until there are enough of it.
+    if (word == "order")
+    {
+        std::string rest;
+        std::getline(in, rest);
+        uint32 item = 0;
+        size_t const link = rest.find("item:");
+        if (link != std::string::npos)
+        {
+            item = uint32(std::strtoul(rest.c_str() + link + 5, nullptr, 10));
+            // The link's own numbers are not the count: drop it, from its colour to its end.
+            size_t const from = rest.rfind("|c", link);
+            size_t const to = rest.find("|r", link);
+            rest.erase(from == std::string::npos ? link : from,
+                       to == std::string::npos ? std::string::npos : to + 2 - (from == std::string::npos ? link : from));
+        }
+        std::vector<uint32> numbers;
+        std::istringstream words(rest);
+        std::string token;
+        while (words >> token)
+            if (!token.empty() && token.size() < 7 &&
+                std::all_of(token.begin(), token.end(), [](unsigned char c) { return std::isdigit(c); }))
+                numbers.push_back(uint32(std::stoul(token)));
+        if (!item && !numbers.empty())
+        {
+            item = numbers.front();
+            numbers.erase(numbers.begin());
+        }
+        uint32 const count = numbers.size() > 0 && numbers[0] ? std::min<uint32>(numbers[0], 1000) : 20;
+        uint32 const minutes = numbers.size() > 1 ? numbers[1] : 0;
+
+        std::string error;
+        if (!item)
+            botAI->TellMasterNoFacing("Usage: mission order <item link or id> [count] [minutes]");
+        else if (!Start(requester, minutes, 0, error, item, count))
+            botAI->TellMasterNoFacing("Order refused: " + error + ".");
+        return true;
+    }
+
     if (word == "stop")
     {
         if (sCoaMissionMgr.IsOnMission(bot))
@@ -133,7 +174,8 @@ bool CoaMissionAction::Execute(Event event)
 
     if (word == "help")
     {
-        botAI->TellMasterNoFacing("Usage: mission gather [minutes] [mining|herbalism], mission status, mission stop");
+        botAI->TellMasterNoFacing("Usage: mission gather [minutes] [mining|herbalism], mission order <item> [count] "
+                                  "[minutes], mission status, mission stop");
         return true;
     }
 
@@ -156,7 +198,8 @@ bool CoaMissionAction::Execute(Event event)
     return true;
 }
 
-bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, std::string& error)
+bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, std::string& error, uint32 orderItem,
+                             uint32 orderCount)
 {
     if (sCoaMissionMgr.IsOnMission(bot))
     {
@@ -179,6 +222,24 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
         error = "I am in High Risk";
     if (!error.empty())
         return false;
+
+    // An order: the profession is the one of the nodes that yield the item.
+    std::set<uint32> orderNodes;
+    if (orderItem)
+    {
+        uint32 reqSkill = 0;
+        orderNodes = TravelMgr::NodesYielding(orderItem, skillId, reqSkill);
+        if (orderNodes.empty())
+        {
+            error = "that item does not come from an ore or a herb";
+            return false;
+        }
+        if (SkillOf(bot, skillId) && SkillOf(bot, skillId) < reqSkill)
+        {
+            error = "I need " + std::to_string(reqSkill) + " in " + CoaMissionMgr::SkillName(skillId) + " for that";
+            return false;
+        }
+    }
 
     // The profession: the one asked, else the best of mining (with a pick) and herbalism. The professions of CoA's
     // own (woodcutting...) are not gathered.
@@ -205,7 +266,13 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
         return false;
 
     uint32 const skillValue = SkillOf(bot, skillId);
-    TravelMgr::GatherCell const* cell = sTravelMgr.SelectGatherCell(bot, skillId, skillValue);
+    TravelMgr::GatherCell const* cell =
+        sTravelMgr.SelectGatherCell(bot, skillId, skillValue, nullptr, orderItem ? &orderNodes : nullptr);
+    if (!cell && orderItem)
+    {
+        error = "I know no spot for that on this continent at my level";
+        return false;
+    }
     if (!cell)
     {
         error = "I know no " + CoaMissionMgr::SkillName(skillId) + " spot for my level and skill on this continent";
@@ -231,6 +298,9 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
     mission.zoneId = cell->zoneId;
     mission.cell = cell;
     mission.prevFlags = CoaMissionMgr::ReadStrategyFlags(botAI);
+    mission.orderItem = orderItem;
+    mission.orderCount = orderItem ? orderCount : 0;
+    mission.orderNodes = orderNodes;
 
     if (!sCoaMissionMgr.Begin(bot, mission, error))
         return false;
@@ -247,6 +317,16 @@ bool CoaMissionAction::Start(Player* requester, uint32 minutes, uint32 skillId, 
         return true;
     }
     sCoaMissionMgr.Save(bot);
+
+    if (orderItem)
+    {
+        ItemTemplate const* proto = sObjectMgr->GetItemTemplate(orderItem);
+        botAI->TellMasterNoFacing("Mission started: order of " + std::to_string(orderCount) + " " +
+                                  (proto ? proto->Name1 : "?") + " (" + CoaMissionMgr::SkillName(skillId) + ") in " +
+                                  ZoneNameOf(cell->zoneId) + ", at most " + std::to_string(minutes) +
+                                  " min. I will mail them to you. Whisper \"mission status\" or \"mission stop\".");
+        return true;
+    }
 
     botAI->TellMasterNoFacing("Mission started: " + CoaMissionMgr::SkillName(skillId) + " in " +
                               ZoneNameOf(cell->zoneId) + " for " + std::to_string(minutes) +
@@ -306,6 +386,12 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
         {
             mission.state = CoaMissionState::Deliver;
             mission.endReason = "the time is up";
+        }
+        else if (mission.orderItem && mission.items.count(mission.orderItem) &&
+                 mission.items.at(mission.orderItem) >= mission.orderCount)
+        {
+            mission.state = CoaMissionState::Deliver;
+            mission.endReason = "your order is ready";
         }
         else if (!bot->GetFreeInventorySpace())
         {
@@ -477,7 +563,8 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
     float bestDist = 0.0f;
     for (ObjectGuid const& guid : AI_VALUE(GuidVector, "nearest game objects no los"))
     {
-        if (!guid.IsGameObject() || mission.skippedNodes.count(guid))
+        if (!guid.IsGameObject() || mission.skippedNodes.count(guid) ||
+            (!mission.orderNodes.empty() && !mission.orderNodes.count(guid.GetEntry())))
             continue;
         GameObject* go = botAI->GetGameObject(guid);
         if (!go)
@@ -538,7 +625,8 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
             ++mission.fails;
         TravelMgr::GatherCell const* next =
             mission.fails < MAX_FAILS
-                ? sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell)
+                ? sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell,
+                                              mission.orderNodes.empty() ? nullptr : &mission.orderNodes)
                 : nullptr;
         if (!next)
         {

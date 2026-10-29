@@ -890,6 +890,7 @@ public:
         float y;
         float z;
         uint32 reqSkill;
+        uint32 entry;               // the gameobject of the node
     };
 
     struct GatherCell
@@ -907,8 +908,12 @@ public:
 
     // The cell of the bot's continent, in a zone of its level, where most nodes still raise skillValue.
     // Picks at random among the best few so that several alts do not crowd the same cell.
+    // nodes: only the spawn points of these gameobjects count (a mission ordering one item).
     GatherCell const* SelectGatherCell(Player* bot, uint32 skillId, uint32 skillValue,
-                                       GatherCell const* exclude = nullptr) const;
+                                       GatherCell const* exclude = nullptr,
+                                       std::set<uint32> const* nodes = nullptr) const;
+    // The herb and ore nodes whose loot has this item, with their profession and the lowest skill they need.
+    static std::set<uint32> NodesYielding(uint32 itemId, uint32& skillId, uint32& reqSkill);
     // The cell whose anchor point is (x, y), to resume a saved mission.
     GatherCell const* FindGatherCell(uint32 mapId, uint32 skillId, float x, float y) const;
 

@@ -22,7 +22,9 @@ public:
     bool Execute(Event event) override;
 
     // requester null: a mission of the .playerbots missiontest bench, for a random bot.
-    bool Start(Player* requester, uint32 minutes, uint32 skillId, std::string& error);
+    // orderItem: "mission order", gather that item until there are orderCount of it.
+    bool Start(Player* requester, uint32 minutes, uint32 skillId, std::string& error, uint32 orderItem = 0,
+               uint32 orderCount = 0);
 };
 
 // One step of the mission of the "mission" strategy: walk to the gathering spot, go from node to node, end it.

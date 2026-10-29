@@ -37,7 +37,7 @@ namespace
 // Keys of playerbots_random_bots (owner 0, the alt's guid), 255 characters of data each.
 constexpr char const* MISSION_KEY = "coa_mission";
 constexpr char const* MISSION_ITEMS_KEY = "coa_mission_items";
-constexpr char const* MISSION_SAVE_VERSION = "1";
+constexpr char const* MISSION_SAVE_VERSION = "2";
 
 std::vector<std::string> SplitFields(std::string const& text, char separator)
 {
@@ -254,7 +254,7 @@ void CoaMissionMgr::Save(Player* bot)
         << std::max<int32>(0, mission.remainingMs / IN_MILLISECONDS) << ';' << mission.totalMinutes << ';' << mission.mapId
         << ';' << std::fixed << std::setprecision(2) << mission.x << ';' << mission.y << ';' << mission.z << ';'
         << mission.zoneId << ';' << mission.point << ';' << mission.deaths << ';' << mission.fails << ';'
-        << mission.prevFlags;
+        << mission.prevFlags << ';' << mission.orderItem << ';' << mission.orderCount;
     sRandomPlayerbotMgr.SetValue(bot, MISSION_KEY, 1, out.str());
 
     std::string items;
@@ -540,7 +540,8 @@ void CoaMissionMgr::OnBotLogin(Player* bot)
     CoaMission mission;
     try
     {
-        if (fields.size() != 15 || fields[0] != MISSION_SAVE_VERSION)
+        // Version 1 (2.8.2 betas): no order.
+        if (!(fields.size() == 15 && fields[0] == "1") && !(fields.size() == 17 && fields[0] == MISSION_SAVE_VERSION))
             throw std::invalid_argument("format");
         mission.owner = std::stoul(fields[1]);
         mission.skillId = std::stoul(fields[2]);
@@ -557,6 +558,15 @@ void CoaMissionMgr::OnBotLogin(Player* bot)
         mission.deaths = std::stoul(fields[12]);
         mission.fails = std::stoul(fields[13]);
         mission.prevFlags = std::stoul(fields[14]);
+        if (fields.size() == 17)
+        {
+            mission.orderItem = std::stoul(fields[15]);
+            mission.orderCount = std::stoul(fields[16]);
+            uint32 skill = 0;
+            uint32 req = 0;
+            if (mission.orderItem)
+                mission.orderNodes = TravelMgr::NodesYielding(mission.orderItem, skill, req);
+        }
     }
     catch (std::exception const&)
     {
