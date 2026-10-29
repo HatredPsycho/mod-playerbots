@@ -1027,6 +1027,46 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
     return true;
 }
 
+bool CoaCanSwitchRole(Player* bot, CoaRole role)
+{
+    return bot && !IsWildcardHeroBot(bot) && (FitsRole(bot, role) || ClassCanPlay(bot->getClass(), role));
+}
+
+bool CoaSwitchRole(Player* bot, CoaRole role)
+{
+    if (!bot || IsWildcardHeroBot(bot))
+        return false;
+    if (FitsRole(bot, role))
+        return true;
+    if (!ClassCanPlay(bot->getClass(), role))
+        return false;
+
+    if (IsStockClass(bot->getClass()))
+    {
+        if (!SwitchStockSpec(bot, role))
+            return false;
+    }
+    else
+    {
+        // Keep the array alive: a reference into the temporary would dangle.
+        std::array<std::vector<uint32>, 3> const byRole = SpecializationsByRole(bot->getClass());
+        std::vector<uint32> const& specs = byRole[uint8(role)];
+        uint32 const specialization = specs.empty() ? 0 : specs[urand(0, specs.size() - 1)];
+        if (!specialization || !SwitchAscensionSpecialization(bot, specialization))
+            return false;
+        // Recorded like "talents spec", or the next strategy reset hands the earlier specialization back.
+        if (sRandomPlayerbotMgr.IsRandomBot(bot))
+            sRandomPlayerbotMgr.SetValue(bot, "coa_manual_spec", specialization);
+        ApplyCoaTalents(bot);
+    }
+
+    if (role != CoaRole::Tank)
+        DropThreatStances(bot);
+    if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot))
+        botAI->ResetStrategies();
+    return FitsRole(bot, role);
+}
+
 void CoaLeaveBattlegroundQueues(Player* bot)
 {
     if (!bot || bot->InBattleground())

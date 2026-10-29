@@ -186,6 +186,13 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
 bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosenFits, uint32 levelTolerance,
                        std::string& message);
 
+// Whether the bot's class has a specialization of `role` it could switch to (a Wildcard Hero never does here).
+bool CoaCanSwitchRole(Player* bot, CoaRole role);
+// Moves the bot to a specialization of `role` as the addon recruit does (talents spent, strategies reset), its gear
+// left as it is: for Dungeon Clear's self-found parties, whose low-level bots rarely carry a healer or tank
+// specialization. True when the bot now plays the role.
+bool CoaSwitchRole(Player* bot, CoaRole role);
+
 // "lfg bot heal" and the like, said by a player in a listened chat channel: free bots whisper offers.
 void CoaLfgHeard(Player* player, std::string const& message, Channel* channel);
 
