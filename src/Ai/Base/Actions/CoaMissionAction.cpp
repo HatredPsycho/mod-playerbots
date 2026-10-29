@@ -55,7 +55,8 @@ constexpr uint32 NO_NODE_MS = 10 * MINUTE * IN_MILLISECONDS;
 constexpr uint32 SAVE_EVERY_MS = MINUTE * IN_MILLISECONDS;
 constexpr uint32 MAX_FAILS = 3;
 constexpr float TELEPORT_MIN_DIST = 400.0f;
-constexpr uint32 MAX_EMPTY_SPOTS = 4;
+// Nothing gathered for this long, from any spot: the mission ends.
+constexpr uint32 NO_LOOT_END_MS = 20 * MINUTE * IN_MILLISECONDS;
 }  // namespace
 
 bool CoaMissionAction::Execute(Event event)
@@ -498,7 +499,7 @@ bool CoaMissionUpdateAction::DoTravel(CoaMission& mission, uint32 now)
     {
         if (dist + 20.0f > mission.progressDist)
         {
-            if (++mission.fails >= MAX_FAILS)
+            if (++mission.travelFails >= MAX_FAILS)
             {
                 mission.state = CoaMissionState::Deliver;
                 mission.endReason = "I could not reach my gathering spot";
@@ -623,26 +624,26 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
     {
         bool const gaveLoot = mission.lastLootMs && mission.workSinceMs &&
                               int32(mission.lastLootMs - mission.workSinceMs) >= 0;
-        // Only spots that gave nothing in a row end the mission: a gathered-out spot that gave starts over.
+        // Spots that gave nothing in a row, for the log; the mission itself ends only after a long time with
+        // nothing gathered anywhere: on a busy server the bot goes from spot to spot as the nodes come back.
         if (gaveLoot)
             mission.fails = 0;
         else
             ++mission.fails;
-        TravelMgr::GatherCell const* next =
-            mission.fails < MAX_EMPTY_SPOTS
-                ? sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell,
-                                              mission.orderNodes.empty() ? nullptr : &mission.orderNodes)
-                : nullptr;
-        if (!next)
+        uint32 const lastGather = std::max(mission.lastLootMs, mission.lootClockMs);
+        if (lastGather && getMSTimeDiff(lastGather, now) >= NO_LOOT_END_MS)
         {
-            // The only spot of its level: wait there for the nodes to come back, while rounds still pay off.
-            if (roundDone && mission.fails < MAX_EMPTY_SPOTS && !(since && getMSTimeDiff(since, now) >= NO_NODE_MS))
-            {
-                mission.emptyPoints = 0;
-                return false;
-            }
             mission.state = CoaMissionState::Deliver;
             mission.endReason = "I found nothing more to gather";
+            return false;
+        }
+        TravelMgr::GatherCell const* next =
+            sTravelMgr.SelectGatherCell(bot, mission.skillId, SkillOf(bot, mission.skillId), cell,
+                                        mission.orderNodes.empty() ? nullptr : &mission.orderNodes);
+        if (!next)
+        {
+            // The only spot of its level: wait there for the nodes to come back.
+            mission.emptyPoints = 0;
             return false;
         }
         LOG_INFO("playerbots.coa", "Mission {}: next spot ({}, {} empty points, fails {})", bot->GetName(),

@@ -68,7 +68,9 @@ struct CoaMission
     uint32 workSinceMs = 0;
     ObjectGuid node;
     uint32 nodeSinceMs = 0;
-    uint32 emptyPoints = 0;         // spawn points reached in a row with no node up
+    uint32 emptyPoints = 0;
+    uint32 travelFails = 0;         // trips to a spot that made no progress
+    uint32 lootClockMs = 0;         // start (or resume) of the mission: "nothing gathered for long" counts from it         // spawn points reached in a row with no node up
     std::set<ObjectGuid> skippedNodes;
 
     // Kept by the loot hook only: what the mission gathered, the only items it ever mails.
