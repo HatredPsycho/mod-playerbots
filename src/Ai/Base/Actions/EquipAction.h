@@ -51,4 +51,17 @@ public:
     bool Execute(Event event) override;
 };
 
+// A self-found bot sorts its bags every two minutes: what it carries may have become its best piece (a level up, a
+// lighter armor now allowed), and nothing else makes it look again until it loots the next piece.
+class SelfFoundEquipAction : public EquipUpgradeAction
+{
+public:
+    explicit SelfFoundEquipAction(PlayerbotAI* botAI) : EquipUpgradeAction(botAI, "self found equip") {}
+
+    bool isUseful() override;
+
+private:
+    time_t nextCheck = 0;
+};
+
 #endif

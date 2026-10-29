@@ -5,6 +5,7 @@
  */
 
 #include "EquipAction.h"
+#include "PlayerbotFactory.h"
 #include "Event.h"
 #include "ItemCountValue.h"
 #include "ItemPackets.h"
@@ -463,6 +464,15 @@ bool EquipUpgradesPacketAction::Execute(Event event)
     EquipItems(items);
     silent = false;
     return true;
+}
+
+bool SelfFoundEquipAction::isUseful()
+{
+    time_t const now = time(nullptr);
+    if (now < nextCheck || bot->IsInCombat())
+        return false;
+    nextCheck = now + 120;
+    return PlayerbotFactory::SelfFoundAt(bot->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot);
 }
 
 bool EquipUpgradeAction::Execute(Event /*event*/)
