@@ -2178,6 +2178,19 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
     PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "RandomTeleportByLocations");
 
     std::shuffle(std::begin(tlocs), std::end(tlocs), RandomEngine::Instance());
+
+    // Crowded zones: the random bots of about the bot's level already there. A first pass leaves out the zones that
+    // hold AiPlayerbot.ZoneCrowdLimit of them or more; only when every location is crowded does a second pass take one.
+    uint32 const crowdLimit = sPlayerbotAIConfig.zoneCrowdLimit;
+    std::unordered_map<uint32, uint32> zoneBots;
+    if (crowdLimit)
+        for (auto const& [guid, other] : playerBots)
+            if (other && other != bot && other->IsInWorld() &&
+                std::abs(int32(other->GetLevel()) - int32(bot->GetLevel())) <= 5)
+                ++zoneBots[other->GetZoneId()];
+
+    bool stop = false;
+    for (uint32 pass = 0; pass < (crowdLimit ? 2u : 1u) && !stop; ++pass)
     for (uint32 i = 0; i < tlocs.size(); i++)
     {
         WorldLocation loc = tlocs[i];
@@ -2206,6 +2219,13 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
 
         if (zone->team == 2 && bot->GetTeamId() == TEAM_HORDE)
             continue;
+
+        if (pass == 0 && crowdLimit)
+        {
+            auto const crowd = zoneBots.find(zone->ID);
+            if (crowd != zoneBots.end() && crowd->second >= crowdLimit)
+                continue;
+        }
 
         if (map->IsInWater(bot->GetPhaseMask(), x, y, z, bot->GetCollisionHeight()))
             continue;
@@ -2236,6 +2256,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
         // Prevent blink to be detected by visible real players
         if (botAI->HasPlayerNearby(150.0f))
         {
+            stop = true;
             break;
         }
 

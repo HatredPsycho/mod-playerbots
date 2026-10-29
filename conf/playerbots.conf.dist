@@ -2224,6 +2224,14 @@ AiPlayerbot.CoaOffensiveHealerSpecs = 40,43
 #        Default:     40 (Cultist Heretic)
 
 AiPlayerbot.CoaMeleeHealerSpecs = 40
+#    AiPlayerbot.ZoneCrowdLimit
+#        Description: When a random bot is sent to a leveling spot, zones that already hold this many random bots
+#                     of about its level (5 levels either way) are left out, so that bots spread over the zones of
+#                     their level instead of piling up in the same ones. When every zone is that crowded, the
+#                     bot goes anyway. 0: off.
+#        Default:     30
+
+AiPlayerbot.ZoneCrowdLimit = 30
 
 #
 #    AiPlayerbot.CoaHealsExcluded

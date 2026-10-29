@@ -867,6 +867,7 @@ bool PlayerbotAIConfig::Initialize()
     coaExcludedSpecializations.clear();
     LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaExcludedSpecializations", "99"),
                               coaExcludedSpecializations);
+    zoneCrowdLimit = sConfigMgr->GetOption<uint32>("AiPlayerbot.ZoneCrowdLimit", 30);
     coaOffensiveHealerSpecs.clear();
     LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaOffensiveHealerSpecs", "40,43"),
                               coaOffensiveHealerSpecs);
