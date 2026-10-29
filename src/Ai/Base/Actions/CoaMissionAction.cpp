@@ -635,6 +635,12 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
                 : nullptr;
         if (!next)
         {
+            // The only spot of its level: wait there for the nodes to come back, while rounds still pay off.
+            if (roundDone && mission.fails < MAX_EMPTY_SPOTS && !(since && getMSTimeDiff(since, now) >= NO_NODE_MS))
+            {
+                mission.emptyPoints = 0;
+                return false;
+            }
             mission.state = CoaMissionState::Deliver;
             mission.endReason = "I found nothing more to gather";
             return false;
