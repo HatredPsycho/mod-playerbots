@@ -413,6 +413,8 @@ void CoaMissionMgr::Finish(Player* bot, std::string const& reason)
         return;
 
     Remove(bot);
+    // The view of the owner ends with the mission (Mind Vision of "mission watch").
+    bot->RemoveAurasDueToSpell(2096);
 
     if (mission.bench)
     {
