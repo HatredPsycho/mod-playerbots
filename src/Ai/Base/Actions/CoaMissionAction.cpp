@@ -389,7 +389,14 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
         return false;
     ObjectGuid const looting = bot->GetLootGUID();
     LootObject target = AI_VALUE(LootObject, "loot target");
-    ObjectGuid const busy = looting ? looting : (!target.IsEmpty() && target.IsLootPossible(bot) ? target.guid : ObjectGuid::Empty);
+    ObjectGuid busy = looting ? looting : (!target.IsEmpty() && target.IsLootPossible(bot) ? target.guid : ObjectGuid::Empty);
+    // The loot strategy picks a node again on its own: one already left is dropped at once.
+    if (busy && !looting && mission.skippedNodes.count(busy))
+    {
+        AI_VALUE(LootObjectStack*, "available loot")->Remove(busy);
+        context->GetValue<LootObject>("loot target")->Set(LootObject());
+        busy.Clear();
+    }
     if (busy)
     {
         if (busy != mission.node)
@@ -404,8 +411,8 @@ bool CoaMissionUpdateAction::DoWork(CoaMission& mission, uint32 now)
             if (mission.skippedNodes.size() >= 50)
                 mission.skippedNodes.clear();
             mission.skippedNodes.insert(busy);
-            LOG_INFO("playerbots.coa", "Mission {}: node {} left after a minute without gathering it", bot->GetName(),
-                     busy.GetCounter());
+            LOG_INFO("playerbots.coa", "Mission {}: node {} (entry {}) left after a minute without gathering it, skill {}",
+                     bot->GetName(), busy.GetCounter(), busy.GetEntry(), SkillOf(bot, mission.skillId));
             AI_VALUE(LootObjectStack*, "available loot")->Remove(busy);
             context->GetValue<LootObject>("loot target")->Set(LootObject());
             mission.node.Clear();
