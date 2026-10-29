@@ -21,14 +21,12 @@ void RaidMcStrategy::InitTriggers(std::vector<TriggerNode*>& triggers)
                         { NextAction("mc lucifron shadow resistance", ACTION_RAID) }));
 
     // Magmadar
-    // Panic fears everyone near him: ranged and healers stay out of it, and a tank takes him back from a
-    // non-tank while the main tank is feared.
+    // Panic fears everyone in 45 yd (stock 19408) or 100 yd (CoA 2105309): no range keeps a raid out of it, and a
+    // stand-off at 35 yd only put the healers out of reach of the tank and the purgers out of reach of Frenzy
+    // (purges reach 30 yd). A tank takes him back from a non-tank once the fear ends.
     triggers.push_back(
         new TriggerNode("mc magmadar fire resistance",
                         { NextAction("mc magmadar fire resistance", ACTION_RAID) }));
-    triggers.push_back(
-        new TriggerNode("mc magmadar standoff",
-                        { NextAction("mc magmadar standoff", ACTION_RAID) }));
     triggers.push_back(
         new TriggerNode("mc magmadar backup taunt",
                         { NextAction("mc magmadar backup taunt", ACTION_RAID + 1) }));
