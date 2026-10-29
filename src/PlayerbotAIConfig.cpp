@@ -870,6 +870,9 @@ bool PlayerbotAIConfig::Initialize()
     coaOffensiveHealerSpecs.clear();
     LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaOffensiveHealerSpecs", "40,43"),
                               coaOffensiveHealerSpecs);
+    coaMeleeHealerSpecs.clear();
+    LoadSet<std::set<uint32>>(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaMeleeHealerSpecs", "40"),
+                              coaMeleeHealerSpecs);
     // Des soins que la mesure a trouvés vides. Un bot compose sa trousse de soin à partir de tout
     // ce qu'il connaît, pas à partir de sa rotation : retirer la ligne de rotation ne suffit pas à
     // lui faire oublier le sort, il faut le lui refuser ici. La liste est lue une seule fois, au
