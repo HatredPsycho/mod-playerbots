@@ -2366,7 +2366,7 @@ bool PlayerbotAI::IsRanged(Player* player, bool bySpec)
         return botAi->ContainsStrategy(STRATEGY_TYPE_RANGED);
 
     if (IsCoaBot(player))
-        return GetCoaStyle(player) != CoaStyle::Melee;
+        return !IsCoaMeleeHealer(player) && GetCoaStyle(player) != CoaStyle::Melee;
 
     if (IsRebornBot(player))
         return IsWcrRanged(player);

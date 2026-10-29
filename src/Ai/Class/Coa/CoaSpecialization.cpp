@@ -263,6 +263,12 @@ CoaArmorProficiency const* GetCoaArmorProficiency(uint8 playerClass)
     }
 }
 
+bool IsCoaMeleeHealer(Player const* player)
+{
+    return player && IsAscensionCustomClassId(player->getClass()) && GetCoaRole(player) == CoaRole::Heal &&
+           sPlayerbotAIConfig.coaMeleeHealerSpecs.count(GetAscensionActiveSpecialization(player));
+}
+
 CoaRole GetCoaRole(Player const* player)
 {
     if (IsWildcardHeroBot(player))

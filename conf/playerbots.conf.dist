@@ -2147,6 +2147,14 @@ AiPlayerbot.CoaExcludedSpecializations = 99
 
 AiPlayerbot.CoaOffensiveHealerSpecs = 40,43
 
+#    AiPlayerbot.CoaMeleeHealerSpecs
+#        Description: Healer specializations played in melee: they fight on the tank's target, within reach of
+#                     their melee heals, instead of from range like the other healers.
+#                     Empty: every healer stays at range. Applies at the next login or strategy reset.
+#        Default:     40 (Cultist Heretic)
+
+AiPlayerbot.CoaMeleeHealerSpecs = 40
+
 #
 #    AiPlayerbot.CoaHealsExcluded
 #        Description: Heals a bot must not consider, by their English name, separated by commas.
