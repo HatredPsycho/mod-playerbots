@@ -279,6 +279,16 @@ bool CoaMissionUpdateAction::Execute(Event /*event*/)
         return true;
     }
 
+    // Logged in or summoned away from the spot while gathering: travel back to it first.
+    if (mission.state == CoaMissionState::Work &&
+        (bot->GetMapId() != mission.mapId ||
+         (bot->GetExactDist2d(mission.x, mission.y) > 300.0f && bot->GetZoneId() != mission.zoneId)))
+    {
+        mission.state = CoaMissionState::Travel;
+        mission.progressCheckMs = 0;
+        mission.workSinceMs = 0;
+    }
+
     CoaMissionState const before = mission.state;
     bool const acted = mission.state == CoaMissionState::Travel ? DoTravel(mission, now) : DoWork(mission, now);
 
