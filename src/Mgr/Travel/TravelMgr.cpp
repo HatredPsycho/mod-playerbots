@@ -5037,8 +5037,9 @@ TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 ski
             continue;
 
         // A node raises the skill until the skill is 100 points over it; grey ones still count a little, as the
-        // bot gathers them too.
+        // bot gathers them too. A zone whose creatures may outlevel the bot only if nothing safer is found.
         float score = 0.0f;
+        float const risk = bracket->second.high > level + 2 ? 0.3f : 1.0f;
         for (GatherPoint const& p : cell.points)
         {
             if (p.reqSkill > skillValue)
@@ -5052,7 +5053,7 @@ TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 ski
             continue;
 
         float const dist = bot->GetExactDist2d(cell.x, cell.y);
-        candidates.emplace_back(score / (1.0f + dist / 3000.0f), &cell);
+        candidates.emplace_back(risk * score / (1.0f + dist / 3000.0f), &cell);
     }
 
     if (candidates.empty())

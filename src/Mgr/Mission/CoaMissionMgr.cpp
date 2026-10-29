@@ -484,6 +484,7 @@ void CoaMissionMgr::OnDied(Player* bot)
     if (!active.load() || !bot)
         return;
 
+    std::string endReason;
     {
         std::lock_guard<std::mutex> guard(lock);
         auto const it = missions.find(bot->GetGUID().GetCounter());
@@ -492,10 +493,13 @@ void CoaMissionMgr::OnDied(Player* bot)
         CoaMission& mission = it->second;
         ++mission.deaths;
         if (mission.deaths >= sPlayerbotAIConfig.missionsMaxDeaths && mission.state != CoaMissionState::Deliver)
-        {
-            mission.state = CoaMissionState::Deliver;
-            mission.endReason = "I died " + std::to_string(mission.deaths) + " times";
-        }
+            endReason = "I died " + std::to_string(mission.deaths) + " times";
+    }
+    // Ended here: a dead bot runs no mission step to end it.
+    if (!endReason.empty())
+    {
+        Finish(bot, endReason);
+        return;
     }
     Save(bot);
 }
