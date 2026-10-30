@@ -7,7 +7,7 @@ local STRINGS = {
 	en = {
 		TITLE = "Bot sheet", GEAR = "Gear", BAGS = "Bags", QUESTS = "Quests", INFO = "Info", REFRESH = "Refresh",
 		BEST_GEAR = "Best gear", TRADE = "Open trade", FOLLOW = "Follow", STAY = "Stay", SUMMON = "Summon",
-		LOGOUT = "Log out", WAIT = "Asking the bot...", NO_REPLY = "No answer: is it one of your bots?",
+		LOGOUT = "Log out", WAIT = "Asking the bot...", WAIT_AGAIN = "Still waiting: asking the bot again...", NO_REPLY = "No answer: is it one of your bots?",
 		NOT_IN_GROUP = "Invite it to your group to see its gear.", OUT_OF_RANGE = "Come closer to see its gear.",
 		EMPTY_BAGS = "Nothing in the bags.", NO_QUESTS = "No quest.",
 		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell grey items",
@@ -50,7 +50,7 @@ local STRINGS = {
 	fr = {
 		TITLE = "Fiche du bot", GEAR = "Équipement", BAGS = "Sacs", QUESTS = "Quêtes", INFO = "Infos", REFRESH = "Actualiser",
 		BEST_GEAR = "Meilleur équipement", TRADE = "Ouvrir l'échange", FOLLOW = "Suivre", STAY = "Rester", SUMMON = "Appeler",
-		LOGOUT = "Déconnecter", WAIT = "Demande au bot...", NO_REPLY = "Pas de réponse : est-ce bien un de vos bots ?",
+		LOGOUT = "Déconnecter", WAIT = "Demande au bot...", WAIT_AGAIN = "Toujours en attente : je redemande au bot...", NO_REPLY = "Pas de réponse : est-ce bien un de vos bots ?",
 		NOT_IN_GROUP = "Invitez-le dans votre groupe pour voir son équipement.", OUT_OF_RANGE = "Approchez-vous pour voir son équipement.",
 		EMPTY_BAGS = "Rien dans les sacs.", NO_QUESTS = "Aucune quête.",
 		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre les gris",
@@ -164,7 +164,7 @@ local function Ask(kind, command)
 	local key = current .. ":" .. kind
 	if lastAsked[key] and GetTime() - lastAsked[key] < REPEAT_DELAY then return end
 	lastAsked[key] = GetTime()
-	capture = { name = current, kind = kind, lines = {}, started = GetTime(), last = GetTime() }
+	capture = { name = current, kind = kind, command = command, lines = {}, started = GetTime(), last = GetTime() }
 	sheet.status:SetText(T("WAIT"))
 	Whisper(command)
 end
@@ -297,6 +297,14 @@ end
 local function Finish()
 	local done = capture
 	capture = nil
+	-- Silent the first time (a bot just logged in, a busy server): asked once more before saying so.
+	if #done.lines == 0 and not done.retried and done.name == current and done.command then
+		capture = { name = done.name, kind = done.kind, command = done.command, lines = {}, started = GetTime(),
+			last = GetTime(), retried = true }
+		sheet.status:SetText(T("WAIT_AGAIN"))
+		Whisper(done.command)
+		return
+	end
 	hideFrom[done.name] = GetTime() + 1
 	if done.name ~= current then return end
 	if done.kind == "bags" then
@@ -554,17 +562,27 @@ local function ItemButton(parent, size)
 	local b = CreateFrame("Button", nil, parent)
 	b:SetWidth(size)
 	b:SetHeight(size)
-	b:SetNormalTexture("Interface\\Buttons\\UI-Quickslot2")
-	b:GetNormalTexture():SetAllPoints()
+	-- One thin border, in the item's quality colour (the action bar's slot texture drew a frame in the frame).
+	b.edge = b:CreateTexture(nil, "BACKGROUND")
+	b.edge:SetTexture("Interface\\Buttons\\WHITE8X8")
+	b.edge:SetAllPoints()
+	b.edge:SetVertexColor(0, 0, 0, 0.9)
 	b.icon = b:CreateTexture(nil, "ARTWORK")
-	b.icon:SetPoint("TOPLEFT", 2, -2)
-	b.icon:SetPoint("BOTTOMRIGHT", -2, 2)
+	b.icon:SetPoint("TOPLEFT", 1, -1)
+	b.icon:SetPoint("BOTTOMRIGHT", -1, 1)
+	b.icon:SetTexCoord(0.08, 0.92, 0.08, 0.92)
 	b.count = b:CreateFontString(nil, "OVERLAY", "NumberFontNormal")
 	b.count:SetPoint("BOTTOMRIGHT", -2, 2)
 	b:SetHighlightTexture("Interface\\Buttons\\ButtonHilight-Square", "ADD")
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	return b
+end
+
+-- Green and better get their colour on the border; white, grey and an empty slot stay black.
+local function SetQuality(b, quality)
+	local color = quality and quality >= 2 and ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+	if color then b.edge:SetVertexColor(color.r, color.g, color.b, 1) else b.edge:SetVertexColor(0, 0, 0, 0.9) end
 end
 
 local pages = {}
@@ -1371,9 +1389,13 @@ RenderSpells = function(page)
 	if #spells > SPELL_ROWS then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
 end
 
-local TABS = { { "gear", "GEAR", BuildGear }, { "bags", "BAGS", BuildBags }, { "quests", "QUESTS", BuildQuests },
-	{ "talents", "TALENTS", BuildTalents }, { "spells", "SPELLS", BuildSpells }, { "mounts", "MOUNTS", BuildMounts },
-	{ "info", "INFO", BuildInfo } }
+local TABS = { { "gear", "GEAR", BuildGear, "Interface\\Icons\\INV_Chest_Chain_05" },
+	{ "bags", "BAGS", BuildBags, "Interface\\Icons\\INV_Misc_Bag_08" },
+	{ "quests", "QUESTS", BuildQuests, "Interface\\GossipFrame\\AvailableQuestIcon" },
+	{ "talents", "TALENTS", BuildTalents, "Interface\\Icons\\INV_Misc_Book_11" },
+	{ "spells", "SPELLS", BuildSpells, "Interface\\Icons\\INV_Misc_Book_09" },
+	{ "mounts", "MOUNTS", BuildMounts, "Interface\\Icons\\Ability_Mount_RidingHorse" },
+	{ "info", "INFO", BuildInfo, "Interface\\Icons\\INV_Misc_Note_01" } }
 -- The Strategies tab (BuildStrats) is kept out for now: too easy to break a bot with it (decision 12/10).
 -- Put { "strats", "STRATS", BuildStrats } back in TABS to show it.
 
@@ -1400,6 +1422,7 @@ local function RenderGear(page)
 		local texture = unit and GetInventoryItemTexture(unit, slot)
 		b.icon:SetTexture(texture)
 		if texture then b.icon:Show() else b.icon:Hide() end
+		SetQuality(b, texture and GetInventoryItemQuality(unit, slot))
 	end
 	-- The model is set once per bot (setting it again would turn it back to the front).
 	if unit and UnitIsVisible(unit) then
@@ -1443,6 +1466,7 @@ local function RenderBags(page)
 		if item then
 			b.icon:SetTexture((GetItemIcon and GetItemIcon(item.id)) or select(10, GetItemInfo(item.id)) or "Interface\\Icons\\INV_Misc_QuestionMark")
 			b.icon:Show()
+			SetQuality(b, select(3, GetItemInfo(item.id)))
 			b.count:SetText(item.count > 1 and item.count or "")
 			if bagMode == "bags" and marked[item.id] then b.mark:Show() else b.mark:Hide() end
 			for _, t in ipairs(b.bound) do if item.soulbound then t:Show() else t:Hide() end end
@@ -1497,6 +1521,11 @@ Render = function()
 	for _, def in ipairs(TABS) do
 		local key = def[1]
 		sheet.tabs[key]:SetText(T(def[2]))
+		local text = sheet.tabs[key]:GetFontString()
+		if text then
+			text:ClearAllPoints()
+			text:SetPoint("LEFT", sheet.tabs[key].tabIcon, "RIGHT", 4, 0)
+		end
 		if key == tab then sheet.tabs[key]:LockHighlight() else sheet.tabs[key]:UnlockHighlight() end
 		if key == tab then pages[key]:Show() else pages[key]:Hide() end
 	end
@@ -1567,6 +1596,16 @@ local function Build()
 		b:SetHeight(22)
 		b:SetPoint("TOPLEFT", 16 + (i - 1) * 62, -36)
 		b:SetScript("OnClick", function() tab = def[1]; Load() end)
+		-- A small icon before the name, the name a size smaller to make room.
+		b:SetNormalFontObject(GameFontNormalSmall)
+		b:SetHighlightFontObject(GameFontHighlightSmall)
+		b:SetPushedTextOffset(0, 0)
+		b.tabIcon = b:CreateTexture(nil, "OVERLAY")
+		b.tabIcon:SetWidth(14)
+		b.tabIcon:SetHeight(14)
+		b.tabIcon:SetPoint("LEFT", 6, 0)
+		b.tabIcon:SetTexture(def[4])
+		if def[4]:find("Icons") then b.tabIcon:SetTexCoord(0.08, 0.92, 0.08, 0.92) end
 		sheet.tabs[def[1]] = b
 		local page = CreateFrame("Frame", nil, sheet)
 		page:SetPoint("TOPLEFT", 8, -86)
@@ -1584,7 +1623,7 @@ local function Build()
 	sheet.specText = sheet:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	sheet.specText:SetPoint("TOPLEFT", 20, -64)
 	sheet.xp = CreateFrame("StatusBar", nil, sheet)
-	sheet.xp:SetHeight(12)
+	sheet.xp:SetHeight(10)
 	sheet.xp:SetPoint("BOTTOMLEFT", 20, 44)
 	sheet.xp:SetPoint("BOTTOMRIGHT", -20, 44)
 	sheet.xp:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
@@ -1597,6 +1636,8 @@ local function Build()
 	sheet.xp.text:SetPoint("CENTER")
 	sheet.status = sheet:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	sheet.status:SetPoint("BOTTOMLEFT", 18, 20)
+	-- The flat buttons of the other panels (SquidBotsLite.lua).
+	if SquidBotsLite_UI then SquidBotsLite_UI.FlattenAll(sheet) end
 	sheet:Hide()
 end
 
