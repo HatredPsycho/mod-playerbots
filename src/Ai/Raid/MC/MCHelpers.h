@@ -23,11 +23,22 @@ namespace MoltenCoreHelpers
 {
 enum MoltenCoreNPCs
 {
+    // Magmadar
+    NPC_MAGMADAR = 11982,
+    NPC_COA_MAGMADAR_RIGHT_HEAD = 80642,  // CoA: summoned heads, every hit is passed on to the body
+    NPC_COA_MAGMADAR_LEFT_HEAD = 80643,
+
+    // Gehennas
+    NPC_FLAMEWAKER = 11661,
+    NPC_COA_GEHENNAS_FLAME_ORB = 80644,  // CoA: summoned orb that pulses fire around it
+
     // Golemagg
     NPC_CORE_RAGER = 11672,
 
     // Majordomo Executus
     NPC_MAJORDOMO_EXECUTUS = 12018,
+    NPC_FLAMEWAKER_HEALER = 11663,
+    NPC_FLAMEWAKER_ELITE = 11664,
 
     // Core Hound (trash)
     NPC_CORE_HOUND = 11671,
@@ -40,6 +51,16 @@ constexpr uint32 MC_ENTRY_OFFSET_ASCENDED = 300000;
 
 enum MoltenCoreSpells
 {
+    // Magmadar
+    SPELL_LAVA_BOMB_DOT = 19428,  // periodic fire while standing in the bomb's patch (GO 177704)
+    SPELL_LAVA_BOMB_COA_D0 = 2105367,  // CoA: the heads' ground fire (persistent area aura),
+    SPELL_LAVA_BOMB_COA_D1 = 2105368,  // SpellDifficulty row 2100
+    SPELL_LAVA_BOMB_COA_D2 = 2105369,
+    SPELL_LAVA_BOMB_COA_D3 = 2105370,
+
+    // Gehennas
+    SPELL_RAIN_OF_FIRE = 19717,
+
     // Baron Geddon
     SPELL_INFERNO = 19695,                 // SpellDifficulty row 369: 19695/350084/350084/350084
     SPELL_INFERNO_DIFF_1_3 = 350084,
@@ -55,7 +76,15 @@ enum MoltenCoreSpells
     SPELL_GOLEMAGGS_TRUST = 20553,
     SPELL_MAGMA_SPLASH = 13880,            // SpellDifficulty row 295: 13880/13880/350099/350099
     SPELL_MAGMA_SPLASH_DIFF_2_3 = 350099,
+
+    // Majordomo Executus
+    SPELL_MAGIC_REFLECTION = 20619,
+    SPELL_DAMAGE_SHIELD = 21075,
 };
+
+// Fire patches under Magmadar's bombs: the body's stock trap and the CoA heads' ground fire
+constexpr uint32 MAGMADAR_LAVA_BOMB_AURAS[] = {SPELL_LAVA_BOMB_DOT, SPELL_LAVA_BOMB_COA_D0, SPELL_LAVA_BOMB_COA_D1,
+                                               SPELL_LAVA_BOMB_COA_D2, SPELL_LAVA_BOMB_COA_D3};
 
 // Aura on Baron Geddon while Inferno is active
 constexpr uint32 INFERNO_AURAS[] = {SPELL_INFERNO, SPELL_INFERNO_DIFF_1_3, SPELL_INFERNO_COA};
@@ -72,6 +101,9 @@ constexpr float MAGMA_SPLASH_BACK_OFF_DISTANCE = 12.0f;
 
 // Shazzrah's Arcane Explosion radius (stock 19712: 18 yd, CoA 2105601: 20 yd)
 constexpr float ARCANE_EXPLOSION_DISTANCE = 26.0f;
+
+// Distance kept from Gehennas' Flame Orb
+constexpr float FLAME_ORB_AVOID_DISTANCE = 8.0f;
 
 template <std::size_t N>
 inline bool HasAnyAura(Unit const* unit, uint32 const (&spellIds)[N])
@@ -117,6 +149,19 @@ inline bool IsMcEntry(uint32 entry, uint32 baseEntry)
 {
     return entry == baseEntry || entry == baseEntry + MC_ENTRY_OFFSET_HEROIC ||
            entry == baseEntry + MC_ENTRY_OFFSET_MYTHIC || entry == baseEntry + MC_ENTRY_OFFSET_ASCENDED;
+}
+
+// CoA: Magmadar's two heads cast at their own victim and pass every hit on to the body.
+inline bool IsMagmadarHead(Unit const* unit)
+{
+    return unit && (IsMcEntry(unit->GetEntry(), NPC_COA_MAGMADAR_RIGHT_HEAD) ||
+                    IsMcEntry(unit->GetEntry(), NPC_COA_MAGMADAR_LEFT_HEAD));
+}
+
+inline bool IsMajordomoAdd(Unit const* unit)
+{
+    return unit &&
+           (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_HEALER) || IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_ELITE));
 }
 }  // namespace MoltenCoreHelpers
 

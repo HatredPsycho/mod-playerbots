@@ -5,6 +5,7 @@
  */
 
 #include "SendMailAction.h"
+#include "CoaMissionMgr.h"
 #include "ChatHelper.h"
 #include "Event.h"
 #include "ItemVisitors.h"
@@ -14,6 +15,13 @@
 
 bool SendMailAction::Execute(Event event)
 {
+    // No gold nor item leaves a bot on a gathering mission but the mission's own mail.
+    if (sCoaMissionMgr.IsOnMission(bot))
+    {
+        botAI->TellMasterNoFacing("I do not send mail during a mission.");
+        return false;
+    }
+
     uint32 account = bot->GetSession()->GetAccountId();
     bool randomBot = sPlayerbotAIConfig.IsInRandomAccountList(account);
 

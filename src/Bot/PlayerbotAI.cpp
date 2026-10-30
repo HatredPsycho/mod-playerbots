@@ -12,6 +12,7 @@
 #include "CoaSpecialization.h"
 #include "CoaWildcard.h"
 #include "CoaReborn.h"
+#include "CoaMissionMgr.h"
 #include "AiFactory.h"
 #include "BudgetValues.h"
 #include "CellImpl.h"
@@ -2038,13 +2039,13 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
 {
     static const std::vector<std::string> allInstanceStrategies =
     {
-        "aq20", "blacktemple", "bwl", "coa-other-side", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon",
-        "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub",
-        "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm", "vanilla-mara", "vanilla-rfc",
-        "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda",
-        "vanilla-wc", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk", "wotlk-eoe", "wotlk-fos", "wotlk-gd", "wotlk-hol",
-        "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os", "wotlk-pos", "wotlk-toc", "wotlk-uk",
-        "wotlk-up", "wotlk-vh", "zulaman"
+        "aq20", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan",
+        "magtheridon", "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt",
+        "tbc-seth", "tbc-ub", "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm",
+        "vanilla-mara", "vanilla-rfc", "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm",
+        "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
+        "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os",
+        "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman", "zulgurub"
     };
 
     for (std::string const& strat : allInstanceStrategies)
@@ -2088,6 +2089,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 289:
             strategyName = "vanilla-scholo";  // Scholomance
+            break;
+        case 309:
+            strategyName = "zulgurub";  // Zul'Gurub
             break;
         case 329:
             strategyName = "vanilla-strat";  // Stratholme
@@ -2217,6 +2221,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 724:
             strategyName = "rs";  // Ruby Sanctum
+            break;
+        case 936:
+            strategyName = "coa-vaults";  // Vaults of the Inquisition
             break;
         case 937:
             strategyName = "coa-other-side";  // Road to De Other Side
@@ -2369,7 +2376,7 @@ bool PlayerbotAI::IsRanged(Player* player, bool bySpec)
         return botAi->ContainsStrategy(STRATEGY_TYPE_RANGED);
 
     if (IsCoaBot(player))
-        return GetCoaStyle(player) != CoaStyle::Melee;
+        return !IsCoaMeleeHealer(player) && GetCoaStyle(player) != CoaStyle::Melee;
 
     if (IsRebornBot(player))
         return IsWcrRanged(player);
@@ -5415,6 +5422,10 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
 
     // bot is waiting in a BG queue — stay active to speed up join
     if (bot->InBattlegroundQueue())
+        return true;
+
+    // bot is gathering on a mission — far from any player, it still has to walk and gather
+    if (sCoaMissionMgr.IsOnMission(bot))
         return true;
 
     // bot is in a guild that contains a real player

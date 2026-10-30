@@ -9,6 +9,8 @@
 #include "CoaReborn.h"
 #include "CoaSpecialization.h"
 #include "CoaWildcard.h"
+#include "CoaMissionAction.h"
+#include "CoaMissionMgr.h"
 #include "Config.h"
 #include "GroupMgr.h"
 #include "GuildTaskMgr.h"
@@ -53,6 +55,7 @@ public:
             {"pmon", HandlePerfMonCommand, SEC_GAMEMASTER, Console::Yes},
             {"rndbot", HandleRandomPlayerbotCommand, SEC_GAMEMASTER, Console::Yes},
             {"coa", HandleCoaRecruitCommand, SEC_PLAYER, Console::Yes},
+            {"missiontest", HandleMissionTestCommand, SEC_ADMINISTRATOR, Console::Yes},
             {"version", HandleVersionCommand, SEC_PLAYER, Console::Yes},
             {"debug", playerbotsDebugCommandTable},
             {"account", playerbotsAccountCommandTable},
@@ -360,6 +363,90 @@ public:
         }
 
         sPerfMonitor.PrintStats();
+        return true;
+    }
+
+    // .playerbots missiontest [count] [minutes] | status | stop : a test bench of the gathering missions, for random
+    // bots with no owner (nothing is mailed, each end is logged as MISSION BENCH END in the CoA bot log). Bots without
+    // mining or herbalism are taught one for the test, with a skill matching their level.
+    static bool HandleMissionTestCommand(ChatHandler* handler, char const* args)
+    {
+        std::istringstream in(args ? args : "");
+        std::string first;
+        in >> first;
+
+        std::vector<Player*> bots;
+        for (auto const& [guid, bot] : sRandomPlayerbotMgr.GetAllBots())
+            if (bot && bot->IsInWorld())
+                bots.push_back(bot);
+
+        if (first == "status" || first == "stop")
+        {
+            uint32 count = 0;
+            for (Player* bot : bots)
+            {
+                if (!sCoaMissionMgr.IsBench(bot))
+                    continue;
+                ++count;
+                if (first == "stop")
+                    sCoaMissionMgr.Finish(bot, "bench stopped");
+                else
+                    handler->PSendSysMessage("{} lvl {}: {}", bot->GetName(), bot->GetLevel(),
+                                             sCoaMissionMgr.StatusLine(bot));
+            }
+            handler->PSendSysMessage("{} bench missions {}.", count, first == "stop" ? "stopped" : "running");
+            return true;
+        }
+
+        uint32 wanted = 10;
+        uint32 minutes = 60;
+        if (!first.empty())
+            wanted = std::max<uint32>(1, uint32(std::atoi(first.c_str())));
+        std::string second;
+        if (in >> second)
+            minutes = std::max<uint32>(1, uint32(std::atoi(second.c_str())));
+
+        Acore::Containers::RandomShuffle(bots);
+        uint32 started = 0;
+        uint32 taught = 0;
+        for (Player* bot : bots)
+        {
+            if (started >= wanted)
+                break;
+            PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+            if (!botAI || bot->GetLevel() < 5 || !bot->IsAlive() || bot->IsInCombat() || bot->GetGroup() ||
+                sCoaMissionMgr.IsOnMission(bot))
+                continue;
+
+            // Half of them mine, half pick herbs; a bot that does not know it is taught it for the test.
+            uint32 const skillId = (started % 2) ? SKILL_HERBALISM : SKILL_MINING;
+            if (!bot->HasSkill(skillId))
+            {
+                bool const mining = skillId == SKILL_MINING;
+                uint32 const value = std::min<uint32>(225, bot->GetLevel() * 5);
+                uint32 const step = value > 150 ? 3 : value > 75 ? 2 : 1;
+                uint32 const spells[3] = {mining ? 2575u : 2366u, mining ? 2576u : 2368u, mining ? 3564u : 3570u};
+                for (uint32 i = 0; i < step; ++i)
+                    bot->learnSpell(spells[i], false);
+                bot->SetSkill(skillId, step, value, step * 75);
+                if (mining && !bot->HasItemCount(2901, 1))
+                    bot->AddItem(2901, 1);
+                ++taught;
+            }
+
+            CoaMissionAction action(botAI);
+            std::string error;
+            // One bot in three takes an order instead: 10 Copper Ore or 10 Peacebloom.
+            uint32 const order = (started % 3 == 2) ? (skillId == SKILL_MINING ? 2770u : 2447u) : 0u;
+            if (!action.Start(nullptr, minutes, order ? 0 : skillId, error, order, order ? 10 : 0))
+            {
+                handler->PSendSysMessage("{} lvl {}: {}", bot->GetName(), bot->GetLevel(), error);
+                continue;
+            }
+            ++started;
+        }
+        handler->PSendSysMessage("{} bench missions started for {} min ({} bots taught a gathering skill).", started,
+                                 minutes, taught);
         return true;
     }
 

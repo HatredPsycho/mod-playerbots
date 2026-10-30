@@ -8,8 +8,10 @@
 #define PLAYERBOTS_MCTRIGGERCONTEXT_H
 
 #include "BossAuraTriggers.h"
+#include "MCHelpers.h"
 #include "MCTriggers.h"
 #include "NamedObjectContext.h"
+#include "RaidBossScripts.h"
 
 class RaidMcTriggerContext : public NamedObjectContext<Trigger>
 {
@@ -35,6 +37,14 @@ public:
         creators["mc in lava"] = &RaidMcTriggerContext::in_lava;
         creators["mc golemagg magma splash"] = &RaidMcTriggerContext::golemagg_magma_splash;
         creators["mc golemagg is healer"] = &RaidMcTriggerContext::golemagg_is_healer;
+        creators["mc majordomo damage shield"] = &RaidMcTriggerContext::majordomo_damage_shield;
+        creators["mc magmadar backup taunt"] = &RaidMcTriggerContext::magmadar_backup_taunt;
+        creators["mc magmadar lava bomb"] = &RaidMcTriggerContext::magmadar_lava_bomb;
+        creators["mc magmadar mark"] = &RaidMcTriggerContext::magmadar_mark;
+        creators["mc gehennas mark"] = &RaidMcTriggerContext::gehennas_mark;
+        creators["mc gehennas rain of fire"] = &RaidMcTriggerContext::gehennas_rain_of_fire;
+        creators["mc gehennas flame orb"] = &RaidMcTriggerContext::gehennas_flame_orb;
+        creators["mc shazzrah backup taunt"] = &RaidMcTriggerContext::shazzrah_backup_taunt;
     }
 
 private:
@@ -57,6 +67,24 @@ private:
     static Trigger* in_lava(PlayerbotAI* botAI) { return new McInLavaTrigger(botAI); }
     static Trigger* golemagg_magma_splash(PlayerbotAI* botAI) { return new McGolemaggMagmaSplashTrigger(botAI); }
     static Trigger* golemagg_is_healer(PlayerbotAI* botAI) { return new McGolemaggIsHealerTrigger(botAI); }
+    static Trigger* majordomo_damage_shield(PlayerbotAI* botAI) { return new McMajordomoDamageShieldTrigger(botAI); }
+    static Trigger* magmadar_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntTrigger(botAI, "mc magmadar backup taunt", "magmadar"); }
+    static Trigger* magmadar_lava_bomb(PlayerbotAI* botAI)
+    {
+        return new McMagmadarLavaBombTrigger(botAI);
+    }
+    static Trigger* magmadar_mark(PlayerbotAI* botAI) { return new RaidKillOrderMarkTrigger(botAI, "mc magmadar mark", "magmadar"); }
+    static Trigger* gehennas_mark(PlayerbotAI* botAI) { return new RaidKillOrderMarkTrigger(botAI, "mc gehennas mark", "gehennas"); }
+    static Trigger* gehennas_rain_of_fire(PlayerbotAI* botAI)
+    {
+        return new RaidGroundEffectAuraTrigger(botAI, "mc gehennas rain of fire", MoltenCoreHelpers::SPELL_RAIN_OF_FIRE);
+    }
+    static Trigger* gehennas_flame_orb(PlayerbotAI* botAI)
+    {
+        return new RaidNearCreatureTrigger(botAI, "mc gehennas flame orb", MoltenCoreHelpers::NPC_COA_GEHENNAS_FLAME_ORB,
+                                           MoltenCoreHelpers::FLAME_ORB_AVOID_DISTANCE);
+    }
+    static Trigger* shazzrah_backup_taunt(PlayerbotAI* botAI) { return new RaidBackupTauntTrigger(botAI, "mc shazzrah backup taunt", "shazzrah"); }
 };
 
 #endif

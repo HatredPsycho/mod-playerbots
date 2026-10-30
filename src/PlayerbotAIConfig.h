@@ -15,6 +15,7 @@
 #include <set>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 enum class BotCheatMask : uint32
@@ -99,6 +100,8 @@ public:
     bool Initialize();
     void LoadRandomBotLevelConfig();
     bool IsInRandomAccountList(uint32 id);
+    // "tradegoods,herb,7:9,5": item classes or class:subclass pairs, with a few names.
+    void LoadGuildBankDepositItems(std::string const& value);
     bool IsInRandomQuestItemList(uint32 id);
     bool IsPvpProhibited(uint32 zoneId, uint32 areaId);
     bool IsInPvpProhibitedZone(uint32 id);
@@ -320,6 +323,8 @@ public:
     uint32 randombotStartingLevel;
     bool enablePeriodicOnlineOffline;
     float periodicOnlineOfflineRatio;
+    bool onlineSelectionFollowPlayerLevels;
+    uint32 onlineSelectionLevelWindow;
     bool gearscorecheck;
     bool randomBotPreQuests;
     bool botSendMailEnabled;
@@ -437,6 +442,20 @@ public:
     bool coaAvoidMarkedAlly;
     bool coaMeleeNoRangedHardcast;
     bool coaLootMakeRoom;
+    // AiPlayerbot.Missions.*: gathering missions of the alts ("mission gather <minutes>" whispered to the bot).
+    bool missionsEnable;
+    uint32 missionsMaxMinutes;
+    uint32 missionsDefaultMinutes;
+    uint32 missionsMaxPerPlayer;
+    uint32 missionsMaxDeaths;
+    bool missionsTeleportFallback;
+    bool missionsTeleportToSpot;
+    // AiPlayerbot.GuildBankDeposit.*: bots of a real player's guild fill the guild bank near a guild vault.
+    bool guildBankDepositEnable;
+    std::vector<std::pair<int32, int32>> guildBankDepositItems;  // item class, subclass (-1 = all)
+    uint32 guildBankDepositKeepGold;
+    uint32 guildBankDepositMinStack;
+    uint32 guildBankDepositTab;  // 1-6, 0 = first tab where the bot may deposit
     bool coaAoeNoIdlePull;
     bool coaPvpTrinket;
     bool coaArenaPurge;
@@ -476,6 +495,8 @@ public:
     bool coaStatusEnabled;
     std::set<uint32> coaExcludedSpecializations;
     std::set<uint32> coaOffensiveHealerSpecs;
+    std::set<uint32> coaMeleeHealerSpecs;
+    uint32 zoneCrowdLimit;
     std::set<std::string> coaHealsExcluded;
     bool lootLog;
     uint32 lootLogMinQuality;
@@ -542,6 +563,13 @@ public:
     bool coaSelfFound;
     // Self-found applies up to this level; above it bots are geared and levelled as usual.
     uint32 coaSelfFoundMaxLevel;
+    // Share (0-100 %, the launcher's self-found preset sets 20) of the random bots that are self-found on their own while the realm is geared as usual: from
+    // level 10 they keep the gear they loot, and Dungeon Clear sends groups of them through dungeons.
+    uint32 coaSelfFoundBotsPercent;
+    // Random bots show other gear models of their armor and weapon types: visual only, nothing saved.
+    bool randomBotTransmog;
+    uint32 randomBotTransmogPercent;
+    uint32 randomBotTransmogMinLevel;
 
     uint32 useGroundMountAtMinLevel;
     uint32 useFastGroundMountAtMinLevel;

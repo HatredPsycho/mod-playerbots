@@ -1,5 +1,27 @@
 # CoA Bots — changelog
 
+## v2.8.2 (in progress)
+
+- **Random bot transmog**: half of the random bots (`AiPlayerbot.RandomBotTransmogPercent = 50`) now show other
+  models of their armor and weapon types, a whole item set when one fits their level, from level 10
+  (`RandomBotTransmogMinLevel`). Purely visual: their real gear and stats never change and nothing is saved; a bot keeps
+  its look at every login. Not used on alt bots or self-found levels. `AiPlayerbot.RandomBotTransmog = 0` turns it off.
+- **Duels in front of Orgrimmar and Stormwind**: a few random bots now duel outside the main gates, Horde bots at
+  Orgrimmar and Alliance bots at Stormwind, in pairs of close levels (by default two pairs near level 60 and one near
+  level 30), and are replaced by other bots every 20 minutes. On by default; `AiPlayerbot.CityDuels.Enable = 0` turns
+  it off, `AiPlayerbot.CityDuels.*` sets the number of bots, their levels and the places. Bots of a player's group
+  are never taken, and no duel starts while a player of the other faction is near.
+- **Gathering missions for your alts**: whisper `mission gather [minutes] [mining|herbalism]` to one of your own
+  characters played as a bot. It leaves the group, gathers ore or herbs in a zone of its level on its continent, and
+  mails you what it gathered when the time is up, its bags are full or you whisper `mission stop` (`mission status`
+  answers `MISSION;state;zone;minutes left;items;profession;deaths`). The mission resumes when the alt logs in again,
+  even after a server restart. Never for random bots, no selling during a mission. Settings: `AiPlayerbot.Missions.*`.
+- **Automatic guild bank deposits** (off by default, `AiPlayerbot.GuildBankDeposit.Enable = 1`): a bot in the guild of
+  a real player (your alts, the bots you invited) that stands near a guild vault deposits its trade goods (ore, herbs,
+  leather, cloth...; `GuildBankDeposit.Items` sets the classes) and its gold above `KeepGold` (100 by default), with
+  no command. It needs the deposit right of its rank on the tab (`GuildBankDeposit.Tab`, else the first allowed one)
+  and room in it; bound, quest and equipped items are never moved. Never in random bot guilds, never during a mission.
+
 ## v2.8.1 — Latest CoA core, classic dungeon bosses, battleground fixes (October 2026)
 
 ### Highlights

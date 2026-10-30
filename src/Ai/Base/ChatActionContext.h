@@ -18,6 +18,7 @@
 #include "ChangeStrategyAction.h"
 #include "ChangeTalentsAction.h"
 #include "CoaWcrAction.h"
+#include "CoaMissionAction.h"
 #include "CoaWildcardAction.h"
 #include "LfgRoleAction.h"
 #include "ChatShortcutActions.h"
@@ -140,6 +141,7 @@ public:
         creators["trade"] = &ChatActionContext::trade;
         creators["talents"] = &ChatActionContext::talents;
         creators["wcr"] = &ChatActionContext::wcr;
+        creators["mission"] = &ChatActionContext::mission;
         creators["wildcard"] = &ChatActionContext::wildcard;
         creators["lfgrole"] = &ChatActionContext::lfgrole;
         creators["spells"] = &ChatActionContext::spells;
@@ -281,6 +283,7 @@ private:
     static Action* spells(PlayerbotAI* botAI) { return new ListSpellsAction(botAI); }
     static Action* talents(PlayerbotAI* botAI) { return new ChangeTalentsAction(botAI); }
     static Action* wcr(PlayerbotAI* botAI) { return new CoaWcrAction(botAI); }
+    static Action* mission(PlayerbotAI* botAI) { return new CoaMissionAction(botAI); }
     static Action* wildcard(PlayerbotAI* botAI) { return new CoaWildcardAction(botAI); }
     static Action* lfgrole(PlayerbotAI* botAI) { return new LfgRoleAction(botAI); }
 

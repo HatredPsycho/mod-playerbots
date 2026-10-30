@@ -883,6 +883,42 @@ public:
     bool SelectAuctioneerByMap(Player* bot, NpcLocation& outAuctioneer);
     std::vector<WorldLocation> const& GetLocsPerLevelCache(uint8 level) { return locsPerLevelCache[level]; }
 
+    // Herbs and mining veins of the world, grouped by 200-yard cell, for the gathering missions of the alts.
+    struct GatherPoint
+    {
+        float x;
+        float y;
+        float z;
+        uint32 reqSkill;
+        uint32 entry;               // the gameobject of the node
+    };
+
+    struct GatherCell
+    {
+        uint32 mapId = 0;
+        uint32 zoneId = 0;
+        uint32 skillId = 0;
+        // The spawn point nearest the middle of the cell, where the bot heads first.
+        float x = 0.0f;
+        float y = 0.0f;
+        float z = 0.0f;
+        // Every spawn point of the cell in walking order: only part of them is up at a time (pools).
+        std::vector<GatherPoint> points;
+        // Level of the hostile creatures of the cell (three quarters of them are at most this level); 0: none.
+        uint32 dangerLevel = 0;
+    };
+
+    // The cell of the bot's continent, in a zone of its level, where most nodes still raise skillValue.
+    // Picks at random among the best few so that several alts do not crowd the same cell.
+    // nodes: only the spawn points of these gameobjects count (a mission ordering one item).
+    GatherCell const* SelectGatherCell(Player* bot, uint32 skillId, uint32 skillValue,
+                                       GatherCell const* exclude = nullptr,
+                                       std::set<uint32> const* nodes = nullptr) const;
+    // The herb and ore nodes whose loot has this item, with their profession and the lowest skill they need.
+    static std::set<uint32> NodesYielding(uint32 itemId, uint32& skillId, uint32& reqSkill);
+    // The cell whose anchor point is (x, y), to resume a saved mission.
+    GatherCell const* FindGatherCell(uint32 mapId, uint32 skillId, float x, float y) const;
+
     template <class D, class W, class URBG>
     void weighted_shuffle(D first, D last, W first_weight, W last_weight, URBG&& g)
     {
@@ -976,6 +1012,7 @@ private:
     // Navigation initialization
     void PrepareZone2LevelBracket();
     void PrepareDestinationCache();
+    void PrepareGatherNodeCache();
 
     // Internal types
     struct LevelBracket
@@ -1001,6 +1038,7 @@ private:
     std::map<uint8, std::vector<WorldLocation>> locsPerLevelCache;
     std::unordered_map<uint32, std::vector<WorldLocation>> creatureSpawnsByTemplate;
     std::map<uint32, LevelBracket> zone2LevelBracket;
+    std::vector<GatherCell> gatherCells;
 };
 
 #define sTravelMgr TravelMgr::instance()

@@ -654,6 +654,36 @@ AiPlayerbot.CoaSelfFound = 0
 # Default: 59 (at 60 bots are geared as usual for the endgame)
 AiPlayerbot.CoaSelfFoundMaxLevel = 59
 
+# Self-found random bots in dungeons: share of the random bots (0 to 100 percent, picked by character whatever
+# its level, always the same ones) that wear only what they loot, earn from quests or are traded from level 10 on.
+# No gear, gems, enchantments, level roll or level bracket is given to them, and the autogear and bis commands are
+# refused. With mod-dungeon-clear, parties of five self-found bots clear the dungeons of their level (RFC at 13-18,
+# Wailing Caverns and Deadmines around 20, ... up to the level 60 dungeons), with at most this share of the online
+# random bots in dungeons at once: DungeonClear.SelfFound.* in mod_dungeon_clear.conf. On a self-found realm
+# (AiPlayerbot.CoaSelfFound = 1) every bot up to CoaSelfFoundMaxLevel is self-found already: the share then only
+# says how many go to dungeons, and keeps them self-found at level 60 too.
+# Players' characters and alts are never in the share.
+#    -1 - automatic: 20 when AiPlayerbot.CoaSelfFound = 1 (Solo self-found), 0 otherwise
+#     0 - disabled: every random bot is geared as usual and no self-found party is formed
+# 1-100 - this share, whatever AiPlayerbot.CoaSelfFound
+# Default: -1 (automatic)
+AiPlayerbot.CoaSelfFoundBotsPercent = -1
+
+# Random bot transmog: random bots show other models of their armor and weapon types, picked from a whole item
+# set when one fits, with a required level up to 15 below their own. Purely visual: their real gear and stats never
+# change and nothing is saved; a bot keeps the same look at every login until its level changes bracket.
+# Not applied to alt bots, to self-found levels (CoaSelfFound), or when CoA.CollectionsForBots >= 2.
+# Default: 1 (enabled)
+AiPlayerbot.RandomBotTransmog = 1
+
+# Share of random bots that use a transmog, in percent; the same bots every time.
+# Default: 50
+AiPlayerbot.RandomBotTransmogPercent = 50
+
+# Random bots below this level keep their real gear look.
+# Default: 10
+AiPlayerbot.RandomBotTransmogMinLevel = 10
+
 # If 1 (enabled) chat command: autogear bis, gives bots BiS gear from the playerbots_bis_gear table
 # whose item-level floor matches AutoGearScoreLimit (e.g. 290 = ICC, 245 = ToC,
 # 125 = Kara, 78 = MC). See the AutoGearScoreLimit comment below for the full list.
@@ -823,6 +853,13 @@ AiPlayerbot.EnablePeriodicOnlineOffline = 0
 # This setting must greater than 1.0 and only applies when EnablePeriodicOnlineOffline
 # Default: 2.0 (total number of bots is twice the number of MaxRandomBots)
 AiPlayerbot.PeriodicOnlineOfflineRatio = 2.0
+
+# With EnablePeriodicOnlineOffline, the bots that go online are first taken among those within LevelWindow levels of a
+# real player online (several players: any of their windows), then at random. Bots are never re-leveled: only the
+# choice of who goes online changes. No real player online: random choice, as before.
+# Default: 0 (disabled), LevelWindow 5
+AiPlayerbot.OnlineSelection.FollowPlayerLevels = 0
+AiPlayerbot.OnlineSelection.LevelWindow = 5
 
 # Percentage ratio of Alliance and Horde randombots
 AiPlayerbot.RandomBotAllianceRatio = 50
@@ -1247,7 +1284,7 @@ AiPlayerbot.RandomGearQualityLimit = 4
 # Max iLVL Tier 7(10/25) = 200/213 | Tier 8(10/25) = 225/232 | Tier 9(10/25) = 232/245 | Tier 10(10/25/HC) = 251/264/290
 # Max iLVL Phase 1(Naxx) = 224 | Phase 2(Ulduar) = 245 | Phase 3(ToC) = 258 | Phase 4(ICC) = 290
 # Default: 0 (no limit)
-AiPlayerbot.RandomGearScoreLimit = 78
+AiPlayerbot.RandomGearScoreLimit = 92
 
 # With RandomGearQualityLimit = 4 (epic), the level from which bots may wear epic gear; below it they
 # keep to rare. Conquest of Azeroth Worldforged items count as gear of their level, whatever
@@ -1781,6 +1818,61 @@ AiPlayerbot.CoaLootMakeRoom = 1
 # Default: 1 (enabled)
 AiPlayerbot.CoaAoeNoIdlePull = 1
 
+# Gathering missions for your own characters played as bots (alts): whisper "mission gather [minutes]
+# [mining|herbalism]" to the bot, then "mission status" or "mission stop". The bot leaves the group,
+# gathers in a zone of its level on its continent, then mails what it gathered to you. Never for
+# random bots. A mission resumes when the alt logs in again.
+# Default: 1 (enabled)
+AiPlayerbot.Missions.Enable = 1
+
+# Longest mission in minutes, and the length when none is given.
+# Default: 120 and 60
+AiPlayerbot.Missions.MaxMinutes = 120
+AiPlayerbot.Missions.DefaultMinutes = 60
+
+# Missions at the same time per player (0 = no limit).
+# Default: 3
+AiPlayerbot.Missions.MaxPerPlayer = 3
+
+# Deaths before the bot gives up and mails what it has.
+# Default: 3
+AiPlayerbot.Missions.MaxDeaths = 3
+
+# Teleport the bot to its gathering spot when it makes no progress on the way (else it gives up after
+# 3 failures).
+# Default: 1 (enabled)
+AiPlayerbot.Missions.TeleportFallback = 1
+
+# Teleport the bot straight to its gathering spot when the mission starts, as when you summon an alt: the whole
+# mission time is spent gathering. 0: it walks there (the walk counts in the mission time).
+# Default: 1 (enabled)
+AiPlayerbot.Missions.TeleportToSpot = 1
+
+# Automatic guild bank deposits: a bot in the guild of a real player (your alts, the bots you invited)
+# standing near a guild vault puts there the items of the classes below and the gold above KeepGold.
+# Never in a guild of random bots, never during a mission, never bound, quest or equipped items.
+# The rank of the bot needs the deposit right on the tab.
+# Default: 0 (disabled)
+AiPlayerbot.GuildBankDeposit.Enable = 0
+
+# Items to deposit, separated by commas: an item class or class:subclass (7 = trade goods, 7:9 = herbs),
+# or tradegoods, cloth, leather, ore, herb, meat, elemental, enchanting, parts, gems, reagents, recipes,
+# consumables. Empty = gold only.
+# Default: tradegoods
+AiPlayerbot.GuildBankDeposit.Items = "tradegoods"
+
+# Gold pieces the bot keeps; the rest goes to the guild bank.
+# Default: 100
+AiPlayerbot.GuildBankDeposit.KeepGold = 100
+
+# Smallest stack deposited (1 = every stack).
+# Default: 1
+AiPlayerbot.GuildBankDeposit.MinStack = 1
+
+# Guild bank tab (1-6); 0 = the first tabs where the bot may deposit, in order.
+# Default: 0
+AiPlayerbot.GuildBankDeposit.Tab = 0
+
 # In an arena, a battleground or a duel, a CoA bot stunned, feared, polymorphed or charmed for 2
 # seconds or more uses the PvP trinket it wears (spell 42292) to break free. Bots wore it and never
 # used it.
@@ -2165,6 +2257,22 @@ AiPlayerbot.CoaExcludedSpecializations = 99
 
 AiPlayerbot.CoaOffensiveHealerSpecs = 40,43
 
+#    AiPlayerbot.CoaMeleeHealerSpecs
+#        Description: Healer specializations played in melee: they fight on the tank's target, within reach of
+#                     their melee heals, instead of from range like the other healers.
+#                     Empty: every healer stays at range. Applies at the next login or strategy reset.
+#        Default:     40 (Cultist Heretic)
+
+AiPlayerbot.CoaMeleeHealerSpecs = 40
+#    AiPlayerbot.ZoneCrowdLimit
+#        Description: When a random bot is sent to a leveling spot, zones that already hold this many random bots
+#                     of about its level (5 levels either way) are left out, so that bots spread over the zones of
+#                     their level instead of piling up in the same ones. When every zone is that crowded, the
+#                     bot goes anyway. 0: off.
+#        Default:     30
+
+AiPlayerbot.ZoneCrowdLimit = 30
+
 #
 #    AiPlayerbot.CoaHealsExcluded
 #        Description: Heals a bot must not consider, by their English name, separated by commas.
@@ -2399,6 +2507,31 @@ AiPlayerbot.RpgStatusProbWeight.GoCity = 10
 # Default: 10 and 30
 AiPlayerbot.CoaCityStayMinMinutes = 10
 AiPlayerbot.CoaCityStayMaxMinutes = 30
+
+# City duels: a few free random bots duel in front of the main gate of Orgrimmar (Horde bots) and of Stormwind
+# (Alliance bots), pairs of close levels, one duel after another; they go back to their random life after a while.
+# Never bots in a group, with a master, in a queue, a battleground or an instance; no new duel while a real player
+# of the other faction is near. All read again by ".reload config".
+#    Enable           1 = on (default), 0 = off: the duellists go back at once.
+#    BotsPerCity      Duellists per city, two per duel (default 6, at most 12).
+#    PairLevels       Wanted level of each pair, in turn (default "60,60,30"); the nearest free bots are taken.
+#    PairLevelGap     Most levels between the two bots of a pair (default 2).
+#    MinLevel         Lowest level taken (default 10).
+#    RotationMinutes  A pair is replaced by two other bots after this time (default 20).
+#    RestSeconds      Pause between two duels of a pair (default 15).
+#    UpdateSeconds    How often the duels are looked after (default 5).
+#    OrgrimmarSpot / StormwindSpot  "map x y z orientation" of the middle pair, the others in a row along the
+#                     orientation, 10 yards apart; empty = outside the main gate.
+AiPlayerbot.CityDuels.Enable = 1
+AiPlayerbot.CityDuels.BotsPerCity = 6
+AiPlayerbot.CityDuels.PairLevels = "60,60,30"
+AiPlayerbot.CityDuels.PairLevelGap = 2
+AiPlayerbot.CityDuels.MinLevel = 10
+AiPlayerbot.CityDuels.RotationMinutes = 20
+AiPlayerbot.CityDuels.RestSeconds = 15
+AiPlayerbot.CityDuels.UpdateSeconds = 5
+AiPlayerbot.CityDuels.OrgrimmarSpot = ""
+AiPlayerbot.CityDuels.StormwindSpot = ""
 
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel

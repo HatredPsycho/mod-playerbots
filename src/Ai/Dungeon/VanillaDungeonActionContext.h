@@ -21,6 +21,7 @@
 #include "UldaActionContext.h"
 #include "DMActionContext.h"
 #include "OtherSideActionContext.h"
+#include "VaultsActionContext.h"
 #include "WCActionContext.h"
 
 #endif

@@ -29,6 +29,7 @@
 #include "SharedDefines.h"
 #include "SpellInfo.h"
 #include "CoaAiObjectContext.h"
+#include "CoaMissionMgr.h"
 #include "SpellMgr.h"
 #include "WarlockAiObjectContext.h"
 #include "WarriorAiObjectContext.h"
@@ -437,6 +438,9 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
                 break;
             case CoaRole::Heal:
                 engine->addStrategiesNoInit("coa heal", "dps assist", nullptr);
+                // A melee healer heals by hitting: on the tank's target, with the plain swing.
+                if (IsCoaMeleeHealer(player))
+                    engine->addStrategiesNoInit("close", "coa basic attack", nullptr);
                 break;
             default:
                 engine->addStrategiesNoInit(GetCoaStyle(player) == CoaStyle::Melee ? "coa" : "coa ranged",
@@ -460,12 +464,12 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
             sPlayerbotAIConfig.coaSpecRotations ? GetCoaSpecStrategyFor(player) : nullptr;
         if (coa)
         {
-            engine->addStrategy(coa->position, false);
+            engine->addStrategy(IsCoaMeleeHealer(player) ? "close" : coa->position, false);
             engine->addStrategy(coa->combat, false);
 
             // The plain swing. Every class strategy brings its own
             // NextAction("melee", ACTION_DEFAULT); `close` does not.
-            if (std::string_view(coa->position) == "close")
+            if (std::string_view(coa->position) == "close" || IsCoaMeleeHealer(player))
                 engine->addStrategy("coa basic attack", false);
         }
 
@@ -805,6 +809,10 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
             nonCombatEngine->removeStrategy("mount", false);
         }
     }
+
+    // An alt on a gathering mission keeps its mission strategies through every reset.
+    if (!player->InBattleground() && sCoaMissionMgr.IsOnMission(player))
+        CoaMissionMgr::ApplyEngineStrategies(nonCombatEngine, sCoaMissionMgr.IsBench(player));
 }
 
 Engine* AiFactory::createNonCombatEngine(Player* player, PlayerbotAI* const facade, AiObjectContext* aiObjectContext)
