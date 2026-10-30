@@ -24,6 +24,8 @@
 #include "TravelNode.h"
 #include "VMapFactory.h"
 #include "VMapMgr2.h"
+#include "DBCStores.h"
+#include "ObjectMgr.h"
 #include <iomanip>
 #include <numeric>
 
@@ -4359,6 +4361,7 @@ void TravelMgr::Init()
     {
         PrepareZone2LevelBracket();
         PrepareDestinationCache();
+        PrepareGatherNodeCache();
     }
     sTravelNodeMap.InitTaxiGraph();
     LOG_INFO("playerbots", "Playerbots Taxi graph and destination cache built.");
@@ -4904,4 +4907,249 @@ void TravelMgr::PrepareDestinationCache()
         }
     }
     LOG_INFO("playerbots", ">> {} flight masters and {} innkeepers and {} banker locations for level collected.", flightMastersCount, innkeepersCount, bankerCount);
+}
+
+// The gathering nodes, read once from the spawns the core already holds (this replaces the old commented query on
+// gameobject_loot_template above): every chest-type object of the bots' continents whose lock asks for Herbalism or
+// Mining, grouped by map, skill and 200-yard cell. Woodcutting and the other CoA professions are left out.
+void TravelMgr::PrepareGatherNodeCache()
+{
+    gatherCells.clear();
+
+    constexpr float cellSize = 200.0f;
+    std::map<std::tuple<uint32, uint32, int32, int32>, GatherCell> cells;
+    uint32 nodes = 0;
+
+    for (auto const& [spawnId, data] : sObjectMgr->GetAllGOData())
+    {
+        if (std::find(sPlayerbotAIConfig.randomBotMaps.begin(), sPlayerbotAIConfig.randomBotMaps.end(), data.mapid) ==
+            sPlayerbotAIConfig.randomBotMaps.end())
+            continue;
+        if (!(data.phaseMask & PHASEMASK_NORMAL))
+            continue;
+
+        GameObjectTemplate const* goInfo = sObjectMgr->GetGameObjectTemplate(data.id);
+        if (!goInfo || goInfo->type != GAMEOBJECT_TYPE_CHEST)
+            continue;
+
+        LockEntry const* lock = sLockStore.LookupEntry(goInfo->GetLockId());
+        if (!lock)
+            continue;
+
+        uint32 skillId = 0;
+        uint32 reqSkill = 0;
+        for (uint8 i = 0; i < MAX_LOCK_CASE; ++i)
+        {
+            if (lock->Type[i] != LOCK_KEY_SKILL)
+                continue;
+            SkillType const skill = SkillByLockType(LockType(lock->Index[i]));
+            if (skill == SKILL_HERBALISM || skill == SKILL_MINING)
+            {
+                skillId = skill;
+                reqSkill = std::max<uint32>(1, lock->Skill[i]);
+                break;
+            }
+        }
+        if (!skillId)
+            continue;
+
+        int32 const cx = static_cast<int32>(std::floor(data.posX / cellSize));
+        int32 const cy = static_cast<int32>(std::floor(data.posY / cellSize));
+        GatherCell& cell = cells[std::make_tuple(uint32(data.mapid), skillId, cx, cy)];
+        cell.mapId = data.mapid;
+        cell.skillId = skillId;
+        cell.points.push_back({data.posX, data.posY, data.posZ, reqSkill, data.id});
+        ++nodes;
+    }
+
+    // The hostile creatures of each 200-yard square: an alt sent there must not meet stronger ones.
+    std::map<std::tuple<uint32, int32, int32>, std::vector<uint32>> hostileLevels;
+    for (auto const& [spawnId, data] : sObjectMgr->GetAllCreatureData())
+    {
+        CreatureTemplate const* creature = sObjectMgr->GetCreatureTemplate(data.id);
+        if (!creature || creature->npcflag || creature->type == CREATURE_TYPE_CRITTER)
+            continue;
+        FactionTemplateEntry const* faction = sFactionTemplateStore.LookupEntry(creature->faction);
+        if (!faction || !faction->IsHostileToPlayers())
+            continue;
+        int32 const cx = static_cast<int32>(std::floor(data.posX / cellSize));
+        int32 const cy = static_cast<int32>(std::floor(data.posY / cellSize));
+        hostileLevels[std::make_tuple(uint32(data.mapid), cx, cy)].push_back(creature->maxlevel);
+    }
+
+    for (auto& [key, cell] : cells)
+    {
+        auto const hostile = hostileLevels.find(std::make_tuple(std::get<0>(key), std::get<2>(key), std::get<3>(key)));
+        if (hostile != hostileLevels.end() && hostile->second.size() >= 3)
+        {
+            std::vector<uint32>& levels = hostile->second;
+            std::sort(levels.begin(), levels.end());
+            cell.dangerLevel = levels[(levels.size() * 3) / 4];
+        }
+
+        // A lone node is not worth the trip.
+        if (cell.points.size() < 3)
+            continue;
+
+        float mx = 0.0f;
+        float my = 0.0f;
+        for (GatherPoint const& p : cell.points)
+        {
+            mx += p.x;
+            my += p.y;
+        }
+        mx /= cell.points.size();
+        my /= cell.points.size();
+
+        // Walking order: from the point nearest the middle, always to the nearest point not yet visited.
+        std::vector<GatherPoint> ordered;
+        ordered.reserve(cell.points.size());
+        std::vector<GatherPoint> left = cell.points;
+        float px = mx;
+        float py = my;
+        while (!left.empty())
+        {
+            size_t best = 0;
+            float bestDist = std::numeric_limits<float>::max();
+            for (size_t i = 0; i < left.size(); ++i)
+            {
+                float const d = (left[i].x - px) * (left[i].x - px) + (left[i].y - py) * (left[i].y - py);
+                if (d < bestDist)
+                {
+                    bestDist = d;
+                    best = i;
+                }
+            }
+            ordered.push_back(left[best]);
+            px = left[best].x;
+            py = left[best].y;
+            left.erase(left.begin() + best);
+        }
+        cell.points = std::move(ordered);
+        cell.x = cell.points.front().x;
+        cell.y = cell.points.front().y;
+        cell.z = cell.points.front().z;
+
+        Map* map = sMapMgr->FindMap(cell.mapId, 0);
+        if (!map)
+            continue;
+        AreaTableEntry const* area = sAreaTableStore.LookupEntry(map->GetAreaId(PHASEMASK_NORMAL, cell.x, cell.y, cell.z));
+        if (!area)
+            continue;
+        cell.zoneId = area->zone ? area->zone : area->ID;
+
+        gatherCells.push_back(std::move(cell));
+    }
+
+    LOG_INFO("playerbots", ">> {} gathering nodes in {} cells collected for the missions.", nodes, gatherCells.size());
+}
+
+TravelMgr::GatherCell const* TravelMgr::SelectGatherCell(Player* bot, uint32 skillId, uint32 skillValue,
+                                                         GatherCell const* exclude,
+                                                         std::set<uint32> const* nodes) const
+{
+    if (!bot || !skillValue)
+        return nullptr;
+
+    uint32 const level = bot->GetLevel();
+    std::vector<std::pair<float, GatherCell const*>> candidates;
+
+    for (GatherCell const& cell : gatherCells)
+    {
+        if (&cell == exclude || cell.skillId != skillId || cell.mapId != bot->GetMapId())
+            continue;
+
+        // Only the zones of the bot's level or below: never a zone whose creatures outlevel it.
+        auto const bracket = zone2LevelBracket.find(cell.zoneId);
+        if (bracket == zone2LevelBracket.end() || bracket->second.low > level)
+            continue;
+
+        AreaTableEntry const* zone = sAreaTableStore.LookupEntry(cell.zoneId);
+        if (!zone || (zone->flags & AREA_FLAG_CAPITAL))
+            continue;
+        if (zone->team == 4 && bot->GetTeamId() == TEAM_ALLIANCE)
+            continue;
+        if (zone->team == 2 && bot->GetTeamId() == TEAM_HORDE)
+            continue;
+
+        // A node raises the skill until the skill is 100 points over it; grey ones still count a little, as the
+        // bot gathers them too. A zone whose creatures may outlevel the bot only if nothing safer is found.
+        float score = 0.0f;
+        // Creatures of the spot itself: far above the bot, never; a little above, only if nothing safer.
+        if (cell.dangerLevel > level + 3)
+            continue;
+        float risk = bracket->second.high > level + 2 ? 0.3f : 1.0f;
+        if (cell.dangerLevel > level)
+            risk *= 0.1f;
+        for (GatherPoint const& p : cell.points)
+        {
+            if (p.reqSkill > skillValue)
+                continue;
+            if (nodes)
+                score += nodes->count(p.entry) ? 1.0f : 0.0f;
+            else
+                score += (p.reqSkill + 100 > skillValue) ? 1.0f : 0.25f;
+        }
+        if (score < 3.0f)
+            continue;
+
+        float const dist = bot->GetExactDist2d(cell.x, cell.y);
+        candidates.emplace_back(risk * score / (1.0f + dist / 3000.0f), &cell);
+    }
+
+    if (candidates.empty())
+        return nullptr;
+
+    std::sort(candidates.begin(), candidates.end(),
+              [](auto const& a, auto const& b) { return a.first > b.first; });
+    size_t const pool = std::min<size_t>(5, candidates.size());
+    return candidates[urand(0, uint32(pool - 1))].second;
+}
+
+std::set<uint32> TravelMgr::NodesYielding(uint32 itemId, uint32& skillId, uint32& reqSkill)
+{
+    std::set<uint32> nodes;
+    skillId = 0;
+    reqSkill = 0;
+
+    std::set<uint32> lootIds;
+    if (QueryResult result = WorldDatabase.Query("SELECT Entry FROM gameobject_loot_template WHERE Item = {}", itemId))
+        do
+            lootIds.insert(result->Fetch()[0].Get<uint32>());
+        while (result->NextRow());
+    if (lootIds.empty())
+        return nodes;
+
+    for (auto const& [entry, goInfo] : *sObjectMgr->GetGameObjectTemplates())
+    {
+        if (goInfo.type != GAMEOBJECT_TYPE_CHEST || !lootIds.count(goInfo.GetLootId()))
+            continue;
+        LockEntry const* lock = sLockStore.LookupEntry(goInfo.GetLockId());
+        if (!lock)
+            continue;
+        for (uint8 i = 0; i < MAX_LOCK_CASE; ++i)
+        {
+            if (lock->Type[i] != LOCK_KEY_SKILL)
+                continue;
+            SkillType const skill = SkillByLockType(LockType(lock->Index[i]));
+            if (skill != SKILL_HERBALISM && skill != SKILL_MINING)
+                continue;
+            if (skillId && skill != skillId)
+                break;
+            skillId = skill;
+            uint32 const req = std::max<uint32>(1, lock->Skill[i]);
+            reqSkill = reqSkill ? std::min(reqSkill, req) : req;
+            nodes.insert(entry);
+            break;
+        }
+    }
+    return nodes;
+}
+
+TravelMgr::GatherCell const* TravelMgr::FindGatherCell(uint32 mapId, uint32 skillId, float x, float y) const
+{
+    for (GatherCell const& cell : gatherCells)
+        if (cell.mapId == mapId && cell.skillId == skillId && std::fabs(cell.x - x) < 1.0f && std::fabs(cell.y - y) < 1.0f)
+            return &cell;
+    return nullptr;
 }

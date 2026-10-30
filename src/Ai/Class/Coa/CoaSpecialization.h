@@ -64,6 +64,8 @@ CoaArmorProficiency const* GetCoaArmorProficiency(uint8 playerClass);
 
 // Role of a Conquest of Azeroth character, from its active specialization. Dps when it has none.
 CoaRole GetCoaRole(Player const* player);
+// A healer of AiPlayerbot.CoaMeleeHealerSpecs: heals from melee range (Cultist Heretic).
+bool IsCoaMeleeHealer(Player const* player);
 
 // Whether a CoA healer holding its mana back for heals should leave this spell alone: it costs mana
 // and the healer is under its reserve. For the authored rotations' "can cast" lines, which would
@@ -187,6 +189,13 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
 // than levelTolerance levels away, given a specialization of the role and its gear, talents spent.
 bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosenFits, uint32 levelTolerance,
                        std::string& message);
+
+// Whether the bot's class has a specialization of `role` it could switch to (a Wildcard Hero never does here).
+bool CoaCanSwitchRole(Player* bot, CoaRole role);
+// Moves the bot to a specialization of `role` as the addon recruit does (talents spent, strategies reset), its gear
+// left as it is: for Dungeon Clear's self-found parties, whose low-level bots rarely carry a healer or tank
+// specialization. True when the bot now plays the role.
+bool CoaSwitchRole(Player* bot, CoaRole role);
 
 // "lfg bot heal" and the like, said by a player in a listened chat channel: free bots whisper offers.
 void CoaLfgHeard(Player* player, std::string const& message, Channel* channel);

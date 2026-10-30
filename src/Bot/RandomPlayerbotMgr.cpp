@@ -15,7 +15,9 @@
 #include "CellImpl.h"
 #include "ChannelMgr.h"
 #include "CharacterCache.h"
+#include "CityDuels.h"
 #include "CoaBotRacePolicy.h"
+#include "CoaMissionMgr.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "DatabaseEnv.h"
@@ -755,6 +757,41 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
             // Randomly select accounts
             std::vector<uint32> shuffledAccounts = rndBotTypeAccounts;
             std::shuffle(shuffledAccounts.begin(), shuffledAccounts.end(), rng);
+
+            // OnlineSelection.FollowPlayerLevels: accounts with a character near a real player's level go first.
+            if (sPlayerbotAIConfig.onlineSelectionFollowPlayerLevels && !shuffledAccounts.empty())
+            {
+                std::vector<uint32> playerLevels;
+                for (auto const& [id, session] : sWorldSessionMgr->GetAllSessions())
+                {
+                    Player* player = session ? session->GetPlayer() : nullptr;
+                    if (player && player->IsInWorld() && !GET_PLAYERBOT_AI(player))
+                        playerLevels.push_back(player->GetLevel());
+                }
+                if (!playerLevels.empty())
+                {
+                    int32 const window = int32(sPlayerbotAIConfig.onlineSelectionLevelWindow);
+                    auto const [minimum, maximum] = std::minmax_element(shuffledAccounts.begin(), shuffledAccounts.end());
+                    std::unordered_set<uint32> nearAccounts;
+                    if (QueryResult result = CharacterDatabase.Query(
+                            "SELECT account, level FROM characters WHERE account BETWEEN {} AND {}", *minimum, *maximum))
+                    {
+                        do
+                        {
+                            Field* fields = result->Fetch();
+                            int32 const level = fields[1].Get<uint8>();
+                            for (uint32 playerLevel : playerLevels)
+                                if (std::abs(level - int32(playerLevel)) <= window)
+                                {
+                                    nearAccounts.insert(fields[0].Get<uint32>());
+                                    break;
+                                }
+                        } while (result->NextRow());
+                    }
+                    std::stable_partition(shuffledAccounts.begin(), shuffledAccounts.end(),
+                                          [&nearAccounts](uint32 account) { return nearAccounts.contains(account); });
+                }
+            }
 
             for (uint32 i = 0; i < accountsToUseCount && i < shuffledAccounts.size(); i++)
             {
@@ -1811,6 +1848,9 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
     }
 
     uint32 isValid = GetEventValue(bot, "add");
+    // A bot of the mission bench stays in the world until its mission ends.
+    if (!isValid && player && sCoaMissionMgr.IsOnMission(player))
+        isValid = 1;
     if (!isValid)
     {
         if (!player || !player->GetGroup())
@@ -1925,6 +1965,10 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
     if (bot->InBattlegroundQueue())
         return false;
 
+    // Duelling in front of a capital (AiPlayerbot.CityDuels): no randomize nor teleport until it is handed back.
+    if (CityDuels::IsDuellist(bot->GetGUID()))
+        return false;
+
     CoaApplyRuleset(bot);
 
      uint32 botId = bot->GetGUID().GetCounter();
@@ -1951,6 +1995,10 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
 
         return false;
     }
+
+    // A random bot of the mission bench: no teleport nor randomize until its mission ends.
+    if (sCoaMissionMgr.IsOnMission(bot))
+        return false;
 
     // leave group if leader is rndbot
     Group* group = bot->GetGroup();
@@ -2130,6 +2178,19 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
     PerfMonitorOperation* pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "RandomTeleportByLocations");
 
     std::shuffle(std::begin(tlocs), std::end(tlocs), RandomEngine::Instance());
+
+    // Crowded zones: the random bots of about the bot's level already there. A first pass leaves out the zones that
+    // hold AiPlayerbot.ZoneCrowdLimit of them or more; only when every location is crowded does a second pass take one.
+    uint32 const crowdLimit = sPlayerbotAIConfig.zoneCrowdLimit;
+    std::unordered_map<uint32, uint32> zoneBots;
+    if (crowdLimit)
+        for (auto const& [guid, other] : playerBots)
+            if (other && other != bot && other->IsInWorld() &&
+                std::abs(int32(other->GetLevel()) - int32(bot->GetLevel())) <= 5)
+                ++zoneBots[other->GetZoneId()];
+
+    bool stop = false;
+    for (uint32 pass = 0; pass < (crowdLimit ? 2u : 1u) && !stop; ++pass)
     for (uint32 i = 0; i < tlocs.size(); i++)
     {
         WorldLocation loc = tlocs[i];
@@ -2158,6 +2219,13 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
 
         if (zone->team == 2 && bot->GetTeamId() == TEAM_HORDE)
             continue;
+
+        if (pass == 0 && crowdLimit)
+        {
+            auto const crowd = zoneBots.find(zone->ID);
+            if (crowd != zoneBots.end() && crowd->second >= crowdLimit)
+                continue;
+        }
 
         if (map->IsInWater(bot->GetPhaseMask(), x, y, z, bot->GetCollisionHeight()))
             continue;
@@ -2188,6 +2256,7 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
         // Prevent blink to be detected by visible real players
         if (botAI->HasPlayerNearby(150.0f))
         {
+            stop = true;
             break;
         }
 
@@ -2584,7 +2653,7 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
     }
 
     // Self-found: a new bot stays at the level it was made at, an older one at the level it earned.
-    if (PlayerbotFactory::SelfFoundAt(level))
+    if (PlayerbotFactory::SelfFoundAt(level) || PlayerbotFactory::IsSelfFoundBot(bot))
         level = bot->GetLevel();
 
     SetValue(bot, "level", level);
@@ -3412,7 +3481,7 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
         !sPlayerbotAIConfig.IsInRandomAccountList(bot->GetSession()->GetAccountId()))
         return;
     // Self-found: a bot keeps the gear it found, PvP or not.
-    if (PlayerbotFactory::SelfFoundAt(bot->GetLevel()))
+    if (PlayerbotFactory::SelfFoundAt(bot->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot))
         return;
     PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
     if (!botAI)
@@ -3501,18 +3570,29 @@ void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
     SetEventValue(botId, "coaGearPvp", pvp, 30 * DAY);
     SetEventValue(botId, "coaGearScore", itemLevel, 30 * DAY);
     PlayerbotFactory::DestroyEquippedGear(bot);
-    PlayerbotFactory factory(bot, bot->GetLevel(), quality, 0);
+    // The configured RandomGearScoreLimit applies here too, as in every other way of gearing a random bot.
+    uint32 const gearScoreLimit = sPlayerbotAIConfig.randomGearScoreLimit
+                                      ? PlayerbotFactory::CalcMixedGearScore(sPlayerbotAIConfig.randomGearScoreLimit,
+                                                                            sPlayerbotAIConfig.randomGearQualityLimit)
+                                      : 0;
+    PlayerbotFactory factory(bot, bot->GetLevel(), quality, gearScoreLimit);
     factory.maxItemLevel = itemLevel;
     factory.preferResilience = pvp;
     factory.InitEquipment(false, false);
-    // A slot nothing filled under the limit is filled without it: a bot is never left without gear.
-    uint32 empty = 0;
-    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
-        if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD && !bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
-            ++empty;
-    if (empty > 3)
+    // Slots nothing filled under the limit: the item level limit is loosened step by step (never removed while the
+    // gear score limit stays), so a bot is never left without gear and never gets test or out-of-content items.
+    auto emptySlots = [bot]()
     {
-        factory.maxItemLevel = 0;
+        uint32 empty = 0;
+        for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+            if (slot != EQUIPMENT_SLOT_BODY && slot != EQUIPMENT_SLOT_TABARD &&
+                !bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
+                ++empty;
+        return empty;
+    };
+    for (uint32 step = 1; step <= 4 && emptySlots() > 3; ++step)
+    {
+        factory.maxItemLevel = itemLevel + itemLevel * 15 * step / 100;
         factory.InitEquipment(true, false);
     }
     factory.InitAmmo();
@@ -3565,7 +3645,8 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
     {
         uint32 const levelCap = std::min<uint32>(sPlayerbotAIConfig.randomBotMaxLevel,
                                                  sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
-        if (levelCap && bot->GetLevel() > levelCap && !PlayerbotFactory::SelfFoundAt(levelCap))
+        if (levelCap && bot->GetLevel() > levelCap && !PlayerbotFactory::SelfFoundAt(levelCap) &&
+            !PlayerbotFactory::IsSelfFoundBot(bot))
         {
             uint32 const oldLevel = bot->GetLevel();
             if (bot->IsMounted())
@@ -3615,7 +3696,7 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
         for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END && !overLevel; ++slot)
             if (Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot))
                 overLevel = item->GetTemplate()->RequiredLevel > bot->GetLevel();
-        if (overLevel && !PlayerbotFactory::SelfFoundAt(bot->GetLevel()))
+        if (overLevel && !PlayerbotFactory::SelfFoundAt(bot->GetLevel()) && !PlayerbotFactory::IsSelfFoundBot(bot))
         {
             PlayerbotFactory::DestroyEquippedGear(bot);
             PlayerbotFactory factory(bot, bot->GetLevel());

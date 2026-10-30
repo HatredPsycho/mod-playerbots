@@ -24,6 +24,7 @@
 #include "PlayerbotGuildMgr.h"
 #include "PlayerbotOperations.h"
 #include "PlayerbotRepository.h"
+#include "CoaMissionMgr.h"
 #include "PlayerbotSecurity.h"
 #include "PlayerbotTextMgr.h"
 #include "PlayerbotWorldThreadProcessor.h"
@@ -416,6 +417,9 @@ void PlayerbotHolder::LogoutPlayerBot(ObjectGuid guid)
 
         LOG_DEBUG("playerbots", "Bot {} logging out", bot->GetName().c_str());
 
+        // A gathering mission is saved, to resume at the next login.
+        sCoaMissionMgr.OnBotLogout(bot);
+
         // Remove taxi cheat flag on alts.
         if (!sRandomPlayerbotMgr.IsRandomBot(bot) && bot->isTaxiCheater())
             bot->SetTaxiCheater(false);
@@ -488,6 +492,7 @@ void PlayerbotHolder::DisablePlayerBot(ObjectGuid guid)
 
         LOG_DEBUG("playerbots", "Bot {} logged out", bot->GetName().c_str());
 
+        sCoaMissionMgr.OnBotLogout(bot);
         bot->SaveToDB(false, false);
 
         RemoveFromPlayerbotsMap(guid);  // deletes bot player ptr inside this WorldSession PlayerBotMap
@@ -584,6 +589,10 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
     }
     PlayerbotRepository::instance().Load(botAI);
 
+    // An alt whose gathering mission was going on when it logged out resumes it, out of the group.
+    sCoaMissionMgr.OnBotLogin(bot);
+    bool const onMission = sCoaMissionMgr.IsOnMission(bot);
+
     if (master && !master->HasUnitState(UNIT_STATE_IN_FLIGHT))
     {
         bot->GetMotionMaster()->MovementExpired();
@@ -600,7 +609,7 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
         "hello", "Hello!", {}), PLAYERBOT_SECURITY_TALK);
 
     // Queue group operations for world thread
-    if (master && master->GetGroup() && !group)
+    if (!onMission && master && master->GetGroup() && !group)
     {
         Group* mgroup = master->GetGroup();
         if (mgroup->GetMembersCount() >= 5)
@@ -624,7 +633,7 @@ void PlayerbotHolder::OnBotLogin(Player* const bot)
             PlayerbotWorldThreadProcessor::instance().QueueOperation(std::move(addOp));
         }
     }
-    else if (master && !group)
+    else if (!onMission && master && !group)
     {
         // Queue group creation and AddMember operation
         auto inviteOp = std::make_unique<GroupInviteOperation>(master->GetGUID(), bot->GetGUID());

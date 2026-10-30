@@ -836,10 +836,11 @@ void PlayerbotFactory::Randomize(bool incremental)
     //     return;
 
     // Self-found: a bot is never moved to a level of the self-found range, it keeps the one it earned and everything
-    // it carries. A rebuild above the range (a recruit raised to the cap) goes on as usual.
-    if (SelfFoundAt(level))
+    // it carries. A rebuild above the range (a recruit raised to the cap) goes on as usual. A self-found random bot
+    // (CoaSelfFoundBotsPercent) keeps its level at any level.
+    if (SelfFoundAt(level) || IsSelfFoundBot(bot))
         level = bot->GetLevel();
-    bool const selfFound = SelfFoundAt(level);
+    bool const selfFound = SelfFound();
 
     LOG_DEBUG("playerbots", "{} randomizing {} (level {} class = {})...", (incremental ? "Incremental" : "Full"),
              bot->GetName().c_str(), level, bot->getClass());
@@ -1114,7 +1115,7 @@ void PlayerbotFactory::Refresh()
     // }
     InitAttunementQuests();
     // Self-found: the bot keeps everything it found, so a refresh leaves its bags alone.
-    if (!SelfFoundAt(level))
+    if (!SelfFound())
     {
         // mod-playerbots-auctions: a refresh no longer empties the bags - the bots keep what they looted, bought
         // and made. Only food, drink and potions are renewed, because InitFood() and InitPotions() below hand out
@@ -2816,7 +2817,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
     }
 
     // Self-found: past its starting outfit above, a bot wears only what it loots, earns or is given.
-    if (SelfFoundAt(level))
+    if (SelfFound())
         return;
 
     std::unordered_map<uint8, std::vector<std::pair<uint32, int32>>> items;
@@ -4403,7 +4404,7 @@ void PlayerbotFactory::InitInstanceQuests()
     bot->GiveLevel(level);
 
     // Self-found: InitQuests already took the reward items back, the bags hold what the bot found.
-    if (!SelfFoundAt(level))
+    if (!SelfFound())
         ClearInventory();
     bot->SetUInt32Value(PLAYER_XP, currentXP);
 }
@@ -4486,11 +4487,29 @@ bool PlayerbotFactory::SelfFoundAt(uint32 level)
     return sPlayerbotAIConfig.coaSelfFound && level <= sPlayerbotAIConfig.coaSelfFoundMaxLevel;
 }
 
+bool PlayerbotFactory::IsSelfFoundGuid(ObjectGuid::LowType guid)
+{
+    // Spread by a multiplicative hash: neighbouring guids (one account's characters) do not all fall on one side.
+    uint32 const percent = sPlayerbotAIConfig.coaSelfFoundBotsPercent;
+    return percent && ((guid * 2654435761u) >> 16) % 100 < percent;
+}
+
+bool PlayerbotFactory::IsSelfFoundBot(Player* bot)
+{
+    // Under level 10 the bot is made and geared as usual: it starts its self-found life with the gear of its level.
+    // Random bot accounts only, never a player's character or alt.
+    if (!sPlayerbotAIConfig.coaSelfFoundBotsPercent || !bot || bot->GetLevel() < SELF_FOUND_BOTS_MIN_LEVEL ||
+        !IsSelfFoundGuid(bot->GetGUID().GetCounter()))
+        return false;
+    WorldSession* session = bot->GetSession();
+    return session && sPlayerbotAIConfig.IsInRandomAccountList(session->GetAccountId());
+}
+
 // A player's bot with AutoGearCommandAltBots off is geared by what it loots or is given only ("loot only" realm).
 bool PlayerbotFactory::MayGearItself(Player* bot)
 {
-    // Self-found: no bot of the self-found range gears itself, random bots included.
-    if (SelfFoundAt(bot->GetLevel()))
+    // Self-found: no bot of the self-found range gears itself, random bots included, nor a self-found random bot.
+    if (SelfFoundAt(bot->GetLevel()) || IsSelfFoundBot(bot))
         return false;
     if (sPlayerbotAIConfig.autoGearCommandAltBots)
         return true;
@@ -5747,7 +5766,7 @@ void PlayerbotFactory::ApplyEnchantTemplate(uint8 spec)
 void PlayerbotFactory::ApplyEnchantAndGemsNew(bool /*destroyOld*/)
 {
     // Self-found: no gem or enchantment is made for a bot of the self-found range.
-    if (SelfFoundAt(level))
+    if (SelfFound())
         return;
     //int32 bestGemEnchantId[4] = {-1, -1, -1, -1};  // 1, 2, 4, 8 color //not used, line marked for removal.
     //float bestGemScore[4] = {0, 0, 0, 0}; //not used, line marked for removal.

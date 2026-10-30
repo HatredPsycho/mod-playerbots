@@ -10,6 +10,7 @@
 
 #include "RandomBotLevelMgr.h"
 #include "ArenaTeamMgr.h"
+#include "CoaMissionMgr.h"
 #include "DatabaseEnv.h"
 #include "LFGMgr.h"
 #include "Log.h"
@@ -143,7 +144,7 @@ static bool IsBotSafeForLevelReset(Player* bot)
     if (!bot || !bot->GetSession() || bot->GetSession()->isLogingOut() || bot->IsDuringRemoveFromWorld())
         return false;
 
-    if (RandomBotLevelMgr::IsHeld(bot->GetGUID()))
+    if (RandomBotLevelMgr::IsHeld(bot->GetGUID()) || PlayerbotFactory::IsSelfFoundBot(bot))
         return false;
 
     if (!bot->IsInWorld())
@@ -369,6 +370,9 @@ int RandomBotLevelMgr::GetLevelRangeIndex(uint8 level, TeamId team)
 // be resized on a config reload.
 void RandomBotLevelMgr::AdjustBotToRange(Player* bot, int targetRangeIndex, TeamId team)
 {
+    // A bot on a gathering mission keeps its level and its place until the mission ends.
+    if (sCoaMissionMgr.IsOnMission(bot))
+        return;
     if (!bot || !bot->IsInWorld() || !bot->GetSession() || bot->GetSession()->isLogingOut() ||
         bot->IsDuringRemoveFromWorld())
         return;
@@ -765,6 +769,9 @@ void RandomBotLevelMgr::RunLevelBracketsDistribution()
             continue;
         if (IsHeld(player->GetGUID()))
             continue;
+        // A self-found random bot keeps the level it earned: no bracket moves it.
+        if (PlayerbotFactory::IsSelfFoundBot(player))
+            continue;
 
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(player);
         if (sPlayerbotAIConfig.levelBracketsIgnoreGuildWithRealPlayers && botAI && botAI->IsInRealGuild())
@@ -928,6 +935,8 @@ uint8 RandomBotLevelMgr::ComputeResetChance(uint8 level) const
 // whichever is higher) via a full PlayerbotFactory randomize.
 void RandomBotLevelMgr::ResetBot(Player* player, uint8 currentLevel)
 {
+    if (sCoaMissionMgr.IsOnMission(player))
+        return;
     uint8 levelToResetTo = sPlayerbotAIConfig.resetBotLevelResetTo;
 
     uint8 dkMinLevel = static_cast<uint8>(sWorld->getIntConfig(CONFIG_START_HEROIC_PLAYER_LEVEL));
@@ -951,6 +960,8 @@ void RandomBotLevelMgr::ResetBot(Player* player, uint8 currentLevel)
 // level, whichever is higher) via a full PlayerbotFactory randomize.
 void RandomBotLevelMgr::SkipBotLevel(Player* player, uint8 currentLevel)
 {
+    if (sCoaMissionMgr.IsOnMission(player))
+        return;
     uint8 levelToSkipTo = sPlayerbotAIConfig.resetBotLevelSkipTo;
 
     uint8 dkMinLevel = static_cast<uint8>(sWorld->getIntConfig(CONFIG_START_HEROIC_PLAYER_LEVEL));

@@ -5,6 +5,7 @@
  */
 
 #include "SellAction.h"
+#include "CoaMissionMgr.h"
 #include "ChatHelper.h"
 #include "Event.h"
 #include "ItemPackets.h"
@@ -90,6 +91,13 @@ public:
 
 bool SellAction::Execute(Event event)
 {
+    // A bot on a gathering mission keeps what it gathers for its owner: no selling.
+    if (sCoaMissionMgr.IsOnMission(bot))
+    {
+        botAI->TellMasterNoFacing("I do not sell during a mission.");
+        return false;
+    }
+
     std::string const text = event.getParam();
     if (text == "gray" || text == "*")
     {

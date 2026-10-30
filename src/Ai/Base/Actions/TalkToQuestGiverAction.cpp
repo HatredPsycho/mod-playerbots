@@ -37,7 +37,10 @@ bool TalkToQuestGiverAction::ProcessQuest(Quest const* quest, Object* questGiver
 
     if (sPlayerbotAIConfig.syncQuestWithPlayer)
     {
-        if (master && master->GetQuestStatus(quest->GetQuestId()) == QUEST_STATUS_COMPLETE &&
+        // The player may already have handed the quest in (rewarded) before the bot talks to the quest giver.
+        if (master &&
+            (master->GetQuestStatus(quest->GetQuestId()) == QUEST_STATUS_COMPLETE ||
+             master->GetQuestRewardStatus(quest->GetQuestId())) &&
             (status == QUEST_STATUS_INCOMPLETE || status == QUEST_STATUS_FAILED))
         {
             isCompleted |= CompleteQuest(bot, quest->GetQuestId());

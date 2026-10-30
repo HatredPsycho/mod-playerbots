@@ -9,7 +9,9 @@
 #include "BattleGroundTactics.h"
 #include "CoaBossKnowledge.h"
 #include "BattlefieldScript.h"
+#include "CoaMissionMgr.h"
 #include "Channel.h"
+#include "CityDuels.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
@@ -31,7 +33,7 @@
 #include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.8.1";
+static constexpr char const* COA_BOTS_VERSION = "2.8.2";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -105,19 +107,32 @@ public:
         PLAYERHOOK_ON_GIVE_EXP,
         PLAYERHOOK_ON_UPDATE_ZONE,
         PLAYERHOOK_ON_LOOT_ITEM,
-        PLAYERHOOK_ON_BEFORE_TELEPORT
+        PLAYERHOOK_ON_BEFORE_TELEPORT,
+        PLAYERHOOK_ON_PLAYER_JUST_DIED
     }) {}
+
+    // An alt on a gathering mission counts its deaths: it gives up at AiPlayerbot.Missions.MaxDeaths.
+    void OnPlayerJustDied(Player* player) override
+    {
+        if (player && GET_PLAYERBOT_AI(player))
+            sCoaMissionMgr.OnDied(player);
+    }
 
     // What the bots bring back. Only the finds worth a line, and only from bots: a server watching
     // its bots wants to know what dropped, not to read every piece of linen cloth. The bar is
     // AiPlayerbot.LootLogMinQuality (3, rare, by default; 4 for epics only).
-    // Off unless AiPlayerbot.LootLog is on and worldserver.conf points "playerbots.loot" at an
-    // appender. Check both before touching the item: the hook also runs on servers that never
-    // asked for loot lines, and the item pointer comes from the loot path.
-    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid /*lootguid*/) override
+    void OnPlayerLootItem(Player* player, Item* item, uint32 count, ObjectGuid lootguid) override
     {
-        if (!player || !item || !GET_PLAYERBOT_AI(player) || !sPlayerbotAIConfig.lootLog ||
-            !sLog->ShouldLog("playerbots.loot", LOG_LEVEL_INFO))
+        if (!player || !item || !GET_PLAYERBOT_AI(player))
+            return;
+
+        // What an alt on a gathering mission gathers is mailed to its owner at the end.
+        sCoaMissionMgr.OnLoot(player, item, count, lootguid);
+
+        // The loot lines are off unless AiPlayerbot.LootLog is on and worldserver.conf points
+        // "playerbots.loot" at an appender. Check both before touching the item: the hook also runs on
+        // servers that never asked for loot lines, and the item pointer comes from the loot path.
+        if (!sPlayerbotAIConfig.lootLog || !sLog->ShouldLog("playerbots.loot", LOG_LEVEL_INFO))
             return;
 
         ItemTemplate const* proto = item->GetTemplate();
@@ -473,12 +488,14 @@ public:
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
         sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
+        CityDuels::Update(diff);
     }
 
     void OnShutdown() override
     {
         // Command server sessions run on detached threads that would otherwise outlive the world thread processor.
         PlayerbotCommandServer::instance().Stop();
+        CityDuels::ReleaseAll(false);
     }
 };
 
@@ -623,6 +640,7 @@ public:
 void AddPlayerbotsSecureLoginScripts();
 void AddPlayerbotsSelfBotAfkScripts();
 
+void AddSC_ZulGurubBotScripts();
 void AddSC_MagtheridonBotScripts();
 void AddSC_TempestKeepBotScripts();
 void AddSC_HyjalSummitBotScripts();
@@ -637,6 +655,7 @@ void AddPlayerbotsQuestAcceptSyncScripts();
 void AddPlayerbotsNearbyQuestsScripts();
 void AddPlayerbotsAltReagentDepositScripts();
 void AddPlayerbotsBotTalentsScripts();
+void AddSC_random_bot_transmog();
 
 void AddPlayerbotsScripts()
 {
@@ -656,6 +675,7 @@ void AddPlayerbotsScripts()
     AddPlayerbotsSelfBotAfkScripts();
     AddPlayerbotsCommandscripts();
     PlayerBotsGuildValidationScript();
+    AddSC_ZulGurubBotScripts();
     AddSC_MagtheridonBotScripts();
     AddSC_TempestKeepBotScripts();
     AddSC_HyjalSummitBotScripts();
@@ -665,5 +685,6 @@ void AddPlayerbotsScripts()
     AddSC_coa_group_telemetry();
     AddSC_coa_status_file();
     AddSC_coa_arena_ready();
+    AddSC_random_bot_transmog();
     AddSC_coa_lfg();
 }

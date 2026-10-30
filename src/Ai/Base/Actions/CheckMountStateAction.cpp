@@ -122,6 +122,22 @@ bool CheckMountStateAction::Execute(Event /*event*/)
     bool inBattleground = bot->InBattleground();
     bool const noRealMaster = (!master || master == bot);
 
+    // In a battleground, an enemy player hitting the bot from close by gets it off its mount at once, before it has
+    // even picked a target: it stayed mounted a few seconds under attack (Discord, FeelSoClose).
+    if (inBattleground && bot->IsMounted() && !bot->IsFlying() && bot->IsInCombat())
+    {
+        float const reach = CalculateDismountDistance() + 5.0f;
+        for (ObjectGuid const& guid : AI_VALUE(GuidVector, "attackers"))
+        {
+            Unit* attacker = botAI->GetUnit(guid);
+            if (attacker && attacker->IsPlayer() && attacker->IsAlive() && bot->IsWithinDistInMap(attacker, reach))
+            {
+                Dismount();
+                return true;
+            }
+        }
+    }
+
     // If there is a master and bot not in BG, follow master's mount state regardless of group leader
     if (!noRealMaster && !inBattleground)
     {
@@ -503,13 +519,21 @@ bool CheckMountStateAction::TryRandomMountFiltered(std::map<int32, std::vector<u
             if (bot->isMoving())
                 bot->StopMoving();
 
-            uint32 index = urand(0, ids.size() - 1);
-
-            if (botAI->CanCastSpell(ids[index], bot))
-            {
-                botAI->CastSpell(ids[index], bot);
-                return true;
-            }
+            // Every mount of the group is tried, in random order: one refused mount no longer blocks the others.
+            std::vector<uint32> order = ids;
+            for (size_t i = order.size(); i > 1; --i)
+                std::swap(order[i - 1], order[urand(0, i - 1)]);
+            for (uint32 spellId : order)
+                if (botAI->CanCastSpell(spellId, bot))
+                {
+                    botAI->CastSpell(spellId, bot);
+                    return true;
+                }
+            // CoA collection mounts are known and castable but fail CanCastSpell: cast a known one as the preferred
+            // mount path does.
+            for (uint32 spellId : order)
+                if (bot->HasSpell(spellId) && botAI->CastSpell(spellId, bot))
+                    return true;
         }
     }
     return false;

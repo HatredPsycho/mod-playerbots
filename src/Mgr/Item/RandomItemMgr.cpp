@@ -1048,7 +1048,7 @@ std::vector<uint32> const& RandomItemMgr::GetEnchantmentPool(uint32 entry) const
     return it->second;
 }
 
-bool RandomItemMgr::CanEquipArmor(ItemTemplate const* proto, uint8 clazz, uint32 level) const
+bool RandomItemMgr::CanEquipArmor(ItemTemplate const* proto, uint8 clazz, uint32 level, bool lighterOk) const
 {
     // skip null proto or invalid class
     if (!proto || clazz >= MAX_CLASSES)
@@ -1096,7 +1096,8 @@ bool RandomItemMgr::CanEquipArmor(ItemTemplate const* proto, uint8 clazz, uint32
     }();
 
     // skip armor of wrong subclass (cloaks are exempt)
-    if (proto->InventoryType != INVTYPE_CLOAK && proto->SubClass != requiredSubClass)
+    if (proto->InventoryType != INVTYPE_CLOAK && proto->SubClass != requiredSubClass &&
+        !(lighterOk && proto->SubClass < requiredSubClass))
         return false;
 
     // skip stats calculation for poor/normal quality items (grey/white)
