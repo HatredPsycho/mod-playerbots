@@ -5993,3 +5993,19 @@ DungeonClear.BgQueueFill.LogoutOnRelease = 1
 #
 
 DungeonClear.LockFreeClickableDoors = "17153,17154"
+
+#
+#    DungeonClear.EnableBRDTombOfSeven
+#        Whether the Tomb of the Seven objective in Blackrock Depths is driven
+#        automatically (muster, Doom'rel's challenge, self-restart on reset).
+#        Off, because instance_blackrock_depths.cpp still reads
+#        TombBossGUIDs[TombEventCounter] with the counter past the array's last
+#        index once the seventh ghost dies (AzerothCore #28271 is not in this
+#        core). Off stops the objective visibly; it never opens the script-only
+#        doors and never skips it.
+#        Server-only: players cannot override this through the addon.
+#
+#        Default: 0
+#
+
+DungeonClear.EnableBRDTombOfSeven = 0

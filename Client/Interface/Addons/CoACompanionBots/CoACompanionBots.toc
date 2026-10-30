@@ -3,7 +3,7 @@
 ## Notes: Bot orders, roles on the party frames, lfg bot offers, alts and Dungeon Clear in one addon - Conquest of Azeroth
 ## Notes-frFR: Ordres aux bots, rôles sur les cadres de groupe, offres lfg bot, alts et Dungeon Clear en un seul addon - Conquest of Azeroth
 ## Version: 1.0
-## X-SquidBots-Version: 2.8
+## X-SquidBots-Version: 2.8.2
 ## X-DungeonClear-Version: 3.6
 ## Author: CoA Bots team, Jared Wright, Conquest of Azeroth
 ## X-License: GPL-2.0
@@ -12,6 +12,7 @@
 ## SavedVariablesPerCharacter: SquidBotsLiteCharDB
 SquidBotsLite.lua
 Manager.lua
+Missions.lua
 DungeonClear.lua
 BotQuests.lua
 BotTalents.lua

@@ -9,7 +9,7 @@ history with this repository; upstream changes are ported by hand.
 |---|---|
 | Integrated from | HatredPsycho/mod-dungeon-clear, branch `coa`, commit `beb8d7189fe76c992d0f652381823fce9b139047` |
 | Original | jrad7/mod-dungeon-clear `master`, last merged commit `7fb6ebd` (2026-10-26) |
-| Further upstream | buildthehomelab/wow-mod-dungeon-clear `evermore`, fully merged as of `5d49ee7` (2026-10-23) |
+| Further upstream | buildthehomelab/wow-mod-dungeon-clear `evermore`, fully merged as of `6057486` (2026-10-28, #27) |
 
 Ported with a 3-way merge in the standalone clone `D:\Dev\mod-dungeon-clear-upstream`: our integrated state is
 committed there as a snapshot on branch `port-<date>`, both upstreams are merged into it, and the net diff is
@@ -42,6 +42,11 @@ Our commits on top of jrad7/evermore in the `coa` branch, all part of the integr
 - Since the integration: pull openers and resurrection read from playerbots' CoA class kit
   (`Ai/Class/Coa/CoaAbilities.h`); `coa auto pull` / `coa catch up` recognised by `Action::GetAutonomy()`
   instead of by name.
+- The Tomb of the Seven gate logs its refusal at WARN, not ERROR: the objective hook is evaluated per tick,
+  and a configuration state is not a fault. `EnableBRDTombOfSeven` sits in its own block of
+  `Settings/DcSettingsRegistry.h` instead of inside the `PostCombatRez` comment.
+- `tools/test_evermore_tomb_gate.py` and `tools/test_chain_straggler_rescue.py` are not taken: `tools/`
+  stays out of this repository, and `tools/verify_all.py` does not run them.
 
 ## Porting upstream changes
 
@@ -53,5 +58,5 @@ Our commits on top of jrad7/evermore in the `coa` branch, all part of the integr
 
 | Upstream | Last ported |
 |---|---|
-| jrad7/mod-dungeon-clear `master` | `fcb680f` (2026-10-23, #61) |
-| buildthehomelab/wow-mod-dungeon-clear `evermore` | `5d49ee7` (2026-10-24, #24) |
+| jrad7/mod-dungeon-clear `master` | `7fb6ebd` (2026-10-26) |
+| buildthehomelab/wow-mod-dungeon-clear `evermore` | `6057486` (2026-10-28, #27) |

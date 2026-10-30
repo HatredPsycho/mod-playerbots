@@ -157,6 +157,11 @@ inline constexpr DcSettingDef kDcSettings[] =
     { "SmartRestDpsManaPct",    DcType::UInt,  10,   0, 100,  true  },
     { "SmartRestHealerManaPct", DcType::UInt,  40,   0, 100,  true  },
 
+    // Server-only opt-in: the automatic Tomb of the Seven needs the
+    // TombEventCounter bounds fix (AzerothCore #28271) in the deployed core.
+    // Off keeps the anchored objective as a visible stop.
+    { "EnableBRDTombOfSeven",   DcType::Bool,   0,   0,   1,  false },
+
     // Post-combat party resurrection. With PostCombatRez on, a death no longer
     // ends the run outright: when combat drops with dead member(s) and a living
     // member's class can resurrect (Priest/Paladin/Shaman/Druid), the run HOLDS
