@@ -12,6 +12,7 @@
 #include "CoaMissionMgr.h"
 #include "Channel.h"
 #include "CityDuels.h"
+#include "CoaAltAddon.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
@@ -33,7 +34,7 @@
 #include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.8.2";
+static constexpr char const* COA_BOTS_VERSION = "2.8.3";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -277,8 +278,14 @@ public:
 
     bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Player* receiver) override
     {
-        if (type != CHAT_MSG_WHISPER || lang == LANG_ADDON)
+        if (type != CHAT_MSG_WHISPER)
         {
+            return true;
+        }
+
+        if (lang == LANG_ADDON)
+        {
+            CoaAltAddon::OnAddonWhisper(player, receiver, msg);
             return true;
         }
 
@@ -641,6 +648,7 @@ void AddPlayerbotsSecureLoginScripts();
 void AddPlayerbotsSelfBotAfkScripts();
 
 void AddSC_ZulGurubBotScripts();
+void AddSC_MoltenCoreBotScripts();
 void AddSC_MagtheridonBotScripts();
 void AddSC_TempestKeepBotScripts();
 void AddSC_HyjalSummitBotScripts();
@@ -676,6 +684,7 @@ void AddPlayerbotsScripts()
     AddPlayerbotsCommandscripts();
     PlayerBotsGuildValidationScript();
     AddSC_ZulGurubBotScripts();
+    AddSC_MoltenCoreBotScripts();
     AddSC_MagtheridonBotScripts();
     AddSC_TempestKeepBotScripts();
     AddSC_HyjalSummitBotScripts();
