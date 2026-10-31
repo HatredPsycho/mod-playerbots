@@ -60,6 +60,22 @@ public:
     bool IsActive() override;
 };
 
+// Gehennas is casting Conjure Flame Orb and the bot is within the orb's reach of him
+class McGehennasFlameOrbCastTrigger : public Trigger
+{
+public:
+    McGehennasFlameOrbCastTrigger(PlayerbotAI* botAI) : Trigger(botAI, "mc gehennas flame orb cast") {}
+    bool IsActive() override;
+};
+
+// Standing in Gehennas' Rain of Fire (stock or CoA)
+class McGehennasRainOfFireTrigger : public Trigger
+{
+public:
+    McGehennasRainOfFireTrigger(PlayerbotAI* botAI) : Trigger(botAI, "mc gehennas rain of fire") {}
+    bool IsActive() override;
+};
+
 // Standing in one of Magmadar's fire patches (stock trap or CoA heads' ground fire)
 class McMagmadarLavaBombTrigger : public Trigger
 {

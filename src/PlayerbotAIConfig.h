@@ -87,6 +87,9 @@ struct LevelBracketConfig
     uint8 pct = 0;
 };
 
+// AiPlayerbot.GuildBankDeposit.Items "boe": bind-on-equip gear the bot cannot wear (no item class is negative).
+static constexpr int32 GUILD_DEPOSIT_BOE = -2;
+
 class PlayerbotAIConfig
 {
 public:
@@ -450,6 +453,12 @@ public:
     uint32 missionsMaxDeaths;
     bool missionsTeleportFallback;
     bool missionsTeleportToSpot;
+    bool missionsHighRisk;
+    uint32 missionsRiskMailEvery;
+    uint32 missionsRiskMailMinutes;
+    // Alts and the SquidBots Lite addon (CoaAltAddon).
+    bool altChatToAddon;
+    bool catchUpQuestChains;
     // AiPlayerbot.GuildBankDeposit.*: bots of a real player's guild fill the guild bank near a guild vault.
     bool guildBankDepositEnable;
     std::vector<std::pair<int32, int32>> guildBankDepositItems;  // item class, subclass (-1 = all)
