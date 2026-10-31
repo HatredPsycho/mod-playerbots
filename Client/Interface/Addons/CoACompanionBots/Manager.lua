@@ -10,7 +10,7 @@ local STRINGS = {
 		LOGOUT = "Log out", WAIT = "Asking the bot...", WAIT_AGAIN = "Still waiting: asking the bot again...", NO_REPLY = "No answer: is it one of your bots?",
 		NOT_IN_GROUP = "Invite it to your group to see its gear.", OUT_OF_RANGE = "Come closer to see its gear.",
 		EMPTY_BAGS = "Nothing in the bags.", NO_QUESTS = "No quest.",
-		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell grey items",
+		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell junk",
 		NO_VENDOR = "Nothing sold: the bot sells only standing right next to a vendor (Summon it there, or walk it there with Follow).", LINK = "Link in chat",
 		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat. Ctrl-click: mark it for selling.",
 		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all", BOUND_HINT = "Red frame: soulbound, cannot be traded.",
@@ -53,7 +53,7 @@ local STRINGS = {
 		LOGOUT = "Déconnecter", WAIT = "Demande au bot...", WAIT_AGAIN = "Toujours en attente : je redemande au bot...", NO_REPLY = "Pas de réponse : est-ce bien un de vos bots ?",
 		NOT_IN_GROUP = "Invitez-le dans votre groupe pour voir son équipement.", OUT_OF_RANGE = "Approchez-vous pour voir son équipement.",
 		EMPTY_BAGS = "Rien dans les sacs.", NO_QUESTS = "Aucune quête.",
-		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre les gris",
+		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre la camelote",
 		NO_VENDOR = "Rien vendu : le bot ne vend que collé à un marchand (appelez-le devant le marchand, ou amenez-le avec Suivre).", LINK = "Lien dans le chat",
 		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat. Ctrl-clic : le marquer pour la vente.",
 		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer", BOUND_HINT = "Cadre rouge : lié, impossible à échanger.",
@@ -146,7 +146,7 @@ end
 local function Whisper(text)
 	if not current then return end
 	hideFrom[current] = GetTime() + QUIET + 1
-	SendChatMessage(text, "WHISPER", nil, current)
+	SquidBotsLite_QuietWhisper(text, current)
 end
 
 -- ---------------------------------------------------------------------------
@@ -708,7 +708,7 @@ local function BuildBags(page)
 	page.grey:SetWidth(130)
 	page.grey:SetHeight(22)
 	page.grey:SetPoint("LEFT", page.trade, "RIGHT", 8, 0)
-	page.grey:SetScript("OnClick", function() Sell("gray", true); AfterChange() end)
+	page.grey:SetScript("OnClick", function() Sell("junk", true); AfterChange() end)
 	page.bank = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.bank:SetWidth(110)
 	page.bank:SetHeight(22)
