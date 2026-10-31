@@ -5,7 +5,7 @@ hand; there is no shared git history.
 
 | Part | Upstream | Last taken |
 |---|---|---|
-| SquidBots Lite (`SquidBotsLite.lua`, `Manager.lua`, `Missions.lua`, `Bindings.xml`) | [Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon) `main` | `3ddcb33` (2.8.2, 2026-10-29) |
+| SquidBots Lite (`SquidBotsLite.lua`, `Manager.lua`, `Missions.lua`, `Alts.lua`, `Bindings.xml`) | [Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon) `main` | `427334a` (2.8.3, 2026-10-31) |
 | Dungeon Clear (`DungeonClear.lua`) | [jrad7/mod-dungeon-clear-addon](https://github.com/jrad7/mod-dungeon-clear-addon) `master` | `997bfbd2` (3.6, 2026-08-30) |
 
 Licences: `LICENSE.SquidBots` (GPL-2.0), `LICENSE.DungeonClear`.
@@ -43,3 +43,17 @@ lines up on the bar's last button. Ported with a 3-way merge of `a50fdff` (base)
 Three conflicts, all our own deviations kept: the bot sheet's Spells tab stays and takes an icon like the other
 tabs; the bar keeps our `order` instead of their `BAR_ORDER`; and their Dungeon clear panel, which 2.8.2 restyles
 with the flat buttons, stays out for the reason in the 2.8 section above.
+
+## Taken from SquidBots Lite 2.8.3
+
+All eight commits after `3ddcb33`, each as its own commit: `d68c3fa` (the new `Alts.lua` with the SQBA
+handshake, the "Take for the team" panel, the trainer list, the alt log and the team bar, plus the tank-pull
+binding, the key hints on the bar tooltips and the High Risk confirmation in `Missions.lua`), `57ba65d`,
+`6b4072e`, `a0d4d18`, `ed0e049`, `9384b4a`, `eb5fed9` and `427334a`. `Alts.lua`, `Missions.lua` and
+`Bindings.xml` match upstream exactly; `Alts.lua` needed no adaptation, it talks to the `SquidBotsLite_`
+globals this port keeps.
+
+Two conflicts in `SquidBotsLite.lua`, both our own deviations kept beside the upstream change: our `ClearMenu`
+stays next to their new `SquidBotsLite_TankPull`, and the bar tooltips keep our `self.onRightClick` guard on
+`TIP_PROFILES` while taking their key hints. The deviation against upstream is the same size before and after
+the port (619 lines in `SquidBotsLite.lua`, 253 in `Manager.lua`).
