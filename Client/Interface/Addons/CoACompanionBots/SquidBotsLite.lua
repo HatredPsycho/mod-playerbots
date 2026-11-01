@@ -2434,6 +2434,7 @@ local function BuildAlts()
 end
 
 ShowAlts = function()
+	if SquidBotsLiteDashboard and SquidBotsLiteDashboard:IsShown() then SquidBotsLiteDashboard:Hide() end
 	altsFrame:Show()
 	AskRoster()
 end
