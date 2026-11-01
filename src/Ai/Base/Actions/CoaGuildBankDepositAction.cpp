@@ -9,6 +9,7 @@
 #include "Bag.h"
 #include "CellImpl.h"
 #include "CharacterCache.h"
+#include "CoaEnchanter.h"
 #include "CoaMissionMgr.h"
 #include "Event.h"
 #include "GameObject.h"
@@ -17,6 +18,7 @@
 #include "Guild.h"
 #include "GuildMgr.h"
 #include "Item.h"
+#include "ItemUsageValue.h"
 #include "NearestGameObjects.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -191,17 +193,33 @@ bool CoaGuildBankDepositAction::IsDepositable(Player* bot, Item const* item)
     if (proto->Class == ITEM_CLASS_QUEST || proto->StartQuest || proto->Bonding == BIND_QUEST_ITEM ||
         proto->Bonding == BIND_QUEST_ITEM1 || proto->Duration > 0 || proto->HasFlag(ITEM_FLAG_CONJURED))
         return false;
+
+    // The enchanter of the team decides first: its materials in, its gear to disenchant kept; the other alts' greens
+    // in (mode bank) or kept for the mail (mode mail).
+    if (int32 const rule = CoaEnchanter::DepositRule(bot ? GET_PLAYERBOT_AI(bot) : nullptr, item); rule >= 0)
+        return rule == 1;
     if (item->GetCount() < std::max<uint32>(1, sPlayerbotAIConfig.guildBankDepositMinStack))
         return false;
 
     for (auto const& [itemClass, itemSubClass] : sPlayerbotAIConfig.guildBankDepositItems)
     {
-        // "boe": bind-on-equip gear (green or better) this alt can never wear (a level too low is kept), for a guildmate.
+        // "boe": bind-on-equip gear, for a guildmate. A green this alt can never wear (a level too low is kept); a
+        // blue or an epic unless it is an upgrade for this alt itself.
         if (itemClass == GUILD_DEPOSIT_BOE)
         {
-            if (proto->Bonding == BIND_WHEN_EQUIPPED && proto->Quality >= ITEM_QUALITY_UNCOMMON &&
-                (proto->Class == ITEM_CLASS_ARMOR || proto->Class == ITEM_CLASS_WEAPON) &&
-                bot && bot->CanUseItem(proto) != EQUIP_ERR_OK && bot->CanUseItem(proto) != EQUIP_ERR_CANT_EQUIP_LEVEL_I)
+            if (proto->Bonding != BIND_WHEN_EQUIPPED || proto->Quality < ITEM_QUALITY_UNCOMMON ||
+                (proto->Class != ITEM_CLASS_ARMOR && proto->Class != ITEM_CLASS_WEAPON) || !bot)
+                continue;
+            if (proto->Quality >= ITEM_QUALITY_RARE)
+            {
+                PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+                ItemUsage const usage = botAI ? botAI->GetAiObjectContext()->GetValue<ItemUsage>("item usage", proto->ItemId)->Get()
+                                              : ITEM_USAGE_NONE;
+                if (usage != ITEM_USAGE_EQUIP && usage != ITEM_USAGE_REPLACE)
+                    return true;
+                continue;
+            }
+            if (bot->CanUseItem(proto) != EQUIP_ERR_OK && bot->CanUseItem(proto) != EQUIP_ERR_CANT_EQUIP_LEVEL_I)
                 return true;
             continue;
         }
