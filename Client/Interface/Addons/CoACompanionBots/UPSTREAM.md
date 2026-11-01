@@ -5,7 +5,7 @@ hand; there is no shared git history.
 
 | Part | Upstream | Last taken |
 |---|---|---|
-| SquidBots Lite (`SquidBotsLite.lua`, `Manager.lua`, `Missions.lua`, `Alts.lua`, `Bindings.xml`) | [Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon) `main` | `427334a` (2.8.3, 2026-10-31) |
+| SquidBots Lite (`SquidBotsLite.lua`, `Manager.lua`, `Missions.lua`, `Alts.lua`, `Dashboard.lua`, `Bindings.xml`) | [Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon) `main` | `6653c6c` (2.8.4, 2026-10-31) |
 | Dungeon Clear (`DungeonClear.lua`) | [jrad7/mod-dungeon-clear-addon](https://github.com/jrad7/mod-dungeon-clear-addon) `master` | `088e6e0c` (2026-10-31) |
 
 Licences: `LICENSE.SquidBots` (GPL-2.0), `LICENSE.DungeonClear`.
@@ -57,3 +57,10 @@ Two conflicts in `SquidBotsLite.lua`, both our own deviations kept beside the up
 stays next to their new `SquidBotsLite_TankPull`, and the bar tooltips keep our `self.onRightClick` guard on
 `TIP_PROFILES` while taking their key hints. The deviation against upstream is the same size before and after
 the port (619 lines in `SquidBotsLite.lua`, 253 in `Manager.lua`).
+
+## Taken from SquidBots Lite 2.8.4
+
+All sixteen commits after `427334a`, each as its own commit, including the new `Dashboard.lua`. One commit
+conflicted, `a04f0a0`, at three places in `SquidBotsLite.lua`, all our own deviations kept beside the upstream
+change: both `HELP` lines stay ours and name `/sbl dashboard`, and `/sbl quests` stays next to the new `/sbl dashboard`.
+Their `/sbl dc` stays out, because their Dungeon clear panel does (see the 2.8 section above).
