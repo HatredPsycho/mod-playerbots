@@ -157,6 +157,7 @@ if (BUILD_TESTING)
             "${MOD_PATH}/test/dungeon_clear/TestTestRunVerdict.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestDungeonRegistry.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestGearTiers.cpp"
+            "${MOD_PATH}/test/dungeon_clear/TestClassicRaids.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestRunRecord.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestTestRunSelect.cpp"
             "${MOD_PATH}/test/dungeon_clear/TestWatchHop.cpp"
