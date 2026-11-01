@@ -41,6 +41,8 @@ local FR = {
     ["Resting"] = "Repos",
     ["Collecting Loot"] = "Ramasse le butin",
     ["Looting"] = "Butin",
+    ["Running Event"] = "Événement en cours",
+    ["Running Scripted Event"] = "Événement scripté en cours",
     ["Blocked by Door"] = "Bloqué par une porte",
     ["Door Blocked"] = "Porte bloquée",
     ["Route Blocked"] = "Trajet bloqué",
@@ -439,6 +441,7 @@ local function FormatStateTiny(state)
     elseif state == "looting" then return T("Looting"), {0.9, 0.6, 0.1}
     elseif state == "door_blocked" then return T("Door Blocked"), {0.9, 0.2, 0.2}
     elseif state == "stalled" then return T("Blocked"), {0.9, 0.2, 0.2}
+    elseif state == "event" then return T("Running Event"), {0.4, 0.9, 0.7}
     elseif state == "fighting_trash" then return T("Clearing Trash"), {0.8, 0.3, 0.9}
     elseif state == "fighting_boss" then return T("Boss Fight"), {1, 0.2, 0.2}
     elseif state == "idle" then return T("Idle"), {0.6, 0.6, 0.6}
@@ -522,6 +525,11 @@ local function UpdateStatusUI(enabled, targetName, state, stallReason, detail, p
         elseif state == "stalled" then
             stateText = T("Route Blocked")
             stateColor = {0.9, 0.2, 0.2} -- Red
+        elseif state == "event" then
+            -- A scripted event (orb run, transit, lever, gossip); the server
+            -- names it in `detail`, which the sub-line below shows.
+            stateText = T("Running Scripted Event")
+            stateColor = {0.4, 0.9, 0.7} -- Teal
         elseif state == "fighting_trash" then
             stateText = T("Clearing Path (Trash)")
             stateColor = {0.8, 0.3, 0.9} -- Purple

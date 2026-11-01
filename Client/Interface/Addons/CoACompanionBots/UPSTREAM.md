@@ -6,7 +6,7 @@ hand; there is no shared git history.
 | Part | Upstream | Last taken |
 |---|---|---|
 | SquidBots Lite (`SquidBotsLite.lua`, `Manager.lua`, `Missions.lua`, `Alts.lua`, `Bindings.xml`) | [Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon) `main` | `427334a` (2.8.3, 2026-10-31) |
-| Dungeon Clear (`DungeonClear.lua`) | [jrad7/mod-dungeon-clear-addon](https://github.com/jrad7/mod-dungeon-clear-addon) `master` | `997bfbd2` (3.6, 2026-08-30) |
+| Dungeon Clear (`DungeonClear.lua`) | [jrad7/mod-dungeon-clear-addon](https://github.com/jrad7/mod-dungeon-clear-addon) `master` | `088e6e0c` (2026-10-31) |
 
 Licences: `LICENSE.SquidBots` (GPL-2.0), `LICENSE.DungeonClear`.
 
