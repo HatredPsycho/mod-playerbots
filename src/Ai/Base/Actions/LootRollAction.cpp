@@ -13,10 +13,12 @@
 #include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 
+#ifdef PLAYERBOTS_WITH_AUCTIONS
 namespace pba
 {
     bool LootFilterAllows(Player* bot, ItemTemplate const* proto);
 }
+#endif
 
 bool LootRollAction::Execute(Event /*event*/)
 {
@@ -46,12 +48,14 @@ bool LootRollAction::Execute(Event /*event*/)
             continue;
 
         // mod-playerbots-auctions: a filtered item is passed on instead of rolled for.
+#ifdef PLAYERBOTS_WITH_AUCTIONS
         if (!pba::LootFilterAllows(bot, proto))
         {
             group->CountRollVote(bot->GetGUID(), guid, PASS);
             voted = true;
             continue;
         }
+#endif
 
         std::string itemUsageParam;
         if (randomProperty != 0)
