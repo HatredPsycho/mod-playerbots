@@ -5,8 +5,6 @@
  */
 
 #include "ActionContext.h"
-#include "Ai/Dungeon/DungeonClear/DungeonClearActionContext.h"
-#include "DcModuleEnable.h"
 #include "AiObjectContext.h"
 #include "Aq20ActionContext.h"
 #include "BTActionContext.h"
@@ -102,6 +100,4 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     // CoA: generische, parametrisierbare Bausteine (GenericAction)
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     actionContexts.Add(new CoaGenericActionContext());
-    if (DcModule::IsEnabled())
-        actionContexts.Add(new DungeonClearActionContext());
 }

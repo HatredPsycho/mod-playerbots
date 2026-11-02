@@ -6,11 +6,6 @@
 
 // From SC
 void AddPlayerbotsScripts();
-void AddDungeonClearScripts();
 
 // Add all
-void Addmod_playerbotsScripts()
-{
-    AddPlayerbotsScripts();
-    AddDungeonClearScripts();
-}
+void Addmod_playerbotsScripts() { AddPlayerbotsScripts(); }

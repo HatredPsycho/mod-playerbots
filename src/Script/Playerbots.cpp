@@ -30,23 +30,12 @@
 #include "cmath"
 #include <algorithm>
 
-#include <mutex>
-#include <unordered_set>
 
 // Shown to players at login: bump it with every CoA Bots release.
 static constexpr char const* COA_BOTS_VERSION = "2.8.4";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
-
-// The login notices reach each account once per worldserver start, not again with every character it logs in.
-static bool FirstLoginSinceStart(uint32 accountId)
-{
-    static std::mutex greetedLock;
-    static std::unordered_set<uint32> greeted;
-    std::lock_guard<std::mutex> guard(greetedLock);
-    return greeted.insert(accountId).second;
-}
 
 class PlayerbotsDatabaseScript : public DatabaseScript
 {
@@ -184,9 +173,6 @@ public:
         {
             PlayerbotsMgr::instance().AddPlayerbotData(player, false);
             sRandomPlayerbotMgr.OnPlayerLogin(player);
-
-            if (!FirstLoginSinceStart(player->GetSession()->GetAccountId()))
-                return;
 
             // Before modifying the following messages, please make sure it does not violate the GNU GPLv2
             // license especially if you are distributing a repack or hosting a public server

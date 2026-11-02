@@ -4735,7 +4735,6 @@ class CoaAutoPullAction : public AttackAction
 {
 public:
     CoaAutoPullAction(PlayerbotAI* botAI) : AttackAction(botAI, "coa auto pull") {}
-    Autonomy GetAutonomy() const override { return Autonomy::Engage; }
 
     bool Execute(Event /*event*/) override
     {
@@ -4952,7 +4951,6 @@ class CoaCatchUpAction : public Action
 {
 public:
     CoaCatchUpAction(PlayerbotAI* botAI) : Action(botAI, "coa catch up") {}
-    Autonomy GetAutonomy() const override { return Autonomy::LeaderFollow; }
 
     bool Execute(Event /*event*/) override
     {
