@@ -5,6 +5,7 @@
  */
 
 #include "RandomPlayerbotMgr.h"
+#include "AscensionRulesets.h"
 #include "BattlegroundUtils.h"
 #include "AiFactory.h"
 #include "ArenaTeam.h"
@@ -3431,7 +3432,7 @@ namespace
 constexpr uint32 COA_RULESET_HIGH_RISK = 1004019;
 constexpr uint32 COA_RULESET_WAR_MODE = 1004119;
 constexpr uint32 COA_RULESET_PVE = 9931032;
-constexpr uint32 COA_RULESET_MERCENARY = 9930874;
+constexpr uint8 COA_RULESET_HIGH_RISK_MIN_LEVEL = 15;
 }
 
 // The core puts every character without a ruleset in PvE at login, bots included. With
@@ -3448,10 +3449,15 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
     uint32 const highRisk = std::min<uint32>(sPlayerbotAIConfig.coaRulesetHighRiskPct, 100);
     uint32 const warMode = std::min<uint32>(sPlayerbotAIConfig.coaRulesetWarModePct, 100 - highRisk);
     uint32 const bucket = (bot->GetGUID().GetCounter() * 2654435761u) % 100;
-    uint32 const wanted = bucket < highRisk ? COA_RULESET_HIGH_RISK
+    // High Risk opens at level 15 (core: AscensionHighRiskPolicy.h); a younger bot of that bucket stays in PvE.
+    uint32 const wanted = bucket < highRisk ? (bot->GetLevel() >= COA_RULESET_HIGH_RISK_MIN_LEVEL ? COA_RULESET_HIGH_RISK
+                                                                                                    : COA_RULESET_PVE)
                         : bucket < highRisk + warMode ? COA_RULESET_WAR_MODE
                         : COA_RULESET_PVE;
 
+    // High Risk put aside by the core (instance, battle): the core gives it back itself.
+    if (AscensionRulesets::HighRiskSuspended(bot))
+        return;
     bool const hasHighRisk = bot->HasAura(COA_RULESET_HIGH_RISK);
     bool const hasPve = bot->HasAura(COA_RULESET_PVE);
     bool const hasWarMode = bot->HasAura(COA_RULESET_WAR_MODE);
@@ -3460,9 +3466,10 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
                   : hasPve && !hasHighRisk;
     if (!ok)
     {
-        for (uint32 spell : {COA_RULESET_HIGH_RISK, COA_RULESET_WAR_MODE, COA_RULESET_PVE, COA_RULESET_MERCENARY})
-            bot->RemoveAurasDueToSpell(spell);
-        bot->CastSpell(bot, wanted, true);
+        // Through the core, as a player's choice: its checks, the PvP sync, mercenaries and level scaling.
+        AscensionRulesets::Apply(bot, wanted == COA_RULESET_HIGH_RISK ? AscensionRulesets::Ruleset::HighRisk
+                                      : wanted == COA_RULESET_WAR_MODE ? AscensionRulesets::Ruleset::WarMode
+                                      : AscensionRulesets::Ruleset::PvE);
         LOG_DEBUG("playerbots", "coa: {} ruleset {}", bot->GetName(),
                   wanted == COA_RULESET_HIGH_RISK ? "High Risk" : wanted == COA_RULESET_WAR_MODE ? "War Mode" : "PvE");
     }
