@@ -6,6 +6,10 @@
 
 #include "CoaAiObjectContext.h"
 #include "CoaAbilities.h"
+#include "CoaCompanionOrder.h"
+#include "AscensionNecromancer.h"
+#include "CellImpl.h"
+#include "GridNotifiers.h"
 
 #include "Action.h"
 #include "AttackAction.h"
@@ -3892,6 +3896,160 @@ private:
     std::map<std::pair<ObjectGuid, uint32>, RecentBuff> recent;
 };
 
+// A companion that stays until dismissed: what a rotation line only raises once the fight has begun. Neither a
+// critter, a totem or a vehicle, nor a creature the summon leaves wild, nor one the caster would have to steer.
+bool IsPermanentCompanionSpell(SpellInfo const* info)
+{
+    if (info->IsPassive() || info->GetMaxDuration() >= 0 || PossessesTarget(info))
+        return false;
+
+    for (SpellEffectInfo const& effect : info->Effects)
+    {
+        if (effect.MiscValue <= 0)
+            continue;
+        if (effect.Effect == SPELL_EFFECT_SUMMON_PET)
+            return true;
+        if (effect.Effect != SPELL_EFFECT_SUMMON)
+            continue;
+
+        SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(effect.MiscValueB);
+        if (properties && properties->Category != SUMMON_CATEGORY_WILD &&
+            properties->Category != SUMMON_CATEGORY_VEHICLE && properties->Type != SUMMON_TYPE_TOTEM &&
+            properties->Type != SUMMON_TYPE_MINIPET && properties->Type != SUMMON_TYPE_VEHICLE &&
+            properties->Type != SUMMON_TYPE_VEHICLE2)
+            return true;
+    }
+    return false;
+}
+
+// Bots of a real player only: the world's random bots would each walk around with a small army of creatures.
+class CoaSummonCompanionsAction : public Action
+{
+public:
+    CoaSummonCompanionsAction(PlayerbotAI* botAI) : Action(botAI, "coa summon companions") {}
+
+    bool Execute(Event /*event*/) override
+    {
+        time_t const now = time(nullptr);
+        if (now < nextCheck || !botAI->HasGameClientMaster() || bot->IsInCombat() || bot->IsMounted() ||
+            bot->IsInFlight() || !bot->IsAlive() || !bot->IsStandState() || bot->IsNonMeleeSpellCast(false, true, true))
+            return false;
+
+        nextCheck = now + CheckSeconds;
+
+        std::vector<CoaCompanionCandidate> const missing = MissingCompanions(now);
+        if (missing.empty())
+            return false;
+
+        bool const costsLifeForce = std::any_of(missing.begin(), missing.end(), [](CoaCompanionCandidate const& companion)
+            { return companion.lifeForceCost > 0; });
+        int32 const freeLifeForce = costsLifeForce ?
+            int32(AscensionNecromancer::Capacity(bot)) - AscensionNecromancer::Used(bot) : 0;
+
+        uint32 const chosen = ChooseCoaCompanion(missing, uint8(std::max(freeLifeForce, 0)), bot->GetPet() != nullptr);
+        SpellInfo const* info = chosen ? sSpellMgr->GetSpellInfo(chosen) : nullptr;
+        if (!info)
+            return false;
+
+        benched[chosen] = now + BenchSeconds;
+        return StrictCheck(bot, info, bot) == SPELL_CAST_OK && botAI->CastSpell(chosen, bot);
+    }
+
+    bool isUseful() override { return botAI->HasGameClientMaster(); }
+
+private:
+    static constexpr time_t CheckSeconds = 3;
+    // The creature appears with the cast or the cast went wrong: either way not again at once.
+    static constexpr time_t BenchSeconds = 30;
+    static constexpr float SearchRange = 100.0f;
+
+    std::map<std::string, float> RotationPriorities()
+    {
+        std::map<std::string, float> lines;
+        Engine* const engine = botAI->GetEngine(BOT_STATE_COMBAT);
+        if (!engine)
+            return lines;
+
+        for (TriggerNode* node : engine->GetTriggerNodes())
+            for (NextAction const& action : node->getHandlers())
+            {
+                std::string const& name = action.GetNameRef();
+                size_t const qualifier = name.find("::");
+                if (name.compare(0, 4, "cast") != 0 || qualifier == std::string::npos)
+                    continue;
+                auto const [itr, added] = lines.emplace(name.substr(qualifier + 2), action.getRelevance());
+                if (!added)
+                    itr->second = std::max(itr->second, action.getRelevance());
+            }
+        return lines;
+    }
+
+    bool CompanionStands(SpellInfo const* info)
+    {
+        std::vector<uint32> entries;
+        for (SpellEffectInfo const& effect : info->Effects)
+            if ((effect.Effect == SPELL_EFFECT_SUMMON || effect.Effect == SPELL_EFFECT_SUMMON_PET) && effect.MiscValue > 0)
+                entries.push_back(uint32(effect.MiscValue));
+
+        auto const isCompanion = [&](Unit const* unit)
+        {
+            return unit && unit->IsAlive() && !unit->IsPlayer() &&
+                   (unit->GetOwnerGUID() == bot->GetGUID() || unit->GetCreatorGUID() == bot->GetGUID()) &&
+                   (unit->GetUInt32Value(UNIT_CREATED_BY_SPELL) == info->Id ||
+                    std::find(entries.begin(), entries.end(), unit->GetEntry()) != entries.end());
+        };
+
+        for (Unit const* unit : bot->m_Controlled)
+            if (isCompanion(unit))
+                return true;
+
+        std::list<Unit*> nearby;
+        Acore::AnyUnitInObjectRangeCheck check(bot, SearchRange);
+        Acore::UnitListSearcher<Acore::AnyUnitInObjectRangeCheck> search(bot, nearby, check);
+        Cell::VisitObjects(bot, search, SearchRange);
+        return std::any_of(nearby.begin(), nearby.end(), isCompanion);
+    }
+
+    std::vector<CoaCompanionCandidate> MissingCompanions(time_t now)
+    {
+        std::vector<CoaCompanionCandidate> missing;
+        std::map<std::string, float> priorities;
+        std::set<uint32> seen;
+
+        for (auto const& [id, known] : bot->GetSpellMap())
+        {
+            if (known->State == PLAYERSPELL_REMOVED || !known->Active)
+                continue;
+
+            SpellInfo const* candidate = sSpellMgr->GetSpellInfo(id);
+            if (!candidate || !IsPermanentCompanionSpell(candidate))
+                continue;
+
+            std::string const name = candidate->SpellName[LOCALE_enUS];
+            uint32 const best = context->GetValue<uint32>("spell id", name)->Get();
+            SpellInfo const* info = best ? sSpellMgr->GetSpellInfo(best) : candidate;
+            if (!info || !IsPermanentCompanionSpell(info) || !seen.insert(info->Id).second)
+                continue;
+
+            auto const bench = benched.find(info->Id);
+            if ((bench != benched.end() && bench->second > now) || bot->HasSpellCooldown(info->Id) ||
+                CompanionStands(info))
+                continue;
+
+            if (priorities.empty())
+                priorities = RotationPriorities();
+            auto const line = priorities.find(name);
+            missing.push_back({ info->Id, line != priorities.end(), line != priorities.end() ? line->second : 0.0f,
+                                AscensionNecromancer::Cost(bot, info->Id),
+                                info->HasEffect(SPELL_EFFECT_SUMMON_PET) });
+        }
+        return missing;
+    }
+
+    time_t nextCheck = 0;
+    std::map<uint32, time_t> benched;
+};
+
 // A group member, the bot included, carries something the bot knows how to dispel.
 class CoaDispelTrigger : public Trigger
 {
@@ -4977,7 +5135,8 @@ public:
 
     void InitTriggers(std::vector<TriggerNode*>& triggers) override
     {
-        triggers.push_back(new TriggerNode("often", { NextAction("coa buff", ACTION_NORMAL + 5) }));
+        triggers.push_back(new TriggerNode("often", { NextAction("coa buff", ACTION_NORMAL + 5),
+                                                      NextAction("coa summon companions", ACTION_NORMAL + 4) }));
         // A healer heals a group member in danger even outside a fight, before drinking or buffing.
         triggers.push_back(new TriggerNode("coa group member dropping", { NextAction("coa heal", ACTION_CRITICAL_HEAL) }));
         // And it closes the distance while the group fights: too far to heal, it would never be in a
@@ -5061,6 +5220,7 @@ public:
         creators["coa priority add"] = &CoaActionFactoryInternal::coa_priority_add;
         creators["coa interrupt"] = &CoaActionFactoryInternal::coa_interrupt;
         creators["coa buff"] = &CoaActionFactoryInternal::coa_buff;
+        creators["coa summon companions"] = &CoaActionFactoryInternal::coa_summon_companions;
         creators["coa stay near tank"] = &CoaActionFactoryInternal::coa_stay_near_tank;
         creators["coa reach healing range"] = &CoaActionFactoryInternal::coa_reach_healing_range;
         creators["coa say low mana"] = &CoaActionFactoryInternal::coa_say_low_mana;
@@ -5092,6 +5252,7 @@ private:
     static Action* coa_priority_add(PlayerbotAI* botAI) { return new CoaPriorityAddAction(botAI); }
     static Action* coa_interrupt(PlayerbotAI* botAI) { return new CoaInterruptAction(botAI); }
     static Action* coa_buff(PlayerbotAI* botAI) { return new CoaBuffAction(botAI); }
+    static Action* coa_summon_companions(PlayerbotAI* botAI) { return new CoaSummonCompanionsAction(botAI); }
     static Action* coa_stay_near_tank(PlayerbotAI* botAI) { return new CoaStayNearTankAction(botAI); }
     static Action* coa_reach_healing_range(PlayerbotAI* botAI) { return new CoaReachHealingRangeAction(botAI); }
     static Action* coa_say_low_mana(PlayerbotAI* botAI) { return new CoaSayLowManaAction(botAI); }
