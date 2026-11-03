@@ -9,3 +9,8 @@ if ("mod-playerbots-auctions" IN_LIST MODULES_MODULE_LIST AND
             "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/src/Ai/Base/Actions/LootRollAction.cpp"
         APPEND PROPERTY COMPILE_DEFINITIONS PLAYERBOTS_WITH_AUCTIONS)
 endif()
+
+set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_INCLUDES
+    "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/src/Ai/Base/Actions")
+set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_SOURCES
+    "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/tests/MailTakeRulesTest.cpp")

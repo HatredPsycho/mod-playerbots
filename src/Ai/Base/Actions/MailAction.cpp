@@ -8,6 +8,7 @@
 #include "ChatHelper.h"
 #include "Event.h"
 #include "Mail.h"
+#include "MailTakeRules.h"
 #include "Playerbots.h"
 
 std::map<std::string, MailProcessor*> MailAction::processors;
@@ -87,45 +88,58 @@ public:
             return false;
         }
 
+        bool const hadTakeableContent = HasTakeableContent(*mail);
+        if (!hadTakeableContent)
+            return true;
+
         ObjectGuid mailbox = FindMailbox(botAI);
         if (mail->money)
         {
             std::ostringstream out;
             out << mail->subject << ", |cffffff00" << ChatHelper::formatMoney(mail->money) << "|cff00ff00 processed";
-            botAI->TellMaster(out.str());
 
             WorldPacket packet;
             packet << mailbox;
             packet << mail->messageID;
             bot->GetSession()->HandleMailTakeMoney(packet);
-            RemoveMail(bot, mail->messageID, mailbox);
-        }
-        else if (!mail->items.empty())
-        {
-            std::vector<uint32> guids;
-            for (MailItemInfoVec::iterator i = mail->items.begin(); i != mail->items.end(); ++i)
-                if (sObjectMgr->GetItemTemplate(i->item_template))
-                    guids.push_back(i->item_guid);
 
-            for (std::vector<uint32>::iterator i = guids.begin(); i != guids.end(); ++i)
-            {
-                WorldPacket packet;
-                packet << mailbox;
-                packet << mail->messageID;
-                packet << *i;
-
-                Item* item = bot->GetMItem(*i);
-
-                std::ostringstream out;
-                out << mail->subject << ", " << ChatHelper::FormatItem(item->GetTemplate()) << "|cff00ff00 processed";
-
-                bot->GetSession()->HandleMailTakeItem(packet);
+            if (!mail->money)
                 botAI->TellMaster(out.str());
-            }
-
-            RemoveMail(bot, mail->messageID, mailbox);
         }
 
+        std::vector<uint32> guids;
+        for (MailItemInfoVec::iterator i = mail->items.begin(); i != mail->items.end(); ++i)
+            if (sObjectMgr->GetItemTemplate(i->item_template))
+                guids.push_back(i->item_guid);
+
+        for (std::vector<uint32>::iterator i = guids.begin(); i != guids.end(); ++i)
+        {
+            Item* item = bot->GetMItem(*i);
+            if (!item)
+                continue;
+
+            WorldPacket packet;
+            packet << mailbox;
+            packet << mail->messageID;
+            packet << *i;
+
+            std::ostringstream out;
+            out << mail->subject << ", " << ChatHelper::FormatItem(item->GetTemplate()) << "|cff00ff00 processed";
+
+            size_t const itemsBefore = mail->items.size();
+            bot->GetSession()->HandleMailTakeItem(packet);
+
+            if (mail->items.size() < itemsBefore)
+                botAI->TellMaster(out.str());
+        }
+
+        if (!CanRemoveAfterTake(*mail, hadTakeableContent))
+        {
+            botAI->TellError(mail->subject + ": could not take everything, the mail stays in the mailbox");
+            return false;
+        }
+
+        RemoveMail(bot, mail->messageID, mailbox);
         return true;
     }
 
