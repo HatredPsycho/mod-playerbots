@@ -386,6 +386,12 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
         bot->CleanupAfterTaxiFlight();
     }
 
+    // Bots send no movement opcodes, so m_lastFallZ stays frozen and Player::IsFalling() (a Z test
+    // against it) blocks LFG teleports and other "falling" checks. Unit::IsFalling() is the flag test, so
+    // real falls keep theirs.
+    if (!bot->Unit::IsFalling())
+        bot->SetFallInformation(0, bot->GetPositionZ());
+
     // Handle cheat options (set bot health and power if cheats are enabled)
     if (bot->IsAlive() &&
         (static_cast<uint32>(GetCheat()) > 0 || static_cast<uint32>(sPlayerbotAIConfig.botCheatMask) > 0))
@@ -2047,7 +2053,7 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
 {
     static const std::vector<std::string> allInstanceStrategies =
     {
-        "aq20", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan",
+        "aq20", "aq40", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan",
         "magtheridon", "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt",
         "tbc-seth", "tbc-ub", "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm",
         "vanilla-mara", "vanilla-rfc", "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm",
@@ -2121,6 +2127,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 509:
             strategyName = "aq20";  // Ruins of Ahn'Qiraj
+            break;
+        case 531:
+            strategyName = "aq40";  // Temple of Ahn'Qiraj
             break;
         case 532:
             strategyName = "karazhan";  // Karazhan
@@ -5099,7 +5108,10 @@ bool PlayerbotAI::HasAuraToDispel(Unit* target, uint32 dispelType)
     if (!IsValidPlayer(bot))
         return false;
 
-    bool isFriend = bot->IsFriendlyTo(target);
+    // A group member under an enemy's mind control (Dominate Mind 20604 at Lucifron, 14515 in Razorgore's room)
+    // is still dispelled as a friend, as the core does (Unit::GetDispellableAuraList, original faction).
+    bool isFriend =
+        bot->IsFriendlyTo(target) || (target->IsCharmed() && target->GetReactionTo(bot, true) >= REP_FRIENDLY);
 
     Unit::VisibleAuraMap const* visibleAuras = target->GetVisibleAuras();
     if (!visibleAuras)
@@ -5248,7 +5260,7 @@ Player* PlayerbotAI::FindNewMaster()
             return member;
 
         if (bot->InBattleground() && bot->GetBattleground() &&
-            bot->GetBattleground()->GetBgTypeID() == BATTLEGROUND_AV && !GET_PLAYERBOT_AI(member) &&
+            bot->GetBattleground()->GetBgTypeID(true) == BATTLEGROUND_AV && !GET_PLAYERBOT_AI(member) &&
             member->InBattleground() && bot->GetMapId() == member->GetMapId())
         {
             // Skip if same BG but same subgroup or lower level

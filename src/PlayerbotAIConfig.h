@@ -507,6 +507,10 @@ public:
     std::set<uint32> coaExcludedSpecializations;
     std::set<uint32> coaOffensiveHealerSpecs;
     std::set<uint32> coaMeleeHealerSpecs;
+    // Percent of their damage bots of a class or specialization deal (AiPlayerbot.CoaBotDamageByClass / BySpec).
+    std::unordered_map<uint32, uint32> coaBotDamagePctByClass;
+    std::unordered_map<uint32, uint32> coaBotDamagePctBySpec;
+    bool coaBotDamageVsPlayers = false;
     uint32 zoneCrowdLimit;
     std::set<std::string> coaHealsExcluded;
     bool lootLog;
@@ -581,6 +585,8 @@ public:
     bool randomBotTransmog;
     uint32 randomBotTransmogPercent;
     uint32 randomBotTransmogMinLevel;
+    // Bot gear rolls its random property or suffix like a looted item instead of the best one for the spec.
+    bool gearRollRandomSuffix;
 
     uint32 useGroundMountAtMinLevel;
     uint32 useFastGroundMountAtMinLevel;

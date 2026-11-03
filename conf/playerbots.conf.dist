@@ -690,6 +690,13 @@ AiPlayerbot.RandomBotTransmogPercent = 50
 # Default: 10
 AiPlayerbot.RandomBotTransmogMinLevel = 10
 
+# Random property and random suffix of the gear given to bots ("of the Bear", "of the Eagle"...).
+# By default each item takes the property or suffix that scores best for the bot's spec, so bots of the same
+# spec show the same suffix on every item. Enable to roll it like a looted item instead: more variety (useful with
+# custom suffix pools), slightly weaker bots. Applies to every gear the factory gives (random bots, autogear).
+# Default: 0 (best for the spec)
+AiPlayerbot.GearRollRandomSuffix = 0
+
 # If 1 (enabled) chat command: autogear bis, gives bots BiS gear from the playerbots_bis_gear table
 # whose item-level floor matches AutoGearScoreLimit (e.g. 290 = ICC, 245 = ToC,
 # 125 = Kara, 78 = MC). See the AutoGearScoreLimit comment below for the full list.
@@ -2299,6 +2306,29 @@ AiPlayerbot.CoaOffensiveHealerSpecs = 40,43
 #        Default:     40 (Cultist Heretic)
 
 AiPlayerbot.CoaMeleeHealerSpecs = 40
+
+#    AiPlayerbot.CoaBotDamageByClass
+#        Description: Percent of their damage the bots of a class deal, to even out classes whose rotation is behind:
+#                     "Tinker:200, Ranger:150" (class name or id, then a percent from 1 to 1000; 100 = unchanged).
+#                     Bots only, with their pets and summons: a human player's damage is never changed.
+#                     Read again by .reload config.
+#        Default:     "" (every class at 100%)
+
+AiPlayerbot.CoaBotDamageByClass = ""
+
+#    AiPlayerbot.CoaBotDamageBySpec
+#        Description: The same by specialization id (as in AiPlayerbot.CoaMeleeHealerSpecs), "40:120, 43:130".
+#                     A specialization listed here wins over its class.
+#        Default:     ""
+
+AiPlayerbot.CoaBotDamageBySpec = ""
+
+#    AiPlayerbot.CoaBotDamageVsPlayers
+#        Description: 0 = the two settings above only change the damage bots deal to creatures; 1 = to players too
+#                     (battlegrounds, duels, world PvP).
+#        Default:     0
+
+AiPlayerbot.CoaBotDamageVsPlayers = 0
 #    AiPlayerbot.ZoneCrowdLimit
 #        Description: When a random bot is sent to a leveling spot, zones that already hold this many random bots
 #                     of about its level (5 levels either way) are left out, so that bots spread over the zones of

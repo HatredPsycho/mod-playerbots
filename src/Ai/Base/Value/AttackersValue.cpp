@@ -45,7 +45,7 @@ GuidVector AttackersValue::Calculate()
     {
         ObjectGuid skullGuid = group->GetTargetIcon(7);
         Unit* skullTarget = botAI->GetUnit(skullGuid);
-        if (skullTarget && IsValidTarget(skullTarget, bot))
+        if (skullTarget && IsValidTarget(skullTarget, bot) && IsMarkedTargetAllowed(skullTarget, bot))
             targets.insert(skullTarget);
     }
 
@@ -55,14 +55,16 @@ GuidVector AttackersValue::Calculate()
     if (bot->duel && bot->duel->Opponent)
         result.push_back(bot->duel->Opponent->GetGUID());
 
-    // workaround for bots of same faction not fighting in arena
-    if (bot->InArena())
+    // players are never on threat lists: add valid enemy players in arenas, and within 40 yd in battlegrounds (the
+    // distance an idle bot picks enemy players from)
+    if (bot->InBattleground())
     {
         GuidVector possibleTargets = AI_VALUE(GuidVector, "possible targets");
         for (ObjectGuid const guid : possibleTargets)
         {
             Unit* unit = botAI->GetUnit(guid);
-            if (unit && unit->IsPlayer() && IsValidTarget(unit, bot))
+            if (unit && unit->IsPlayer() && IsValidTarget(unit, bot) &&
+                (bot->InArena() || bot->IsWithinDist(unit, 40.0f)))
                 result.push_back(unit->GetGUID());
         }
     }
@@ -287,6 +289,31 @@ bool AttackersValue::IsPossibleTarget(Unit* attacker, Player* bot, float /*range
 bool AttackersValue::IsValidTarget(Unit* attacker, Player* bot)
 {
     return IsPossibleTarget(attacker, bot) && bot->IsWithinLOSInMap(attacker);
+}
+
+// CoA: Manastorm puts the skull on each floor's boss (Manastorm.Objective.RaidSkull), about 50 yd from the entrance,
+// in sight, behind its guards and the dungeon's own packs. That skull is no pull order until someone of the group
+// fights the boss: the bots ran alone onto it through the packs and died, floor after floor (issue #59, Discord 01/11).
+bool AttackersValue::IsMarkedTargetAllowed(Unit* target, Player* bot)
+{
+    if (!target || !bot->GetMap()->IsScriptedPrivateInstance())
+        return true;
+
+    if (Unit* victim = target->GetVictim())
+        if (Player* owner = victim->GetCharmerOrOwnerPlayerOrPlayerItself())
+            if (owner == bot || bot->IsInSameRaidWith(owner))
+                return true;
+
+    if (target->IsEngagedBy(bot))
+        return true;
+
+    if (Group* group = bot->GetGroup())
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+            if (Player* member = ref->GetSource())
+                if (member->IsInWorld() && member->GetMapId() == bot->GetMapId() && target->IsEngagedBy(member))
+                    return true;
+
+    return false;
 }
 
 bool PossibleAddsValue::Calculate()

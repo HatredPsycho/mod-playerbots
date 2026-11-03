@@ -32,7 +32,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.8.4";
+static constexpr char const* COA_BOTS_VERSION = "2.9";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -617,10 +617,13 @@ public:
                 break;
         }
 
-        bgStrategies[bg->GetInstanceID()] = data;
+        BGTactics::SetBotStrategies(bg->GetInstanceID(), data);
     }
 
-    void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override { bgStrategies.erase(bg->GetInstanceID()); }
+    void OnBattlegroundEnd(Battleground* bg, TeamId /*winnerTeam*/) override
+    {
+        BGTactics::ClearBotStrategies(bg->GetInstanceID());
+    }
 };
 
 // Workaround for missing InitEnabledHooksIfNeeded for new BattlefieldScript in ScriptMgr
@@ -642,6 +645,7 @@ void AddSC_IcecrownBotScripts();
 void AddSC_RubySanctumBotScripts();
 void AddSC_randombot_level_mgr();
 
+void AddSC_coa_bot_damage_scale();
 void AddSC_coa_group_telemetry();
 void AddSC_coa_status_file();
 void AddSC_coa_arena_ready();
@@ -677,6 +681,7 @@ void AddPlayerbotsScripts()
     AddSC_IcecrownBotScripts();
     AddSC_RubySanctumBotScripts();
     AddSC_randombot_level_mgr();
+    AddSC_coa_bot_damage_scale();
     AddSC_coa_group_telemetry();
     AddSC_coa_status_file();
     AddSC_coa_arena_ready();
