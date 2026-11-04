@@ -31,6 +31,47 @@ CoaCompanionCandidate Pet(std::uint32_t spell, float priority)
 }
 }
 
+TEST(CoaCompanionSummon, RaiseOccupyingLifeForceCountsThoughItsPropertiesAreWild)
+{
+    EXPECT_TRUE(IsCoaCompanionSummon(1, false));
+}
+
+TEST(CoaCompanionSummon, FollowerPropertiesCountWithoutLifeForce)
+{
+    EXPECT_TRUE(IsCoaCompanionSummon(0, true));
+}
+
+TEST(CoaCompanionSummon, WildSummonWithoutLifeForceDoesNotCount)
+{
+    EXPECT_FALSE(IsCoaCompanionSummon(0, false));
+}
+
+TEST(CoaCompanionWanted, RaiseStaysWantedThoughOneOfItsMinionsStands)
+{
+    EXPECT_TRUE(IsCoaCompanionWanted(1, true));
+}
+
+TEST(CoaCompanionWanted, CompanionWithoutLifeForceIsWantedOnlyUntilItStands)
+{
+    EXPECT_TRUE(IsCoaCompanionWanted(0, false));
+    EXPECT_FALSE(IsCoaCompanionWanted(0, true));
+}
+
+TEST(CoaCompanionOrder, RaisesRepeatUntilLifeForceIsSpent)
+{
+    std::vector<CoaCompanionCandidate> const known = { Listed(Abomination, 31.0f, 3), Unlisted(Ghoul, 1) };
+    std::uint8_t freeLifeForce = 5;
+    std::vector<std::uint32_t> raised;
+    while (std::uint32_t const spell = ChooseCoaCompanion(known, freeLifeForce, false))
+    {
+        raised.push_back(spell);
+        freeLifeForce -= spell == Abomination ? 3 : 1;
+    }
+
+    EXPECT_EQ(raised, (std::vector<std::uint32_t>{ Abomination, Ghoul, Ghoul }));
+    EXPECT_EQ(freeLifeForce, 0);
+}
+
 TEST(CoaCompanionOrder, HighestRotationPriorityComesFirst)
 {
     EXPECT_EQ(ChooseCoaCompanion({ Listed(Abomination, 30.0f, 3), Listed(SkeletalRogue, 31.0f, 1) }, 4, false),

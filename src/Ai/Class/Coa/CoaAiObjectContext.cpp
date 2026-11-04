@@ -3898,11 +3898,12 @@ private:
 
 // A companion that stays until dismissed: what a rotation line only raises once the fight has begun. Neither a
 // critter, a totem or a vehicle, nor a creature the summon leaves wild, nor one the caster would have to steer.
-bool IsPermanentCompanionSpell(SpellInfo const* info)
+bool IsPermanentCompanionSpell(Player* bot, SpellInfo const* info)
 {
     if (info->IsPassive() || info->GetMaxDuration() >= 0 || PossessesTarget(info))
         return false;
 
+    uint8 const lifeForceCost = AscensionNecromancer::Cost(bot, info->Id);
     for (SpellEffectInfo const& effect : info->Effects)
     {
         if (effect.MiscValue <= 0)
@@ -3913,10 +3914,11 @@ bool IsPermanentCompanionSpell(SpellInfo const* info)
             continue;
 
         SummonPropertiesEntry const* properties = sSummonPropertiesStore.LookupEntry(effect.MiscValueB);
-        if (properties && properties->Category != SUMMON_CATEGORY_WILD &&
+        bool const propertiesFollowOwner = properties && properties->Category != SUMMON_CATEGORY_WILD &&
             properties->Category != SUMMON_CATEGORY_VEHICLE && properties->Type != SUMMON_TYPE_TOTEM &&
             properties->Type != SUMMON_TYPE_MINIPET && properties->Type != SUMMON_TYPE_VEHICLE &&
-            properties->Type != SUMMON_TYPE_VEHICLE2)
+            properties->Type != SUMMON_TYPE_VEHICLE2;
+        if (IsCoaCompanionSummon(lifeForceCost, propertiesFollowOwner))
             return true;
     }
     return false;
@@ -3932,7 +3934,8 @@ public:
     {
         time_t const now = time(nullptr);
         if (now < nextCheck || !botAI->HasGameClientMaster() || bot->IsInCombat() || bot->IsMounted() ||
-            bot->IsInFlight() || !bot->IsAlive() || !bot->IsStandState() || bot->IsNonMeleeSpellCast(false, true, true))
+            bot->IsInFlight() || !bot->IsAlive() || !bot->IsStandState() || bot->isMoving() ||
+            bot->IsNonMeleeSpellCast(false, true, true))
             return false;
 
         nextCheck = now + CheckSeconds;
@@ -3951,15 +3954,17 @@ public:
         if (!info)
             return false;
 
-        benched[chosen] = now + BenchSeconds;
-        return StrictCheck(bot, info, bot) == SPELL_CAST_OK && botAI->CastSpell(chosen, bot);
+        bool const cast = StrictCheck(bot, info, bot) == SPELL_CAST_OK && botAI->CastSpell(chosen, bot);
+        if (!cast || !AscensionNecromancer::Cost(bot, chosen))
+            benched[chosen] = now + BenchSeconds;
+        return cast;
     }
 
     bool isUseful() override { return botAI->HasGameClientMaster(); }
 
 private:
     static constexpr time_t CheckSeconds = 3;
-    // The creature appears with the cast or the cast went wrong: either way not again at once.
+    // The cast went wrong, or it raised the one creature of a spell that takes no Life Force: not again at once.
     static constexpr time_t BenchSeconds = 30;
     static constexpr float SearchRange = 100.0f;
 
@@ -4022,26 +4027,28 @@ private:
                 continue;
 
             SpellInfo const* candidate = sSpellMgr->GetSpellInfo(id);
-            if (!candidate || !IsPermanentCompanionSpell(candidate))
+            if (!candidate || !IsPermanentCompanionSpell(bot, candidate))
                 continue;
 
             std::string const name = candidate->SpellName[LOCALE_enUS];
             uint32 const best = context->GetValue<uint32>("spell id", name)->Get();
             SpellInfo const* info = best ? sSpellMgr->GetSpellInfo(best) : candidate;
-            if (!info || !IsPermanentCompanionSpell(info) || !seen.insert(info->Id).second)
+            if (!info || !IsPermanentCompanionSpell(bot, info) || !seen.insert(info->Id).second)
                 continue;
 
             auto const bench = benched.find(info->Id);
-            if ((bench != benched.end() && bench->second > now) || bot->HasSpellCooldown(info->Id) ||
-                CompanionStands(info))
+            if ((bench != benched.end() && bench->second > now) || bot->HasSpellCooldown(info->Id))
+                continue;
+
+            uint8 const lifeForceCost = AscensionNecromancer::Cost(bot, info->Id);
+            if (!IsCoaCompanionWanted(lifeForceCost, !lifeForceCost && CompanionStands(info)))
                 continue;
 
             if (priorities.empty())
                 priorities = RotationPriorities();
             auto const line = priorities.find(name);
             missing.push_back({ info->Id, line != priorities.end(), line != priorities.end() ? line->second : 0.0f,
-                                AscensionNecromancer::Cost(bot, info->Id),
-                                info->HasEffect(SPELL_EFFECT_SUMMON_PET) });
+                                lifeForceCost, info->HasEffect(SPELL_EFFECT_SUMMON_PET) });
         }
         return missing;
     }
