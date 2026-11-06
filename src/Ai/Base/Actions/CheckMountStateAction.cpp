@@ -12,6 +12,7 @@
 #include "BattlegroundEY.h"
 #include "BattlegroundWS.h"
 #include "DBCStores.h"
+#include "MountLevelGate.h"
 #include "Event.h"
 #include "PlayerbotAI.h"
 #include "PlayerbotAIConfig.h"
@@ -204,7 +205,8 @@ bool CheckMountStateAction::isUseful()
         return false;
 
     // Not useful when level lower than minimum required
-    if (bot->GetLevel() < sPlayerbotAIConfig.useGroundMountAtMinLevel && !FollowsMountedMasterBelowMinLevel())
+    if (!MountLevelGateAllows(bot->GetLevel(), sPlayerbotAIConfig.useGroundMountAtMinLevel, bot->IsMounted()) &&
+        !FollowsMountedMasterBelowMinLevel())
         return false;
 
     // Allow mounting while transformed only if the form allows it

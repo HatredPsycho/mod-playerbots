@@ -15,4 +15,5 @@ set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_INCLUDES
     "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/src/Ai/Class/Coa")
 set_property(GLOBAL APPEND PROPERTY ACORE_MODULE_TEST_SOURCES
     "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/tests/MailTakeRulesTest.cpp"
-    "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/tests/CoaCompanionOrderTest.cpp")
+    "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/tests/CoaCompanionOrderTest.cpp"
+    "${CMAKE_SOURCE_DIR}/modules/mod-playerbots/tests/MountLevelGateTest.cpp")
