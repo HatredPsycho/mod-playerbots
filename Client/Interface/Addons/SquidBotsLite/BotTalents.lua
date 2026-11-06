@@ -442,24 +442,29 @@ local function ApplyState()
     Changed()
 end
 
-local function InitializeSpecMenu(_, level)
-    if not state or not state.classToken then return end
-    local ok, specs = pcall(C_ClassInfo.GetAllSpecs, state.classToken)
+local function AddSpecButtons(name, classToken, currentSpecID, level)
+    if not name or not classToken then return end
+    local ok, specs = pcall(C_ClassInfo.GetAllSpecs, classToken)
     if not ok or type(specs) ~= "table" then return end
     for _, spec in ipairs(specs) do
-        local infoOk, specInfo = pcall(C_ClassInfo.GetSpecInfo, state.classToken, spec)
+        local infoOk, specInfo = pcall(C_ClassInfo.GetSpecInfo, classToken, spec)
         if infoOk and type(specInfo) == "table" and specInfo.ID then
             local info = UIDropDownMenu_CreateInfo()
             info.text = specInfo.Name
-            info.checked = specInfo.ID == state.specID
+            info.checked = specInfo.ID == currentSpecID
             info.func = function()
-                if specInfo.ID == state.specID then return end
-                StaticPopupDialogs.COACOMPANION_BOT_SPEC.text = string.format(T("SPEC_ASK"), botName, specInfo.Name)
-                StaticPopup_Show("COACOMPANION_BOT_SPEC", nil, nil, specInfo.ID)
+                if specInfo.ID == currentSpecID then return end
+                StaticPopupDialogs.COACOMPANION_BOT_SPEC.text = string.format(T("SPEC_ASK"), name, specInfo.Name)
+                StaticPopup_Show("COACOMPANION_BOT_SPEC", nil, nil, { name = name, specID = specInfo.ID })
             end
             UIDropDownMenu_AddButton(info, level)
         end
     end
+end
+
+local function InitializeSpecMenu(_, level)
+    if not state then return end
+    AddSpecButtons(botName, state.classToken, state.specID, level)
 end
 
 local function Save()
@@ -585,11 +590,32 @@ StaticPopupDialogs.COACOMPANION_BOT_RESET = {
 
 StaticPopupDialogs.COACOMPANION_BOT_SPEC = {
     text = "", button1 = YES, button2 = NO, timeout = 0, whileDead = true, hideOnEscape = true,
-    OnAccept = function(_, specID)
-        wipe(pending)
-        Request("SPEC", tostring(specID))
+    OnAccept = function(_, choice)
+        if not choice or not choice.name then return end
+        if choice.name == botName then wipe(pending) end
+        SendAddonMessage(PREFIX, "SPEC\t" .. choice.name .. "\t" .. tostring(choice.specID), "WHISPER",
+            UnitName("player"))
     end,
 }
+
+local botSpecs, botSpecAsked = {}, {}
+
+function CoACompanionBots_AddBotSpecButtons(name, classToken, level)
+    AddSpecButtons(name, classToken, botSpecs[name], level)
+end
+
+function CoACompanionBots_BotSpecName(name)
+    local specID = name and botSpecs[name]
+    if not specID or specID == 0 then return nil end
+    local ok, specInfo = pcall(C_ClassInfo.GetSpecInfoByID, specID)
+    return ok and type(specInfo) == "table" and specInfo.Name or nil
+end
+
+function CoACompanionBots_QueryBotSpec(name)
+    if not name or botSpecs[name] ~= nil or botSpecAsked[name] then return end
+    botSpecAsked[name] = true
+    SendAddonMessage(PREFIX, "GET\t" .. name, "WHISPER", UnitName("player"))
+end
 
 function CoACompanionBots_OpenBotTalents(name)
     if not name then return end
@@ -615,6 +641,11 @@ end
 local function OnMessage(message)
     local parts = Split(message, "\t")
     local kind, name = parts[1], parts[2]
+    if kind == "BEGIN" and name then
+        botSpecs[name] = tonumber(parts[4]) or 0
+    elseif kind == "END" and name and SquidBotsLite_OnBotSpec then
+        SquidBotsLite_OnBotSpec(name)
+    end
     if not frame or name ~= botName then return end
     if kind == "BEGIN" then
         incoming = { level = tonumber(parts[3]) or 1, specID = tonumber(parts[4]) or 0, entries = {},
