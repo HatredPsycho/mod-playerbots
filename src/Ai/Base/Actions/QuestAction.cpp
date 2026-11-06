@@ -100,7 +100,7 @@ bool QuestAction::CompleteQuest(Player* player, uint32 entry)
         uint8 msg = player->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, id, count - curItemCount);
         if (msg == EQUIP_ERR_OK)
         {
-            Item* item = player->StoreNewItem(dest, id, true);
+            Item* item = player->StoreNewItem(dest, id, true, Item::GenerateItemRandomPropertyId(id));
             player->SendNewItem(item, count - curItemCount, true, false);
         }
     }
@@ -200,8 +200,18 @@ bool QuestAction::ProcessQuests(WorldObject* questGiver)
     bot->SetTarget(guid);
     if (!CoaQuestMenuFits(guid))
     {
-        botAI->TellError("Too many quests on this board");
-        return false;
+        // A Call Board or mission board: an alt follows its player there without a quest menu; random bots skip it.
+        Player* master = botAI->GetMaster();
+        if (!master || master == bot || GET_PLAYERBOT_AI(master))
+        {
+            botAI->TellError("Too many quests on this board");
+            return false;
+        }
+
+        bool processed = false;
+        for (Quest const* quest : CoaBigBoardQuests(bot, master, guid))
+            processed |= ProcessQuest(quest, questGiver);
+        return processed;
     }
     bot->PrepareQuestMenu(guid);
 

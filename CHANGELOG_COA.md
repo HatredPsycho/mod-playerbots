@@ -1,6 +1,41 @@
 # CoA Bots — changelog
 
-## v2.9.2 (in progress)
+## v2.9.3 (5 November 2026)
+
+- **Random bots mount with you**: on a mount that can also fly (most Conquest of Azeroth mounts), the random bots of your
+  group stayed on foot where nobody can fly, while your alts rode along; they now take their ground mount there.
+- **Suffixes of the bots' gear**: the suffix chosen for a bot weighs stamina for every role (and defense, dodge and parry
+  for a tank) instead of the most damage or healing, so bots no longer wear "glass cannon" gear; among suffixes as good
+  for the role, each bot picks its own. `AiPlayerbot.GearRollRandomSuffix = 2` rolls the suffix like a looted item for
+  every bot, alts included (0 and 1 unchanged). Items a bot gets directly (starter kit, quest items) roll a suffix as
+  a player's would, and the BiS command gives the best suffix for the spec.
+- **Whole sets for the bots' look**: a random bot with a transmog shows one whole item set on its armor slots (all
+  eight pieces), never mixed pieces: an armor set of its type, or one of the cosmetic sets (such as the ones sold by
+  Tiraxis) once it has the set's level, for `AiPlayerbot.RandomBotTransmogCosmeticSets` percent of them (new, 50). Only
+  the look changes: the real gear and its stats stay.
+- **Gear above the bot's level**: a random bot brought down in level no longer keeps equipped items it could not wear
+  at its new level (a level 38 hat on a level 13 bot): they are taken off at login and when the bot is randomized.
+  Alts are never touched.
+- **Raid of 15 (Manastorm)**: a raid of 15 built with bots asks by default for 1 tank and 2 healers (other sizes
+  unchanged), and the player counts as the role chosen in the group when there is one: a tank or a healer player is one
+  less to recruit.
+- **Leaving a dungeon with your bots**: when you leave a dungeon or a raid alive (Dungeon Finder Leave, teleport,
+  hearthstone, exit portal), the bots of your group still inside join you 2 to 3 seconds later; random bots of a
+  Dungeon Finder group leave the group and the instance instead. Not after a death (corpse run), not in battlegrounds
+  or arenas, and not for bots on a mission.
+  After the Dungeon Finder Leave, your alts also leave the Dungeon Finder group and join your group again (you lead it,
+  as before the queue), instead of standing next to you outside your group; the Dungeon Finder's Leave button only
+  teleports you out, so this happens when you leave the Dungeon Finder group itself.
+- **Server start**: a slow or busy PC no longer gets a false "world stopped during startup": the start waits for the
+  worldserver as long as its supervisor runs (up to 5 minutes), and says which of the two happened when it gives up.
+- **Call Boards and mission boards for alts**: at a board of more than 32 quests, an alt now takes the quests of that
+  board its player has in the quest log or handed in today (dailies) or this week (weeklies), and hands in the ones it
+  completed (25 at most per visit), without the quest menu that crashed the server; a daily the alt already did is
+  refused as usual. Random bots still leave these boards alone; other quest givers are unchanged.
+- **`alt take <quest>`** also accepts a plain quest id (the SquidBots Lite popup "your alts take this quest too?"), works
+  at Call Boards, and answers `too_far` when the quest giver is out of the alt's reach and you do not have the quest.
+
+## v2.9.2 (4 November 2026)
 
 - **Gear of grouped bots**: `AiPlayerbot.RandomGearScoreLimit` caps random bots out in the world only; a bot grouped
   under a player in a dungeon or a raid follows the player's item level again, above the cap.

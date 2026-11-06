@@ -9,6 +9,7 @@
 #include "BattleGroundTactics.h"
 #include "CoaBossKnowledge.h"
 #include "BattlefieldScript.h"
+#include "CoaLeaveInstance.h"
 #include "CoaMissionMgr.h"
 #include "Channel.h"
 #include "CityDuels.h"
@@ -32,7 +33,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.9.2";
+static constexpr char const* COA_BOTS_VERSION = "2.9.3";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -199,9 +200,11 @@ public:
         }
     }
 
-    bool OnPlayerBeforeTeleport(Player* /*player*/, uint32 /*mapid*/, float /*x*/, float /*y*/, float /*z*/,
+    bool OnPlayerBeforeTeleport(Player* player, uint32 mapid, float /*x*/, float /*y*/, float /*z*/,
                                 float /*orientation*/, uint32 /*options*/, Unit* /*target*/) override
     {
+        CoaLeaveInstance::OnBeforeTeleport(player, mapid);
+
         /* for now commmented out until proven its actually required
         * havent seen any proof CleanVisibilityReferences() is needed
 
@@ -258,6 +261,9 @@ public:
         {
             playerbotMgr->UpdateAI(diff);
         }
+
+        if (botAI == nullptr)
+            CoaLeaveInstance::OnUpdate(player);
     }
 
     using PlayerScript::OnPlayerCanUseChat;  // keep the base overloads visible
@@ -654,6 +660,7 @@ void AddPlayerbotsNearbyQuestsScripts();
 void AddPlayerbotsAltReagentDepositScripts();
 void AddPlayerbotsBotTalentsScripts();
 void AddSC_random_bot_transmog();
+void AddSC_coa_leave_instance();
 
 void AddPlayerbotsScripts()
 {
@@ -686,5 +693,6 @@ void AddPlayerbotsScripts()
     AddSC_coa_status_file();
     AddSC_coa_arena_ready();
     AddSC_random_bot_transmog();
+    AddSC_coa_leave_instance();
     AddSC_coa_lfg();
 }

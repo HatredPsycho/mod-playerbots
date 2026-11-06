@@ -675,9 +675,10 @@ AiPlayerbot.CoaSelfFoundMaxLevel = 59
 # Default: -1 (automatic)
 AiPlayerbot.CoaSelfFoundBotsPercent = -1
 
-# Random bot transmog: random bots show other models of their armor and weapon types, picked from a whole item
-# set when one fits, with a required level up to 15 below their own. Purely visual: their real gear and stats never
-# change and nothing is saved; a bot keeps the same look at every login until its level changes bracket.
+# Random bot transmog: random bots show other models of their armor and weapon types, with a required level up to
+# 15 below their own. The armor slots show one whole item set (all eight pieces) when one fits, else a model of their
+# own each. Purely visual: their real gear and stats never change and nothing is saved; a bot keeps the same look at
+# every login until its level changes bracket.
 # Not applied to alt bots, to self-found levels (CoaSelfFound), or when CoA.CollectionsForBots >= 2.
 # Default: 1 (enabled)
 AiPlayerbot.RandomBotTransmog = 1
@@ -690,12 +691,19 @@ AiPlayerbot.RandomBotTransmogPercent = 50
 # Default: 10
 AiPlayerbot.RandomBotTransmogMinLevel = 10
 
+# Share of the transmog bots, in percent, that wear a cosmetic set (the artifact-quality appearance sets, such as
+# the ones sold by Tiraxis) once they have its level, whatever their armor type; the others wear an armor set of
+# their type. Only the look changes, as for any transmog.
+# Default: 50
+AiPlayerbot.RandomBotTransmogCosmeticSets = 50
+
 # Random property and random suffix of the gear given to bots ("of the Bear", "of the Eagle"...).
-# By default each item takes the property or suffix that scores best for the bot's spec, so bots of the same
-# spec show the same suffix on every item. Enable to roll it like a looted item instead: more variety (useful with
-# custom suffix pools), slightly weaker bots. Applies to the random bots out in the world only: a bot grouped
-# under a player keeps the best suffix for its spec.
-# Default: 0 (best for the spec)
+# 0: each item takes a property or suffix that scores well for the bot's role (stamina, and defense for a tank,
+#    count too), chosen among the best ones by the bot itself, so bots of the same spec do not all wear the same.
+# 1: rolled like a looted item: more variety (useful with custom suffix pools), slightly weaker bots. Random bots
+#    out in the world only: a bot grouped under a player keeps the choice of 0.
+# 2: rolled like a looted item for every bot, alts and bots grouped under a player included.
+# Default: 0
 AiPlayerbot.GearRollRandomSuffix = 0
 
 # If 1 (enabled) chat command: autogear bis, gives bots BiS gear from the playerbots_bis_gear table

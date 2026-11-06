@@ -98,6 +98,13 @@ bool IsWorldBot(Player* bot)
     return !master || master == bot || GET_PLAYERBOT_AI(master);
 }
 
+// AiPlayerbot.GearRollRandomSuffix: 1 rolls for the random bots out in the world, 2 for every bot.
+bool RollsRandomSuffix(Player* bot)
+{
+    uint32 const level = sPlayerbotAIConfig.gearRollRandomSuffix;
+    return level >= 2 || (level == 1 && IsWorldBot(bot));
+}
+
 constexpr uint32 SPELL_DRUID_THICK_HIDE = 16931;
 constexpr uint32 SPELL_OWLKIN_FRENZY = 48393;
 constexpr uint32 SPELL_PRIMAL_TENACITY = 33957;
@@ -886,6 +893,7 @@ void PlayerbotFactory::Randomize(bool incremental)
 
     bot->GiveLevel(level);
     bot->InitStatsForLevel(true);
+    UnequipAboveLevel(bot);
     CancelAuras();
     // bot->SaveToDB(false, false);
     if (pmo)
@@ -2727,15 +2735,63 @@ static void StoreCoaStarterItems(Player* bot)
         if (entry.Slot < EQUIPMENT_SLOT_END)
         {
             uint16 dest;
-            if (bot->CanEquipNewItem(entry.Slot, dest, entry.ItemId, false) == EQUIP_ERR_OK &&
-                bot->EquipNewItem(dest, entry.ItemId, true))
-                continue;
+            if (bot->CanEquipNewItem(entry.Slot, dest, entry.ItemId, false) == EQUIP_ERR_OK)
+            {
+                if (Item* equipped = bot->EquipNewItem(dest, entry.ItemId, true))
+                {
+                    PlayerbotFactory::RollRandomProperty(bot, equipped);
+                    continue;
+                }
+            }
         }
 
         ItemPosCountVec dest;
         if (bot->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, entry.ItemId, entry.Count) == EQUIP_ERR_OK)
-            bot->StoreNewItem(dest, entry.ItemId, true);
+            bot->StoreNewItem(dest, entry.ItemId, true, Item::GenerateItemRandomPropertyId(entry.ItemId));
     }
+}
+
+void PlayerbotFactory::SetRandomProperty(Player* bot, Item* item, int32 randomPropertyId)
+{
+    if (!item || !randomPropertyId)
+        return;
+
+    bool const equipped = item->IsEquipped();
+    uint8 const slot = item->GetSlot();
+    if (equipped)
+        bot->_ApplyItemMods(item, slot, false);
+    item->SetItemRandomProperties(randomPropertyId);
+    if (equipped)
+        bot->_ApplyItemMods(item, slot, true);
+}
+
+uint32 PlayerbotFactory::UnequipAboveLevel(Player* bot)
+{
+    if (!sRandomPlayerbotMgr.IsRandomBot(bot))
+        return 0;
+
+    uint32 removed = 0;
+    for (uint8 slot = EQUIPMENT_SLOT_START; slot < EQUIPMENT_SLOT_END; ++slot)
+    {
+        Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot);
+        ItemTemplate const* proto = item ? item->GetTemplate() : nullptr;
+        if (!proto || proto->RequiredLevel <= bot->GetLevel())
+            continue;
+
+        bot->DestroyItem(INVENTORY_SLOT_BAG_0, slot, true);
+        ++removed;
+    }
+
+    if (removed)
+        LOG_DEBUG("playerbots", "Bot {} (level {}): {} equipped items above its level taken off", bot->GetName(),
+                  bot->GetLevel(), removed);
+    return removed;
+}
+
+void PlayerbotFactory::RollRandomProperty(Player* bot, Item* item)
+{
+    if (item)
+        SetRandomProperty(bot, item, Item::GenerateItemRandomPropertyId(item->GetEntry()));
 }
 
 void PlayerbotFactory::DressNakedCoaStarter(Player* bot)
@@ -3033,7 +3089,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
 
                         int32 bestRandomProp = 0;
                         if (proto->RandomProperty || proto->RandomSuffix)
-                            bestRandomProp = sPlayerbotAIConfig.gearRollRandomSuffix && IsWorldBot(bot)
+                            bestRandomProp = RollsRandomSuffix(bot)
                                                  ? Item::GenerateItemRandomPropertyId(itemId)
                                                  : calculator.PickBestRandomPropertyId(itemId);
                         items[slot].push_back({itemId, bestRandomProp});
@@ -3134,15 +3190,7 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
             continue;
 
         if (Item* equipped = bot->EquipNewItem(dest, bestItemForSlot, true))
-        {
-            if (bestRandomPropForSlot != 0)
-            {
-                uint8 equipSlot = equipped->GetSlot();
-                bot->_ApplyItemMods(equipped, equipSlot, false);
-                equipped->SetItemRandomProperties(bestRandomPropForSlot);
-                bot->_ApplyItemMods(equipped, equipSlot, true);
-            }
-        }
+            SetRandomProperty(bot, equipped, bestRandomPropForSlot);
         bot->AutoUnequipOffhandIfNeed();
         // if (newItem)
         // {
