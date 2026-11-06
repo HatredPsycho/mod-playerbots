@@ -516,6 +516,12 @@ local function SendableLink(item)
 	return "|c" .. (color or "ffffffff") .. "|Hitem:" .. item.id .. ":0:0:0:0:0:0:0:0|h[" .. (name or "?") .. "]|h|r"
 end
 
+-- From a menu or a click on the sheet no chat box is open, and ChatEdit_InsertLink drops the link: the chat opens with it.
+local function InsertLink(link)
+	if not link or link == "" then return end
+	if not ChatEdit_InsertLink(link) then ChatFrame_OpenChat(link) end
+end
+
 -- An item dropped on the bags goes to the bot by trade: the trade opens, then the item on the cursor is put
 -- in its first slot (TRADE_SHOW). The bot takes what its master gives.
 local pendingDrop
@@ -574,7 +580,7 @@ local function ItemMenu(item)
 		EasyMenu({
 			{ text = item.link, isTitle = true, notCheckable = true },
 			{ text = T("WITHDRAW"), notCheckable = true, func = function() Whisper("bank -" .. link); AfterChange() end },
-			{ text = T("LINK"), notCheckable = true, func = function() ChatEdit_InsertLink(link) end },
+			{ text = T("LINK"), notCheckable = true, func = function() InsertLink(link) end },
 		}, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
 	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 		return
@@ -588,7 +594,7 @@ local function ItemMenu(item)
 		{ text = T("SELL"), notCheckable = true, func = function() Sell(link); AfterChange() end },
 		{ text = T("DEPOSIT"), notCheckable = true, func = function() Whisper("bank " .. link); AfterChange() end },
 		{ text = T("DESTROY"), notCheckable = true, func = function() Destroy(item, link) end },
-		{ text = T("LINK"), notCheckable = true, func = function() ChatEdit_InsertLink(link) end },
+		{ text = T("LINK"), notCheckable = true, func = function() InsertLink(link) end },
 	}, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
 	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 end
@@ -644,7 +650,7 @@ local function BuildGear(page)
 			local link = unit and GetInventoryItemLink(unit, self.slot)
 			if not link then return end
 			if IsShiftKeyDown() then
-				ChatEdit_InsertLink(link)
+				InsertLink(link)
 			elseif mouse == "RightButton" then
 				Whisper("ue " .. link)
 				AfterChange()
@@ -729,7 +735,7 @@ local function BuildBags(page)
 		b:SetScript("OnClick", function(self)
 			if CursorHasItem() then DropOnBags() return end
 			if not self.item then return end
-			if IsShiftKeyDown() then ChatEdit_InsertLink(SendableLink(self.item))
+			if IsShiftKeyDown() then InsertLink(SendableLink(self.item))
 			elseif IsControlKeyDown() and bagMode == "bags" then
 				marked[self.item.id] = not marked[self.item.id] and SendableLink(self.item) or nil
 				Render()
