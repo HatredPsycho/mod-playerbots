@@ -9,12 +9,62 @@
 #include "Event.h"
 #include "ObjectAccessor.h"
 #include "PlayerbotAIConfig.h"
+#include "PlayerbotOperations.h"
 #include "PlayerbotSecurity.h"
 #include "PlayerbotTextMgr.h"
+#include "PlayerbotWorldThreadProcessor.h"
 #include "Playerbots.h"
 #include "WorldPacket.h"
 
+#include <memory>
+#include <mutex>
+#include <unordered_set>
+
+namespace
+{
+std::mutex PendingLock;
+std::unordered_set<ObjectGuid> Pending;
+
+// Frees the bot's place when the queued acceptance ends, run or skipped (the bot left the world before it ran):
+// otherwise that bot turned down every invitation until the server restarted.
+struct PendingRelease
+{
+    ObjectGuid guid;
+    ~PendingRelease()
+    {
+        std::lock_guard<std::mutex> lock(PendingLock);
+        Pending.erase(guid);
+    }
+};
+}
+
+// CMSG_GROUP_ACCEPT is a world thread opcode (PROCESS_THREADUNSAFE): accepting from the bot's map thread made
+// Group::Create change the inviter, who may be on another map, while that map was updated (Map::SendObjectUpdates
+// crash, 06/11). The acceptance and what follows it (strategies, teleport to the inviter) run in the world thread, a
+// few milliseconds later; the invitation may come from an invite queued the same way just before.
 bool AcceptInvitationAction::Execute(Event /*event*/)
+{
+    ObjectGuid const guid = bot->GetGUID();
+    {
+        std::lock_guard<std::mutex> lock(PendingLock);
+        if (!Pending.insert(guid).second)
+            return true;
+    }
+    auto release = std::make_shared<PendingRelease>();
+    release->guid = guid;
+    auto op = std::make_unique<WorldThreadCallOperation>(guid, "AcceptInvitation", [release](Player* player)
+    {
+        PlayerbotAI* ai = GET_PLAYERBOT_AI(player);
+        if (!ai)
+            return false;
+        AcceptInvitationAction action(ai);
+        return action.AcceptNow();
+    });
+    release.reset();
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(std::move(op));
+}
+
+bool AcceptInvitationAction::AcceptNow()
 {
     Group* grp = bot->GetGroupInvite();
     if (!grp)

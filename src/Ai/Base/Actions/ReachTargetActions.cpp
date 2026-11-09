@@ -22,7 +22,6 @@
 #include "CellImpl.h"
 
 static constexpr float GROUP_SIGHT_SPOT_DISTANCE = 3.0f;
-static constexpr uint32 REGAIN_GROUP_SIGHT_TELEPORT_DELAY_MS = 4000;
 
 
 bool ReachTargetAction::Execute(Event /*event*/)
@@ -324,30 +323,17 @@ bool RegainGroupSightAction::Execute(Event /*event*/)
     if (!member)
         return false;
 
+    // A bot standing inside the geometry finds no path at all; it is never ported out, it waits for the fight or
+    // for its master to move it.
     PathGenerator path(bot);
     path.CalculatePath(member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), false);
     PathType const type = path.GetPathType();
-    if (type == PATHFIND_NORMAL || type == PATHFIND_INCOMPLETE)
-    {
-        noPathSince = 0;
-        if (bot->IsNonMeleeSpellCast(false))
-            bot->InterruptNonMeleeSpells(false);
-        return MoveNear(member, GROUP_SIGHT_SPOT_DISTANCE, MovementPriority::MOVEMENT_COMBAT);
-    }
-
-    // No way out means the bot stands inside the geometry, where every path search fails; it is put beside a member
-    // who can see the tank once that has lasted, the same way the player would be ported out by a game master.
-    uint32 const now = getMSTime();
-    if (!noPathSince)
-        noPathSince = now;
-    if (getMSTimeDiff(noPathSince, now) < REGAIN_GROUP_SIGHT_TELEPORT_DELAY_MS)
+    if (type != PATHFIND_NORMAL && type != PATHFIND_INCOMPLETE)
         return false;
 
-    noPathSince = 0;
-    LOG_DEBUG("playerbots", "Bot {} found no path out of {} {} {} and is put beside {}", bot->GetName(),
-              bot->GetPositionX(), bot->GetPositionY(), bot->GetPositionZ(), member->GetName());
-    bot->NearTeleportTo(member->GetPositionX(), member->GetPositionY(), member->GetPositionZ(), member->GetOrientation());
-    return true;
+    if (bot->IsNonMeleeSpellCast(false))
+        bot->InterruptNonMeleeSpells(false);
+    return MoveNear(member, GROUP_SIGHT_SPOT_DISTANCE, MovementPriority::MOVEMENT_COMBAT);
 }
 
 ReachPartyMemberToHealAction::ReachPartyMemberToHealAction(PlayerbotAI* botAI)

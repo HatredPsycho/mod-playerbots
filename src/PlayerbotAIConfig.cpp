@@ -340,6 +340,7 @@ bool PlayerbotAIConfig::Initialize()
     maxRandomBotReviveTime = sConfigMgr->GetOption<int32>("AiPlayerbot.MaxRandomBotReviveTime", 5 * MINUTE);
     minRandomBotTeleportInterval = sConfigMgr->GetOption<int32>("AiPlayerbot.MinRandomBotTeleportInterval", 1 * HOUR);
     maxRandomBotTeleportInterval = sConfigMgr->GetOption<int32>("AiPlayerbot.MaxRandomBotTeleportInterval", 5 * HOUR);
+    refreshClearsInventory = sConfigMgr->GetOption<bool>("AiPlayerbot.RefreshClearsInventory", true);
     permanentlyInWorldTime =
         sConfigMgr->GetOption<int32>("AiPlayerbot.PermanentlyInWorldTime", 1 * YEAR);
     randomBotTeleportDistance = sConfigMgr->GetOption<int32>("AiPlayerbot.RandomBotTeleportDistance", 100);
@@ -766,6 +767,9 @@ bool PlayerbotAIConfig::Initialize()
     randomBotTransmogMinLevel = sConfigMgr->GetOption<uint32>("AiPlayerbot.RandomBotTransmogMinLevel", 10);
     randomBotTransmogCosmeticSets =
         std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.RandomBotTransmogCosmeticSets", 50), 100);
+    playerMainTankRescueHealth =
+        std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.PlayerMainTankRescueHealth", 10), 100);
+    coaTankOrdersSay = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTankOrdersSay", true, false);
     gearRollRandomSuffix = GetSwitchLevel("AiPlayerbot.GearRollRandomSuffix", 0, 2);
     autoGearBisCommand = sConfigMgr->GetOption<int32>("AiPlayerbot.AutoGearBisCommand", 0);
     autoGearQualityLimit = sConfigMgr->GetOption<int32>("AiPlayerbot.AutoGearQualityLimit", 3);
@@ -878,6 +882,7 @@ bool PlayerbotAIConfig::Initialize()
     coaSmartHeal = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartHeal", true);
     coaSmartTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSmartTank", true);
     coaLfgMissingRoles = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLfgMissingRoles", true, false);
+    lfgKeepRandomBots = sConfigMgr->GetOption<bool>("AiPlayerbot.LfgKeepRandomBots", false, false);
     coaHoldBehindTank = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaHoldBehindTank", false, false);
     coaPlayersReplaceBots = std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaPlayersReplaceBots", 0, false), 1000);
     coaPlayersReplaceBotsMin = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaPlayersReplaceBotsMin", 0, false);
@@ -896,6 +901,7 @@ bool PlayerbotAIConfig::Initialize()
     coaAvoidMarkedAlly = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAvoidMarkedAlly", true, false);
     coaMeleeNoRangedHardcast = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaMeleeNoRangedHardcast", true, false);
     coaLootMakeRoom = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLootMakeRoom", true, false);
+    openChestsWithoutOrder = sConfigMgr->GetOption<bool>("AiPlayerbot.OpenChestsWithoutOrder", true, false);
     missionsEnable = sConfigMgr->GetOption<bool>("AiPlayerbot.Missions.Enable", true, false);
     missionsMaxMinutes = std::clamp<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.Missions.MaxMinutes", 120, false), 1, 24 * 60);
     missionsDefaultMinutes = std::clamp<uint32>(
@@ -910,6 +916,8 @@ bool PlayerbotAIConfig::Initialize()
     altChatToAddon = sConfigMgr->GetOption<bool>("AiPlayerbot.AltChatToAddon", true, false);
     catchUpQuestChains = sConfigMgr->GetOption<bool>("AiPlayerbot.CatchUpQuestChains", true, false);
     altDisenchant = sConfigMgr->GetOption<bool>("AiPlayerbot.AltDisenchant", true, false);
+    altLootCompanion = sConfigMgr->GetOption<bool>("AiPlayerbot.AltLootCompanion", true, false);
+    coaTotemRecall = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTotemRecall", true, false);
     guildBankDepositEnable = sConfigMgr->GetOption<bool>("AiPlayerbot.GuildBankDeposit.Enable", true, false);
     LoadGuildBankDepositItems(sConfigMgr->GetOption<std::string>("AiPlayerbot.GuildBankDeposit.Items", "ore,herb,leather,cloth,boe", false));
     guildBankDepositKeepGold = sConfigMgr->GetOption<uint32>("AiPlayerbot.GuildBankDeposit.KeepGold", 100, false);
@@ -991,6 +999,7 @@ bool PlayerbotAIConfig::Initialize()
     RpgStatusProbWeight[RPG_REST] = sConfigMgr->GetOption<int32>("AiPlayerbot.RpgStatusProbWeight.Rest", 5);
     RpgStatusProbWeight[RPG_OUTDOOR_PVP] = sConfigMgr->GetOption<int32>("AiPlayerbot.RpgStatusProbWeight.OutdoorPvp", 10);
     RpgStatusProbWeight[RPG_GO_CITY] = sConfigMgr->GetOption<int32>("AiPlayerbot.RpgStatusProbWeight.GoCity", 10);
+    questMaxDropsPerPass = sConfigMgr->GetOption<uint32>("AiPlayerbot.Quest.MaxDropsPerPass", 1);
 
     syncLevelWithPlayers = sConfigMgr->GetOption<bool>("AiPlayerbot.SyncLevelWithPlayers", false);
     randomBotConcentrateInPlayerZone =

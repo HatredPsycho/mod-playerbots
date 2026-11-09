@@ -261,11 +261,22 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
         {
             auto& data = std::get<NewRpgInfo::GoGrind>(info.data);
             WorldPosition& originalPos = data.pos;
-            assert(data.pos != WorldPosition());
+            if (originalPos == WorldPosition())
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} in GO_GRIND with no destination, back to idle", bot->GetName());
+                info.ChangeToIdle();
+                return true;
+            }
             // GO_GRIND -> WANDER_RANDOM
             if (bot->GetExactDist(originalPos) < 10.0f)
             {
                 info.ChangeToWanderRandom();
+                return true;
+            }
+            // Could not get there in time: pick something else rather than walking forever.
+            if (info.HasStatusPersisted(statusGoGrindDuration))
+            {
+                info.ChangeToIdle();
                 return true;
             }
             break;
@@ -274,11 +285,21 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
         {
             auto& data = std::get<NewRpgInfo::GoCamp>(info.data);
             WorldPosition& originalPos = data.pos;
-            assert(data.pos != WorldPosition());
+            if (originalPos == WorldPosition())
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} in GO_CAMP with no destination, back to idle", bot->GetName());
+                info.ChangeToIdle();
+                return true;
+            }
             // GO_CAMP -> WANDER_NPC
             if (bot->GetExactDist(originalPos) < 10.0f)
             {
                 info.ChangeToWanderNpc();
+                return true;
+            }
+            if (info.HasStatusPersisted(statusGoCampDuration))
+            {
+                info.ChangeToIdle();
                 return true;
             }
             break;
@@ -340,6 +361,14 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
             if (data.inFlight && !bot->IsInFlight())
             {
                 // flight arrival
+                info.ChangeToIdle();
+                return true;
+            }
+            // Never cut a flight short: the cap is for a bot that cannot reach its flight master.
+            if (!bot->IsInFlight() && info.HasStatusPersisted(statusTravelFlightDuration))
+            {
+                LOG_DEBUG("playerbots", "[New RPG] {} gave up travelling to flight master {}", bot->GetName(),
+                          data.flightMasterEntry);
                 info.ChangeToIdle();
                 return true;
             }
@@ -508,7 +537,14 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         int32 currentObjective = data.objectiveIdx;
         // check if the objective has completed
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-        QuestStatusData const& q_status = bot->getQuestStatusMap().at(questId);
+        QuestStatusData const* statusData = GetQuestStatusData(questId);
+        if (!quest || !statusData)
+        {
+            // Template gone from the DB or quest no longer in the log.
+            botAI->rpgInfo.ChangeToIdle();
+            return true;
+        }
+        QuestStatusData const& q_status = *statusData;
         bool completed = true;
         if (currentObjective < QUEST_OBJECTIVES_COUNT)
         {
@@ -581,7 +617,14 @@ bool NewRpgDoQuestAction::DoIncompleteQuest(NewRpgInfo::DoQuest& data)
         int32 currentObjective = data.objectiveIdx;
         // check if the objective has progression
         Quest const* quest = sObjectMgr->GetQuestTemplate(questId);
-        QuestStatusData const& q_status = bot->getQuestStatusMap().at(questId);
+        QuestStatusData const* statusData = GetQuestStatusData(questId);
+        if (!quest || !statusData)
+        {
+            // Template gone from the DB or quest no longer in the log.
+            botAI->rpgInfo.ChangeToIdle();
+            return true;
+        }
+        QuestStatusData const& q_status = *statusData;
         if (currentObjective < QUEST_OBJECTIVES_COUNT)
         {
             if (q_status.CreatureOrGOCount[currentObjective] != 0 && quest->RequiredNpcOrGoCount[currentObjective])
@@ -635,7 +678,13 @@ bool NewRpgDoQuestAction::DoCompletedQuest(NewRpgInfo::DoQuest& data)
             botAI->rpgInfo.ChangeToIdle();
             return false;
         }
-        assert(poiInfo.size() > 0);
+        if (poiInfo.empty())
+        {
+            LOG_DEBUG("playerbots", "[New RPG] {} has no reward POI for quest {}, back to idle", bot->GetName(),
+                      questId);
+            botAI->rpgInfo.ChangeToIdle();
+            return false;
+        }
         // now we get the place to get rewarded
         float dx = poiInfo[0].pos.x, dy = poiInfo[0].pos.y;
         // z = MAX_HEIGHT as we do not know accurate z

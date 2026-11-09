@@ -84,7 +84,6 @@ public:
 
 private:
     Player* FindMemberInSightOf(Unit* tank);
-    uint32 noPathSince = 0;
 };
 
 class ReachPartyMemberToHealAction : public ReachTargetAction

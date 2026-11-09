@@ -100,6 +100,7 @@ namespace TaragamanPillar
     bool HasCore(Creature* pillar);
     bool Hidden(Player* bot, Unit* boss, float x, float y, float z);
     bool SafelyHidden(Player* bot, Unit* boss, float x, float y, float z);
+    bool InCover(Player* bot, Unit* boss, Creature* pillar);
     Position CoverSpot(Player* bot, Unit* boss, Creature* pillar);
     bool IsErupting(Creature* pillar);
     Creature* EruptingNear(Player* bot);

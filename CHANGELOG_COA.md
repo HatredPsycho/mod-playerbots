@@ -1,5 +1,45 @@
 # CoA Bots — changelog
 
+## v2.9.4 (6 November 2026)
+
+- **Player main tank and bot off-tanks** (SquidBots Lite Main Tank bar, or whispered): `tank main on|off|status` makes
+  you the main tank of your bots: the bot tanks no longer take back what is on you (until you fall below
+  `AiPlayerbot.PlayerMainTankRescueHealth`, new, 10 %, or die) and no longer pull for you. `tank target` gives a bot
+  tank your current target and marks it with a raid icon (square, triangle, diamond, cross, star, circle); when it dies
+  the bot helps you on your target. `tank taunt`, `tank swap` (take your target and taunt it) and `tank swap back` (give
+  it back: the bot leaves it to your taunt), `tank hold` (stand where you are and tank there), `tank clear`,
+  `tank status [all]` and `tank spec tank|dps` (out of combat). Random bots of your group take these orders too.
+- **SquidBots Lite answers faster**: an alt tells the addon when it comes online or goes offline (its list updates at
+  once), the bag and bank lists end with an `Items: N` line, a list asked again within 2 seconds is no longer cut
+  short, and a command from you wakes the bot at once instead of waiting up to 18 seconds while it eats or drinks.
+- **Tinker bots no longer build the Firepot Drone in dungeons and raids**: the flying bomb went through walls and floors
+  after its target and pulled whole rooms (a Shadowfang Keep wipe of 38 on the bench).
+- **Dispels and interrupts that land**: bots no longer try to dispel or interrupt while mounted, only cleanse a member
+  within the spell's own range and in sight (another dispeller takes the rest), healers dispel right after their
+  critical heals, cleanses around the caster (Holy Supernova Cleanse) are used for nearby members, and an interrupt is
+  no longer kept for dangerous casts only in raids (5-player dungeons keep that reserve).
+- **Bouncing damage is interrupted first**: a cast whose damage jumps to three targets or more (Holy Wrath at Venoxis
+  in Zul'Gurub, which killed several bots at full health at once) now counts as dangerous, like a heal or crowd control:
+  bots save an interrupt for it and take it before ordinary casts.
+- **Interrupts are kept for dangerous raid bosses**: in a raid, bots no longer interrupt the ordinary casts of an
+  enemy known for dangerous ones (one of its spells is, or that kind of enemy already cast one since the server
+  started); every interrupt is kept for its dangerous casts. At Venoxis the kicks went to Holy Nova and Holy Fire
+  and none was left for Holy Wrath. The rest of the raid still interrupts freely, and dungeons are unchanged.
+- **Trades are answered**: an alt that puts on an item you just traded it now says so ("Equipping [item]"), even with
+  `AiPlayerbot.CoaTellEquipUpgrades` at 0, which keeps loot and regear upgrades silent.
+- **"I don't have the necessary skill"**: bots no longer want, roll need on or try to wear a weapon or armor whose skill
+  they do not have (a mace for a bot without the Maces skill): the item is left for those who can use it.
+- **Raid roles by size**: a raid built with bots (`.playerbots coa raid`, the SquidBots Lite Raid buttons) now asks by
+  default for 2 tanks and 3 healers from 11 to 20 players (Raid 15 had 1 tank and 2 healers), and 2 tanks and 4
+  healers from 21 to 25 (was 3 and 6). 10 and under, and past 25, are unchanged. Tanks and healers you give stay
+  yours: `.playerbots coa raid 25 3 6` keeps the old mix.
+- **Quest givers with many quests**: bots no longer pass by a quest giver whose quest list is long overall but short
+  for them (Gornek and the class quests): the list is counted for the bot, as the game shows it.
+- **Alts with only flying mounts ride along**: when the player rides a ground mount, an alt that only owns flying mounts
+  now takes one that can also run on the ground, instead of walking.
+- **Option to keep the random bots of a Dungeon Finder group** (AiPlayerbot.LfgKeepRandomBots, off by default): when
+  you leave the dungeon alive, they stay in your group and follow you out, so you can queue the same group again.
+
 ## v2.9.3 (5 November 2026)
 
 - **Random bots mount with you**: on a mount that can also fly (most Conquest of Azeroth mounts), the random bots of your

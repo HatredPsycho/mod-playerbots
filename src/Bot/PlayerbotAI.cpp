@@ -7,6 +7,7 @@
 #include "PlayerbotAI.h"
 #include "CurrentTargetValue.h"
 
+#include <set>
 #include <functional>
 #include "RaceMgr.h"
 #include "CoaSpecialization.h"
@@ -53,6 +54,10 @@
 #include "PlayerbotOperations.h"
 #include "PlayerbotTextMgr.h"
 #include "PlayerbotWorldThreadProcessor.h"
+#include "CoaPlayerMainTank.h"
+#include "CoaLootPetAction.h"
+#include "CoaTotemRecall.h"
+#include "CoaTankAction.h"
 #include "Playerbots.h"
 #include "PositionValue.h"
 #include "RBAC.h"
@@ -554,6 +559,12 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
 
     // Update the bot's group status (moved to helper function)
     UpdateAIGroupMaster();
+    // The end of a Main Tank bar order and a stale main tank flag, before the engine runs (RC11).
+    CoaTankOrderTick(this);
+    // The loot pet of an alt (AiPlayerbot.AltLootCompanion).
+    CoaLootCompanionTick(this);
+    // Totems put away after the fight (AiPlayerbot.CoaTotemRecall).
+    CoaTotemRecallTick(this);
 
     // Update internal AI
     UpdateAIInternal(elapsed, minimal);
@@ -736,10 +747,13 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
     RejoinLfgDungeon();
     ResumeFollowAfterMasterRevive();
 
-    // kinda expensive call to make on every single updateAI, do we really need this information?
-    std::string const mapString = WorldPosition(bot).isOverworld() ? std::to_string(bot->GetMapId()) : "I";
-    PerfMonitorOperation* pmo =
-        sPerfMonitor.start(PERF_MON_TOTAL, "PlayerbotAI::UpdateAIInternal " + mapString);
+    // Only build the metric name when the profiler is enabled; start() returns nullptr otherwise.
+    PerfMonitorOperation* pmo = nullptr;
+    if (sPlayerbotAIConfig.perfMonEnabled)
+    {
+        std::string const mapString = WorldPosition(bot).isOverworld() ? std::to_string(bot->GetMapId()) : "I";
+        pmo = sPerfMonitor.start(PERF_MON_TOTAL, "PlayerbotAI::UpdateAIInternal " + mapString);
+    }
 
     ExternalEventHelper helper(aiObjectContext);
 
@@ -772,7 +786,7 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
     {
         WorldSession* botWorldSessionPtr = bot->GetSession();
         bool logout = botWorldSessionPtr->ShouldLogOut(time(nullptr));
-        if (!master || !master->GetSession()->GetPlayer())
+        if (!master || !master->IsInWorld() || !master->GetSession() || !master->GetSession()->GetPlayer())
             logout = true;
 
         if (bot->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) || bot->HasUnitState(UNIT_STATE_IN_FLIGHT) ||
@@ -781,7 +795,7 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
             logout = true;
         }
 
-        if (master &&
+        if (master && master->IsInWorld() &&
             (master->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_RESTING) || master->HasUnitState(UNIT_STATE_IN_FLIGHT) ||
              (master->GetSession() &&
               master->GetSession()->HasPermission(rbac::RBAC_PERM_INSTANT_LOGOUT))))
@@ -817,6 +831,27 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
 
     if (pmo)
         pmo->finish();
+}
+
+// A command of the master (a real player): a list asked again within 2 s (SquidBots Lite refreshing) came back short,
+// because TellMaster drops a line said less than 2 s before, so the master's list commands start from a clean slate;
+// and a command waited for the next AI update, up to 18 s while the bot eats or drinks (as an invitation did), so the
+// master's commands wake it, at most once a second.
+void PlayerbotAI::OnMasterCommand(std::string const& filtered, Player* fromPlayer)
+{
+    if (!fromPlayer || fromPlayer != master || GET_PLAYERBOT_AI(fromPlayer))
+        return;
+
+    static std::set<std::string> const lists = {"c", "bank", "quests all", "mount ?", "talents ?", "co ?", "nc ?", "stats"};
+    if (lists.contains(filtered))
+        whispers.clear();
+
+    time_t const now = time(nullptr);
+    if (now != lastMasterWakeAt)
+    {
+        lastMasterWakeAt = now;
+        SetNextCheckDelay(0);
+    }
 }
 
 void PlayerbotAI::HandleCommands()
@@ -925,6 +960,18 @@ void PlayerbotAI::HandleCommand(uint32 type, std::string const& text, Player& fr
     if (filtered.empty())
         return;
 
+    if (!IsAllowedCommand(filtered) &&
+        !GetSecurity()->CheckLevelFor(PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, type != CHAT_MSG_WHISPER,
+                                      &fromPlayer))
+    {
+        if (filtered == "summon")
+            LOG_WARN("playerbots", "coa summon: {} refuses the summon of {} (its master: {})", bot->GetName(),
+                     fromPlayer.GetName(), master ? master->GetName() : std::string("none"));
+        return;
+    }
+
+    // "debug" answers with the bot's AI state: it goes through the same security gate as every other command
+    // (a player at INVITE level read it before).
     if (filtered.substr(0, 6) == "debug ")
     {
         std::string response = HandleRemoteCommand(filtered.substr(6));
@@ -935,10 +982,7 @@ void PlayerbotAI::HandleCommand(uint32 type, std::string const& text, Player& fr
         return;
     }
 
-    if (!IsAllowedCommand(filtered) &&
-        !GetSecurity()->CheckLevelFor(PlayerbotSecurityLevel::PLAYERBOT_SECURITY_ALLOW_ALL, type != CHAT_MSG_WHISPER,
-                                      &fromPlayer))
-        return;
+    OnMasterCommand(filtered, &fromPlayer);
 
     if (type == CHAT_MSG_RAID_WARNING && filtered.find(bot->GetName()) != std::string::npos &&
         filtered.find("award") == std::string::npos)
@@ -1147,7 +1191,8 @@ void PlayerbotAI::Reset(bool full)
     aiObjectContext->GetValue<ObjectGuid>("pull strategy target")->Set(ObjectGuid::Empty);
     aiObjectContext->GetValue<GuidPosition>("rpg target")->Set(GuidPosition());
     aiObjectContext->GetValue<LootObject>("loot target")->Set(LootObject());
-    aiObjectContext->GetValue<uint32>("lfg proposal")->Set(0);
+    // "lfg proposal" is kept: a bot waiting to accept (in combat, dead, teleported to a graveyard) must still answer.
+    // LfgAcceptAction forgets it once the proposal ends or expires.
     bot->SetTarget();
 
     LastSpellCast& lastSpell = aiObjectContext->GetValue<LastSpellCast&>("last spell cast")->Get();
@@ -1272,6 +1317,12 @@ void PlayerbotAI::HandleCommand(uint32 type, std::string const text, Player* fro
     if (filtered.empty())
         return;
 
+    if (!IsAllowedCommand(filtered) &&
+        (!GetSecurity()->CheckLevelFor(PLAYERBOT_SECURITY_ALLOW_ALL, type != CHAT_MSG_WHISPER, fromPlayer)))
+        return;
+
+    // "debug" answers with the bot's AI state: it goes through the same security gate as every other command
+    // (a player at INVITE level read it before).
     if (filtered.substr(0, 6) == "debug ")
     {
         std::string const response = HandleRemoteCommand(filtered.substr(6));
@@ -1281,9 +1332,8 @@ void PlayerbotAI::HandleCommand(uint32 type, std::string const text, Player* fro
         fromPlayer->SendDirectMessage(&data);
         return;
     }
-    if (!IsAllowedCommand(filtered) &&
-        (!GetSecurity()->CheckLevelFor(PLAYERBOT_SECURITY_ALLOW_ALL, type != CHAT_MSG_WHISPER, fromPlayer)))
-        return;
+
+    OnMasterCommand(filtered, fromPlayer);
 
     if (type == CHAT_MSG_RAID_WARNING && filtered.find(bot->GetName()) != std::string::npos &&
         filtered.find("award") == std::string::npos)
@@ -2053,11 +2103,11 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
 {
     static const std::vector<std::string> allInstanceStrategies =
     {
-        "aq20", "aq40", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan",
-        "magtheridon", "moltencore", "naxx", "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt",
-        "tbc-seth", "tbc-ub", "tempestkeep", "ulduar", "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm",
-        "vanilla-mara", "vanilla-rfc", "vanilla-rfd", "vanilla-rfk", "vanilla-scholo", "vanilla-sfk", "vanilla-sm",
-        "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an", "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
+        "aq20", "aq40", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon", "moltencore", "naxx",
+        "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub", "tempestkeep", "ulduar",
+        "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm", "vanilla-mara", "vanilla-rfc", "vanilla-rfd", "vanilla-rfk",
+        "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an",
+        "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
         "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os",
         "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman", "zulgurub"
     };
@@ -2563,13 +2613,14 @@ bool PlayerbotAI::HasAggro(Unit* unit)
     if (!IsValidUnit(unit))
         return false;
 
-    bool isMT = IsExplicitMainTank(bot);
+    // A player main tank ("tank main on") holds what is on the player, in any spec and even when the group's main
+    // tank flag is on a bot; under the rescue health, the bots take it back (06/11 review, points 2 and 3).
     Unit* victim = unit->GetVictim();
-    if (victim && (victim->GetGUID() == bot->GetGUID() || (!isMT && victim->ToPlayer() && IsTank(victim->ToPlayer()))))
-    {
-        return true;
-    }
-    return false;
+    if (!victim)
+        return false;
+    Player* victimPlayer = victim->ToPlayer();
+    return CoaHasAggro(victim->GetGUID() == bot->GetGUID(), CoaPlayerMainTank::Hold(bot, unit),
+                       victimPlayer && IsTank(victimPlayer), IsExplicitMainTank(bot));
 }
 
 bool PlayerbotAI::IsMovementImpaired(Unit* unit)
@@ -5442,6 +5493,10 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
 
     // bot is waiting in a BG queue — stay active to speed up join
     if (bot->InBattlegroundQueue())
+        return true;
+
+    // a dungeon finder proposal is pending: the bot must answer before it expires
+    if (sLFGMgr->GetState(bot->GetGUID()) == lfg::LFG_STATE_PROPOSAL)
         return true;
 
     // bot is gathering on a mission — far from any player, it still has to walk and gather

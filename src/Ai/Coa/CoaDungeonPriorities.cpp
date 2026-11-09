@@ -178,6 +178,11 @@ bool HealsOrControls(SpellInfo const* info, uint8 depth)
         if (!effect.IsEffect())
             continue;
 
+        // A hit that jumps to three enemies or more (Venoxis' Holy Wrath 2118020, a dummy effect whose
+        // damage comes from the script) can take several players out at once.
+        if (effect.ChainTarget >= 3 && effect.TargetA.GetCheckType() == TARGET_CHECK_ENEMY)
+            return true;
+
         switch (effect.Effect)
         {
             case SPELL_EFFECT_HEAL: case SPELL_EFFECT_HEAL_PCT: case SPELL_EFFECT_HEAL_MAX_HEALTH:

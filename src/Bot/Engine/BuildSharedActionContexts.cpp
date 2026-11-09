@@ -6,6 +6,7 @@
 
 #include "ActionContext.h"
 #include "AiObjectContext.h"
+#include "CoaGardesContext.h"
 #include "Aq20ActionContext.h"
 #include "Aq40ActionContext.h"
 #include "BTActionContext.h"
@@ -83,6 +84,7 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     actionContexts.Add(new VanillaDungeonDMActionContext());
     actionContexts.Add(new CoaDungeonOtherSideActionContext());
     actionContexts.Add(new CoaDungeonVaultsActionContext());
+    actionContexts.Add(new VanillaDungeonDMActionContext());
     actionContexts.Add(new WotlkDungeonUKActionContext());
     actionContexts.Add(new WotlkDungeonNexActionContext());
     actionContexts.Add(new WotlkDungeonANActionContext());
@@ -102,4 +104,5 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     // CoA: generische, parametrisierbare Bausteine (GenericAction)
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     actionContexts.Add(new CoaGenericActionContext());
+    actionContexts.Add(new CoaGardesActionContext());
 }

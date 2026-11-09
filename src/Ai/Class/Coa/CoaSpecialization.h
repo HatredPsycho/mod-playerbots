@@ -135,8 +135,12 @@ uint32 ResetCoaTalents(Player* bot);
 // The Character Advancement entry `entryId`, or null.
 AscensionCompatData::CoATalentEntry const* FindCoaEntry(uint32 entryId);
 
-// The paid entries of the bot's class it may hold now: its class tree and its active specialization's tree.
+// The entries of the bot's class it may hold now, in its class tree and its active specialization's tree: paid, or a
+// free choice of a support specialization.
 bool CoaEntryOffered(Player* bot, AscensionCompatData::CoATalentEntry const& entry);
+
+// The free-choice group of an entry (no cost, one entry of the group at a time), or 0.
+uint32 CoaFreeGroupOf(uint32 entryId);
 
 // Class tree points (AE) and specialization tree points (TE): available at the bot's level, and spent.
 struct CoaPoints
@@ -177,9 +181,33 @@ bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 cla
 void CoaAnnounceJoin(Player* bot, Player* master);
 
 // Turns the master's group into a raid of `size` (25 when 0, 6 to 40) filled with recruited bots:
-// `tanks` tanks and `heals` healers (from the size when 0: 3 and 6 for 25), the rest damage dealers,
+// `tanks` tanks and `heals` healers (from the size when 0, see CoaRaidRoles: 2 and 4 for 25), the rest damage dealers,
 // the classes taken in turn. Members already there count. The outcome is told in `message`.
 bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message);
+// The main tank flag follows the roles (CoaMainTankFlagHolder): a bot holder no longer a tank hands it to the first
+// living tank, or nobody; with assignIfNone a group without it gets one. Raid bots' group roles follow their role.
+// World thread only: CoaQueueMainTankSync queues it from a bot's map update. Not for LFG or battleground groups.
+void CoaSyncMainTankFlag(Group* group, bool assignIfNone);
+// Whether the group is a raid built by ".playerbots coa raid" (the only groups whose flag and roles are kept in step).
+bool CoaIsBuiltRaid(Group const* group);
+// "summon" said by the real-player leader of a built raid (world thread, RC11c): every bot of the raid not beside the
+// leader is brought there, across maps and into the leader's instance; a far teleport stuck over 10 s is finished
+// first. Returns how many teleports were sent; nothing outside a built raid.
+uint32 CoaRegroupRaid(Player* leader);
+// Teleports a bot to the leader (world thread): into the leader's instance, or, when the instance refuses it (a raid in
+// a 5-player dungeon), to that dungeon's door outside; a bot already at the door is left there. WARN on each fallback.
+enum class CoaBringResult
+{
+    Sent,
+    ToDoor,
+    AtDoor,
+    Refused
+};
+CoaBringResult CoaBringBotToLeader(Player* bot, Player* leader, char const* what, bool forceFar = false);
+// The raid check after ".playerbots coa raid" or bots logged in again: CoaRegroupRaid 5 and 15 seconds later.
+void CoaScheduleRegroup(ObjectGuid group, ObjectGuid leader);
+void CoaRegroupUpdate();
+bool CoaQueueMainTankSync(Player* bot);
 
 // The free random bot best placed to play `role` for `master` (same faction, on its map, already of
 // the role, nearest level), of that class when classId is not 0, none of those in `skip`. chosenFits

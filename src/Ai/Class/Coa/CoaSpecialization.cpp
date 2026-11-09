@@ -5,9 +5,15 @@
  */
 
 #include "CoaSpecialization.h"
+#include "CoaMainTankRules.h"
+#include "CoaLfgChatRules.h"
+#include "CoaTalentOfferRules.h"
+#include "PlayerbotOperations.h"
+#include "PlayerbotWorldThreadProcessor.h"
 #include "CoaLevelBuildData.h"
 #include "CoaSpecLookup.h"
 #include "CoaWildcard.h"
+#include "CoaRaidRoles.h"
 #include "CoaReborn.h"
 #include "Channel.h"
 #include "Chat.h"
@@ -415,12 +421,18 @@ AscensionCompatData::CoATalentEntry const* FindCoaEntry(uint32 entryId)
     return nullptr;
 }
 
-// The paid entries of the bot's class it may hold now: its class tree and its active specialization's tree.
+namespace
+{
+uint32 FreeGroupOf(uint32 entryId);
+}
+
+// The entries of the bot's class it may hold now, in its class tree and its active specialization's tree: the paid
+// ones, and the free choices of the six support specializations (no cost, one entry of each free-choice group),
+// which were refused for having no cost, so an alt never took them and the addon never drew them.
 bool CoaEntryOffered(Player* bot, AscensionCompatData::CoATalentEntry const& entry)
 {
-    if (entry.ClassId != bot->getClass() || (!entry.AECost && !entry.TECost) || !entry.SpellCount)
-        return false;
-    return !entry.SpecId || entry.SpecId == GetAscensionActiveSpecialization(bot);
+    return CoaTalentEntryOffered(entry.ClassId, bot->getClass(), entry.AECost, entry.TECost, entry.SpellCount,
+                                 FreeGroupOf(entry.EntryId), entry.SpecId, GetAscensionActiveSpecialization(bot));
 }
 
 CoaPoints PointsOf(Player* bot)
@@ -514,6 +526,11 @@ std::vector<std::pair<uint32, uint8>> BuildRanksAtLevel(Player* bot, uint32 spec
             }
     }
     return wanted;
+}
+
+uint32 CoaFreeGroupOf(uint32 entryId)
+{
+    return FreeGroupOf(entryId);
 }
 
 // Lowers every entry of the bot's class above its rank in `wanted` (0 when absent), with what has to follow. With
@@ -1097,6 +1114,8 @@ bool CoaSwitchRole(Player* bot, CoaRole role)
         DropThreatStances(bot);
     if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot))
         botAI->ResetStrategies();
+    // A main tank turned damage dealer hands the flag over; the raid panel shows the new role.
+    CoaQueueMainTankSync(bot);
     return FitsRole(bot, role);
 }
 
@@ -1197,8 +1216,8 @@ bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 cla
     CoaDropForeignInstanceBinds(chosen, master);
 
     // After joining the group, so the bot may enter the master's dungeon instance.
-    chosen->TeleportTo(master->GetMapId(), master->GetPositionX(), master->GetPositionY(), master->GetPositionZ(),
-                       master->GetOrientation(), 0, nullptr, CoaInOtherInstance(chosen, master));
+    // Into the master's instance, or to its dungeon's door when the instance does not take it (RC11e).
+    CoaBringBotToLeader(chosen, master, "recruit");
 
     if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(chosen))
     {
@@ -1221,16 +1240,359 @@ void CoaAnnounceJoin(Player* bot, Player* master)
     ChatHandler(master->GetSession()).SendSysMessage(JoinsAsText(bot, GetCoaRole(bot)));
 }
 
+namespace
+{
+// Raids built by ".playerbots coa raid", and the member each one's main tank flag was given to by the module: only
+// those are kept in step with the roles. A flag a player set by hand, a Dungeon Clear raid and an ordinary group are
+// never touched (RC11 review, point 2).
+std::mutex CoaRaidLock;
+std::unordered_map<ObjectGuid, ObjectGuid> CoaRaidFlag;   // group -> member flagged by the module (empty: none yet)
+
+bool IsCoaRaid(ObjectGuid group, ObjectGuid* flagged = nullptr)
+{
+    std::lock_guard<std::mutex> guard(CoaRaidLock);
+    auto const itr = CoaRaidFlag.find(group);
+    if (itr == CoaRaidFlag.end())
+        return false;
+    if (flagged)
+        *flagged = itr->second;
+    return true;
+}
+}  // namespace
+
+namespace
+{
+// A far teleport stuck longer than this (its acknowledgement never handled) is finished before teleporting again.
+constexpr time_t StuckTeleportSeconds = 10;
+constexpr float RegroupDistance = 40.0f;
+
+struct PendingRegroup
+{
+    ObjectGuid group;
+    ObjectGuid leader;
+    uint32 dueMs;
+    uint8 left;
+};
+std::mutex RegroupLock;
+std::vector<PendingRegroup> PendingRegroups;
+// Logins asked for a raid bot found offline: three at most per bot, so a bot that cannot log in is not asked forever.
+std::unordered_map<ObjectGuid, uint8> RegroupLogins;
+
+// Only the bot's own binds to another copy of the leader's map (as summon does for that map); never a player's.
+void DropOtherCopyBinds(Player* bot, Player* leader)
+{
+    if (!sRandomPlayerbotMgr.IsRandomBot(bot) || !leader->GetMap()->IsDungeon())
+        return;
+    for (uint8 difficulty = 0; difficulty < MAX_DIFFICULTY; ++difficulty)
+    {
+        std::vector<InstanceSave*> other;
+        for (auto const& [mapId, bind] : sInstanceSaveMgr->PlayerGetBoundInstances(bot->GetGUID(), Difficulty(difficulty)))
+            if (bind.save && bind.save->GetMapId() == leader->GetMapId() &&
+                bind.save->GetInstanceId() != leader->GetInstanceId())
+                other.push_back(bind.save);
+        for (InstanceSave* save : other)
+            sInstanceSaveMgr->PlayerUnbindInstance(bot->GetGUID(), save->GetMapId(), save->GetDifficulty(), true, bot);
+    }
+}
+}  // namespace
+
+// The outdoor door of the leader's dungeon (its "go back" area trigger), when the leader is in a dungeon.
+static AreaTriggerTeleport const* LeaderDungeonDoor(Player* leader)
+{
+    return leader->GetMap()->IsDungeon() ? sObjectMgr->GetGoBackTrigger(leader->GetMapId()) : nullptr;
+}
+
+CoaBringResult CoaBringBotToLeader(Player* bot, Player* leader, char const* what, bool forceFar)
+{
+    AreaTriggerTeleport const* door = LeaderDungeonDoor(leader);
+    // A raid larger than the cap of the leader's 5-player dungeon never goes in: it would fill the instance and lock the
+    // leader out ("instance is full" at Blackrock Depths, test humain 07/11); its bots wait at the door (RC11f).
+    Group* group = leader->GetGroup();
+    InstanceMap* instance = leader->GetMap()->ToInstanceMap();
+    // A bot already inside the leader's instance is brought to the leader there, never sent out (RC11g).
+    bool const inLeaderInstance = bot->IsInWorld() && bot->GetMapId() == leader->GetMapId() &&
+                                  bot->GetInstanceId() == leader->GetInstanceId();
+    bool const tooSmall = !inLeaderInstance && instance && !instance->IsRaid() && group &&
+                          group->GetMembersCount() > instance->GetMaxPlayers();
+    bool const otherInstance = forceFar || CoaInOtherInstance(bot, leader);
+    if (!tooSmall)
+    {
+        // Always into the leader's instance first: a bot standing at the door of the leader's raid (Blackrock Mountain
+        // for Molten Core) is brought in, not left outside (RC11e skipped it silently).
+        DropOtherCopyBinds(bot, leader);
+        if (bot->IsInWorld())
+            bot->GetMotionMaster()->Clear();
+        if (bot->TeleportTo(leader->GetMapId(), leader->GetPositionX(), leader->GetPositionY(), leader->GetPositionZ(),
+                            leader->GetOrientation(), 0, nullptr, otherInstance))
+            return CoaBringResult::Sent;
+    }
+    char const* why = tooSmall ? "the raid is larger than the instance" : "the instance refused it";
+    if (!door)
+    {
+        LOG_WARN("playerbots", "coa regroup: {} ({}) from map {} to map {}: TeleportTo refused", bot->GetName(), what,
+                 bot->GetMapId(), leader->GetMapId());
+        return CoaBringResult::Refused;
+    }
+    // Already at the door after a refusal: no second door teleport.
+    if (!forceFar && bot->IsInWorld() && bot->GetMapId() == door->target_mapId &&
+        bot->GetExactDist(door->target_X, door->target_Y, door->target_Z) <= RegroupDistance)
+    {
+        LOG_WARN("playerbots", "coa regroup: {} ({}) waits at the entrance of map {}: {}", bot->GetName(), what,
+                 leader->GetMapId(), why);
+        return CoaBringResult::AtDoor;
+    }
+    if (bot->IsInWorld())
+        bot->GetMotionMaster()->Clear();
+    if (bot->TeleportTo(door->target_mapId, door->target_X, door->target_Y, door->target_Z, door->target_Orientation, 0,
+                        nullptr, forceFar))
+    {
+        LOG_WARN("playerbots", "coa regroup: {} ({}) to the entrance of map {} (map {}): {}", bot->GetName(), what,
+                 leader->GetMapId(), door->target_mapId, why);
+        return CoaBringResult::ToDoor;
+    }
+    LOG_WARN("playerbots", "coa regroup: {} ({}) from map {} to map {}: {}, and the entrance refused it too", bot->GetName(),
+             what, bot->GetMapId(), leader->GetMapId(), why);
+    return CoaBringResult::Refused;
+}
+
+uint32 CoaRegroupRaid(Player* leader)
+{
+    Group* group = leader ? leader->GetGroup() : nullptr;
+    if (!group || !CoaIsBuiltRaid(group) || !group->IsLeader(leader->GetGUID()) || GET_PLAYERBOT_AI(leader) ||
+        leader->InBattleground() || !leader->IsInWorld())
+        return 0;
+    uint32 sent = 0;
+    // Members of the raid that are not in the world: a random bot logged out while in the raid (test humain 07/11:
+    // 9 bots logged out at the same second, still members, never in a regroup line) is logged in again; it is brought
+    // by the next check. Every member left out is said, with its reason.
+    uint32 loggedIn = 0;
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+    {
+        if (ObjectAccessor::FindConnectedPlayer(slot.guid))
+            continue;
+        if (sRandomPlayerbotMgr.IsRandomBot(slot.guid.GetCounter()))
+        {
+            uint8 tries = 0;
+            {
+                std::lock_guard<std::mutex> guard(RegroupLock);
+                tries = ++RegroupLogins[slot.guid];
+            }
+            if (tries > 3)
+            {
+                LOG_WARN("playerbots", "coa regroup: {} is offline: left out after 3 logins", slot.name);
+                continue;
+            }
+            LOG_WARN("playerbots", "coa regroup: {} is offline: logged in again ({}/3)", slot.name, tries);
+            sRandomPlayerbotMgr.AddPlayerBot(slot.guid, 0);
+            ++loggedIn;
+        }
+        else
+            LOG_WARN("playerbots", "coa regroup: {} is offline (not a random bot): left out", slot.name);
+    }
+    if (loggedIn)
+        CoaScheduleRegroup(group->GetGUID(), leader->GetGUID());
+    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+    {
+        Player* bot = ref->GetSource();
+        if (!bot || bot == leader)
+            continue;
+        PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
+        if (!botAI)
+        {
+            LOG_WARN("playerbots", "coa regroup: {} left out: a player, not a bot", bot->GetName());
+            continue;
+        }
+        if (bot->InBattleground() || bot->InArena())
+        {
+            LOG_WARN("playerbots", "coa regroup: {} left out: in a battleground or an arena", bot->GetName());
+            continue;
+        }
+        // A teleport whose acknowledgement never came (far: a map change; near: within the map), finished here (world
+        // thread, a bot only) when the bot is out of every map or the teleport is over 10 seconds old.
+        if (bot->IsBeingTeleported())
+        {
+            bool const farTeleport = bot->IsBeingTeleportedFar();
+            time_t const since = time(nullptr) - (farTeleport ? bot->GetSemaphoreTeleportFar() : bot->GetSemaphoreTeleportNear());
+            // A near teleport with the bot out of every map (test humain 07/11, RC11e: 4 bots, 31 then 39 s) is never
+            // acknowledged: HandleTeleportAck's near branch needs the bot in the world. It is replaced by a far teleport
+            // to the leader (Player::TeleportTo's far branch takes a bot out of the world, as after any map change; the
+            // worldport acknowledgement then puts it in the leader's map), world thread, a bot only (RC11f).
+            if (!farTeleport && !bot->IsInWorld() && since > StuckTeleportSeconds)
+            {
+                LOG_WARN("playerbots", "coa regroup: {} stuck in a near teleport out of the world for {} s: far teleport "
+                         "instead", bot->GetName(), uint32(since));
+                CoaBringResult const result = CoaBringBotToLeader(bot, leader, "stuck near teleport", true);
+                if (result == CoaBringResult::Sent || result == CoaBringResult::ToDoor)
+                    ++sent;
+                continue;
+            }
+            if (!bot->IsInWorld() || since > StuckTeleportSeconds)
+            {
+                LOG_WARN("playerbots", "coa regroup: {} stuck in a {} teleport for {} s (in world {}): finished",
+                         bot->GetName(), farTeleport ? "far" : "near", uint32(since), bot->IsInWorld() ? 1 : 0);
+                botAI->HandleTeleportAck();
+            }
+            if (bot->IsBeingTeleported())
+            {
+                LOG_WARN("playerbots", "coa regroup: {} left out: still teleporting ({} s)", bot->GetName(), uint32(since));
+                continue;
+            }
+        }
+        if (!bot->IsInWorld())
+        {
+            LOG_WARN("playerbots", "coa regroup: {} left out: not in the world", bot->GetName());
+            continue;
+        }
+        if (bot->GetMapId() == leader->GetMapId() && bot->GetInstanceId() == leader->GetInstanceId() &&
+            bot->IsWithinDist(leader, RegroupDistance))
+            continue;
+        if (bot->isDead() && sPlayerbotAIConfig.reviveBotWhenSummoned == 2)
+        {
+            bot->ResurrectPlayer(1.0f, false);
+            bot->SpawnCorpseBones();
+        }
+        CoaBringResult const result = CoaBringBotToLeader(bot, leader, "regroup");
+        if (result == CoaBringResult::Sent || result == CoaBringResult::ToDoor)
+            ++sent;
+    }
+    return sent;
+}
+
+void CoaScheduleRegroup(ObjectGuid group, ObjectGuid leader)
+{
+    std::lock_guard<std::mutex> guard(RegroupLock);
+    // One check at a time per raid.
+    for (PendingRegroup const& entry : PendingRegroups)
+        if (entry.group == group)
+            return;
+    PendingRegroups.push_back({ group, leader, getMSTime() + 5000, 2 });
+}
+
+void CoaRegroupUpdate()
+{
+    std::vector<PendingRegroup> due;
+    uint32 const now = getMSTime();
+    {
+        std::lock_guard<std::mutex> guard(RegroupLock);
+        if (PendingRegroups.empty())
+            return;
+        for (auto itr = PendingRegroups.begin(); itr != PendingRegroups.end();)
+            if (int32(now - itr->dueMs) >= 0)
+            {
+                due.push_back(*itr);
+                itr = PendingRegroups.erase(itr);
+            }
+            else
+                ++itr;
+    }
+    for (PendingRegroup& entry : due)
+    {
+        // GUIDs only, looked up again: a disbanded group or a leader gone drops the entry.
+        Player* leader = ObjectAccessor::FindConnectedPlayer(entry.leader);
+        Group* group = leader ? leader->GetGroup() : nullptr;
+        if (!group || group->GetGUID() != entry.group)
+            continue;
+        uint32 const sent = CoaRegroupRaid(leader);
+        if (sent)
+            LOG_WARN("playerbots", "coa regroup: raid of {}: {} recruit(s) brought again", leader->GetName(), sent);
+        if (--entry.left)
+        {
+            entry.dueMs = now + 10000;
+            std::lock_guard<std::mutex> guard(RegroupLock);
+            bool pending = false;
+            for (PendingRegroup const& other : PendingRegroups)
+                pending = pending || other.group == entry.group;
+            if (!pending)
+                PendingRegroups.push_back(entry);
+        }
+    }
+}
+
+bool CoaIsBuiltRaid(Group const* group)
+{
+    return group && IsCoaRaid(group->GetGUID());
+}
+
+void CoaSyncMainTankFlag(Group* group, bool assignIfNone)
+{
+    if (!group || group->isLFGGroup() || group->isBGGroup() || group->isBFGroup())
+        return;
+    if (assignIfNone)
+    {
+        // Built (or built again) by the raid command: a flag a bot already carries is the builder's (raids built before
+        // RC11 flagged a bot that may no longer tank); a player's flag stays the player's.
+        ObjectGuid botFlag;
+        for (Group::MemberSlot const& slot : group->GetMemberSlots())
+            if (slot.flags & MEMBER_FLAG_MAINTANK)
+                if (Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid); member && GET_PLAYERBOT_AI(member))
+                    botFlag = slot.guid;
+        std::lock_guard<std::mutex> guard(CoaRaidLock);
+        ObjectGuid& ours = CoaRaidFlag[group->GetGUID()];
+        if (!ours)
+            ours = botFlag;
+    }
+    ObjectGuid ours;
+    if (!IsCoaRaid(group->GetGUID(), &ours))
+        return;
+    std::vector<ObjectGuid> guids;
+    std::vector<CoaMainTankSeat> seats;
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+    {
+        Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid);
+        bool const bot = member && GET_PLAYERBOT_AI(member);
+        bool const flagged = (slot.flags & MEMBER_FLAG_MAINTANK) != 0;
+        // A flag the module did not give is a player's choice (set by hand): the whole sync stops there.
+        if (flagged && slot.guid != ours)
+            return;
+        guids.push_back(slot.guid);
+        // A tank by specialization or, for a bot, by its combat strategy (as the Main Tank bar sees it).
+        bool const tank = member && (RoleOfMember(member) == CoaRole::Tank || (bot && PlayerbotAI::IsTank(member)));
+        seats.push_back({ bot, tank, member && member->IsAlive(), flagged });
+    }
+    // The raid panel shows the role each bot of the built raid plays now.
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+        if (Player* member = ObjectAccessor::FindConnectedPlayer(slot.guid); member && GET_PLAYERBOT_AI(member))
+        {
+            CoaRole const role = RoleOfMember(member);
+            uint8 const roles = role == CoaRole::Tank   ? lfg::PLAYER_ROLE_TANK
+                                : role == CoaRole::Heal ? lfg::PLAYER_ROLE_HEALER
+                                                        : lfg::PLAYER_ROLE_DAMAGE;
+            if (slot.roles != roles)
+                group->SetLfgRoles(slot.guid, roles);
+        }
+    int const holder = CoaMainTankFlagHolder(seats, assignIfNone);
+    for (size_t i = 0; i < seats.size(); ++i)
+    {
+        bool const want = int(i) == holder;
+        if (seats[i].flagged != want)
+        {
+            group->SetGroupMemberFlag(guids[i], want, MEMBER_FLAG_MAINTANK);
+            LOG_INFO("playerbots", "coa: main tank flag {} {} (group {})", want ? "to" : "off",
+                     guids[i].ToString(), group->GetGUID().ToString());
+        }
+    }
+    std::lock_guard<std::mutex> guard(CoaRaidLock);
+    CoaRaidFlag[group->GetGUID()] = holder >= 0 ? guids[holder] : ObjectGuid::Empty;
+}
+
+bool CoaQueueMainTankSync(Player* bot)
+{
+    if (!bot || !bot->GetGroup())
+        return false;
+    // Group flags and roles are sent to every member, some on other maps: world thread only (the map thread crash of
+    // 06/11). The bot is looked up again there, still in a group.
+    auto op = std::make_unique<WorldThreadCallOperation>(bot->GetGUID(), "CoaMainTankSync", [](Player* player)
+    {
+        CoaSyncMainTankFlag(player->GetGroup(), false);
+        return true;
+    });
+    return PlayerbotWorldThreadProcessor::instance().QueueOperation(std::move(op));
+}
+
 bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message)
 {
     size = std::clamp<uint32>(size ? size : 25, 6, MAXRAIDSIZE);
-    // A raid of 15 (Manastorm) needs one tank and two healers.
-    if (!tanks)
-        tanks = size == 15 ? 1 : std::max<uint32>(2, size / 8);
-    if (!heals)
-        heals = size == 15 ? 2 : (size + 2) / 4;
-    tanks = std::min(tanks, size - 1);
-    heals = std::min(heals, size - 1 - tanks);
+    CoaRaidRoles(size, tanks, heals);
 
     if (master->InBattleground() || master->InArena())
     {
@@ -1333,31 +1695,14 @@ bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std
         }
     }
 
-    // The raid panel counts tanks and healers from the group roles: each bot shows the one it plays.
-    for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-        if (Player* member = ref->GetSource())
-            if (GET_PLAYERBOT_AI(member))
-            {
-                CoaRole const role = RoleOfMember(member);
-                group->SetLfgRoles(member->GetGUID(), role == CoaRole::Tank   ? lfg::PLAYER_ROLE_TANK
-                                                      : role == CoaRole::Heal ? lfg::PLAYER_ROLE_HEALER
-                                                                              : lfg::PLAYER_ROLE_DAMAGE);
-            }
-
-    // Without a main tank set, the first living tank in member order (newest first) was main tank, another one
-    // from one fight to the next: the off-tank's ogre went to Maulgar (ladiabale, Gruul 2.4). One tank is set
-    // once; a dead main tank hands over to the next living tank (PlayerbotAI::GetMainTankGuid).
-    bool mainTankSet = false;
-    for (Group::MemberSlot const& slot : group->GetMemberSlots())
-        if (slot.flags & MEMBER_FLAG_MAINTANK)
-            mainTankSet = true;
-    if (!mainTankSet)
-        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
-            if (Player* member = ref->GetSource(); member && RoleOfMember(member) == CoaRole::Tank)
-            {
-                group->SetGroupMemberFlag(member->GetGUID(), true, MEMBER_FLAG_MAINTANK);
-                break;
-            }
+    // The raid panel counts tanks and healers from the group roles, and one tank carries the main tank flag: without
+    // it, the first living tank in member order (newest first) was main tank, another one from one fight to the next
+    // (the off-tank's ogre went to Maulgar, ladiabale, Gruul 2.4). A dead main tank hands over to the next living tank
+    // (PlayerbotAI::GetMainTankGuid); a main tank that is no longer a tank hands the flag over (CoaSyncMainTankFlag).
+    CoaSyncMainTankFlag(group, true);
+    // Recruits that did not reach the player (a teleport refused or never finished) are brought again 5 and 15
+    // seconds later, in the world thread (RC11c, test humain 07/11: a third of a raid left in the open world).
+    CoaScheduleRegroup(group->GetGUID(), master->GetGUID());
 
     LOG_INFO("playerbots", "coa: {} built a raid of {}: {} tanks, {} healers, {} damage dealers recruited",
              master->GetName(), size, got[uint8(CoaRole::Tank)], got[uint8(CoaRole::Heal)], got[uint8(CoaRole::Dps)]);
@@ -1372,7 +1717,8 @@ bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std
 /*
  * Bots that answer "lfg bot heal" in a chat channel.
  *
- * A player who says "lfg bot heal", "lfg bot tank dps", "lfg bot" (every role)... in one of the chat
+ * A player who says "lfg bot heal", "lfg bot tank dps", "lfg bot" (every role), "lfg bot tinker heal" (a CoA
+ * class by its full name, CoaLfgChatRules.h)... in one of the chat
  * channels the realm lists (AiPlayerbot.CoaLfgChannels) is whispered by free random bots able to play
  * those roles: two healers, two tanks, three damage dealers by default, each with its class,
  * specialization and level. The player invites the ones it wants; an invited bot joins at once,
@@ -1394,6 +1740,7 @@ struct CoaLfgSettings
     uint32 levelRange = 2;
     uint32 offerSeconds = 2 * MINUTE;
     uint32 cooldownSeconds = 30;
+    uint32 classCooldownSeconds = 60;
     uint32 announceSeconds = 10 * MINUTE;
     std::string announce;
 };
@@ -1408,6 +1755,7 @@ std::mutex LfgLock;
 CoaLfgSettings LfgSettings;
 std::unordered_map<ObjectGuid, CoaLfgOffer> LfgOffers;  // by bot
 std::map<std::pair<ObjectGuid, uint8>, time_t> LfgAsked;  // by player and role: when it last asked
+std::map<std::pair<uint32, uint8>, time_t> LfgClassAsked;  // by account and class: when it last got an offer
 
 std::string LowerCase(std::string text)
 {
@@ -1441,6 +1789,7 @@ void LoadLfgSettings()
     settings.levelRange = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgLevelRange", 2);
     settings.offerSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgOfferMinutes", 2) * MINUTE;
     settings.cooldownSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgCooldown", 15);
+    settings.classCooldownSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgClassCooldown", 60);
     settings.announceSeconds = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLfgAnnounceMinutes", 10) * MINUTE;
     settings.announce = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaLfgAnnounceText", "");
 
@@ -1464,48 +1813,9 @@ bool Listened(CoaLfgSettings const& settings, Channel* channel)
     return false;
 }
 
-// The roles asked for, in the order they were written; empty when the message is no request.
-std::vector<CoaRole> RolesAsked(CoaLfgSettings const& settings, std::string const& message)
+std::vector<CoaLfgAsk> Asked(CoaLfgSettings const& settings, std::string const& message)
 {
-    std::vector<std::string> words;
-    std::string word;
-    for (char c : LowerCase(message) + " ")
-    {
-        if (std::isalnum(static_cast<unsigned char>(c)))
-            word += c;
-        else if (!word.empty())
-        {
-            words.push_back(word);
-            word.clear();
-        }
-    }
-
-    bool lfg = false, botWord = false;
-    std::vector<CoaRole> roles;
-    auto add = [&roles](CoaRole role)
-    {
-        if (std::find(roles.begin(), roles.end(), role) == roles.end())
-            roles.push_back(role);
-    };
-    for (std::string const& w : words)
-    {
-        if (w == "lfg" || w == "lfm" || w == "lf")
-            lfg = true;
-        else if (w == "bot" || w == "bots")
-            botWord = true;
-        else if (w == "heal" || w == "heals" || w == "healer" || w == "healers" || w == "healing")
-            add(CoaRole::Heal);
-        else if (w == "tank" || w == "tanks")
-            add(CoaRole::Tank);
-        else if (w == "dps" || w == "damage" || w == "dd")
-            add(CoaRole::Dps);
-    }
-
-    if (!lfg || (settings.requireBotWord && !botWord))
-        return {};
-    if (roles.empty() && botWord)
-        roles = { CoaRole::Tank, CoaRole::Heal, CoaRole::Dps };
-    return roles;
+    return CoaLfgAsks(CoaParseLfgRequest(message), settings.requireBotWord);
 }
 
 std::string OfferText(Player* bot, CoaRole role)
@@ -1566,7 +1876,7 @@ std::string AnnounceText(CoaLfgSettings const& settings)
         where += (where.empty() ? "" : " or ") + name;
     }
     return "|cff66ccff[SquidBots]|r Need a healer, a tank or damage? Say |cffffff00lfg bot heal|r, "
-           "|cffffff00lfg bot tank|r, |cffffff00lfg bot dps|r or |cffffff00lfg bot heal tank dps|r in the " +
+           "|cffffff00lfg bot tank|r, |cffffff00lfg bot dps|r or a class: |cffffff00lfg bot tinker heal|r in the " +
            where + " channel, then invite the bots that whisper you.";
 }
 }  // namespace
@@ -1581,16 +1891,50 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
     if (!sPlayerbotAIConfig.enabled || !settings.enabled || !Listened(settings, channel))
         return;
 
-    std::vector<CoaRole> const roles = RolesAsked(settings, message);
-    if (roles.empty())
+    std::vector<CoaLfgAsk> const asks = Asked(settings, message);
+    if (asks.empty())
         return;
 
     ChatHandler chat(player->GetSession());
     time_t const now = time(nullptr);
+    uint32 const account = player->GetSession()->GetAccountId();
+    std::vector<CoaRole> roles;
+    std::vector<CoaLfgAsk> classAsks;
+    auto addRole = [](std::vector<CoaRole>& list, CoaRole role)
+    {
+        if (std::find(list.begin(), list.end(), role) == list.end())
+            list.push_back(role);
+    };
+    for (CoaLfgAsk const& ask : asks)
+    {
+        if (ask.classId)
+            classAsks.push_back(ask);
+        else
+            addRole(roles, CoaRole(ask.role));
+    }
+
     std::set<ObjectGuid> skip;
     std::vector<CoaRole> wanted;
     {
         std::lock_guard<std::mutex> guard(LfgLock);
+        // A class request waits AiPlayerbot.CoaLfgClassCooldown per account and class; meanwhile its role is asked.
+        std::vector<CoaLfgAsk> allowed;
+        for (CoaLfgAsk const& ask : classAsks)
+        {
+            auto const asked = LfgClassAsked.find({ account, ask.classId });
+            time_t const last = asked == LfgClassAsked.end() ? 0 : asked->second;
+            if (CoaLfgClassAskAllowed(last, now, settings.classCooldownSeconds))
+            {
+                allowed.push_back(ask);
+                continue;
+            }
+            chat.SendSysMessage(CoaLfgClassWaitText(ClassName(ask.classId),
+                                                    uint32(time_t(settings.classCooldownSeconds) - (now - last))));
+            if (ask.role != CoaLfgAnyRole)
+                addRole(roles, CoaRole(ask.role));
+        }
+        classAsks = allowed;
+
         // The wait is per role: asking for a tank and then for a healer works, asking twice for the
         // same role in a row does not.
         for (CoaRole const role : roles)
@@ -1602,7 +1946,7 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
                 wanted.push_back(role);
             }
         }
-        if (wanted.empty())
+        if (wanted.empty() && classAsks.empty())
         {
             chat.SendSysMessage("The bots already heard you: invite the ones that whispered you, or ask again in a moment.");
             return;
@@ -1628,21 +1972,21 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
         return;
     }
 
-    for (CoaRole const role : wanted)
+    auto offer = [&](CoaRole role, uint8 classId) -> uint32
     {
-        uint32 const count = settings.offers[uint8(role)];
+        uint32 const count = classId ? CoaLfgClassOffers : settings.offers[uint8(role)];
         std::set<uint8> classes;
         uint32 offered = 0;
         for (uint32 attempt = 0; offered < count && attempt < count * 4; ++attempt)
         {
             bool fits = false;
-            Player* bot = FindCoaRecruit(player, role, 0, skip, fits, settings.levelRange);
+            Player* bot = FindCoaRecruit(player, role, classId, skip, fits, settings.levelRange);
             if (!bot)
                 break;
             skip.insert(bot->GetGUID());
 
             // Different classes to choose from, as long as there are some.
-            if (classes.count(bot->getClass()) && attempt < count * 2)
+            if (!classId && classes.count(bot->getClass()) && attempt < count * 2)
                 continue;
 
             std::string reason;
@@ -1656,13 +2000,58 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
             classes.insert(bot->getClass());
             ++offered;
             bot->Whisper(OfferText(bot, role), LANG_UNIVERSAL, player);
-            LOG_INFO("playerbots", "coa lfg: {} offered to {} as {} (class {}, level {})", bot->GetName(),
-                     player->GetName(), RoleName(role), bot->getClass(), bot->GetLevel());
+            LOG_INFO("playerbots", "coa lfg: {} offered to {} as {} (class {}, level {}{})", bot->GetName(),
+                     player->GetName(), RoleName(role), bot->getClass(), bot->GetLevel(),
+                     classId ? ", class asked" : "");
         }
+        return offered;
+    };
 
-        if (!offered && PlayerbotFactory::SelfFoundAt(player->GetLevel()))
+    // A class with no free bot for the role falls back to the role, said to the player.
+    for (CoaLfgAsk const& ask : classAsks)
+    {
+        std::string const className = ClassName(ask.classId);
+        std::vector<CoaRole> const tryRoles = ask.role == CoaLfgAnyRole
+                                                  ? std::vector<CoaRole>{ CoaRole::Tank, CoaRole::Heal, CoaRole::Dps }
+                                                  : std::vector<CoaRole>{ CoaRole(ask.role) };
+        bool playable = false;
+        uint32 offered = 0;
+        for (CoaRole const role : tryRoles)
+        {
+            if (!ClassCanPlay(ask.classId, role))
+                continue;
+            playable = true;
+            if ((offered = offer(role, ask.classId)))
+                break;
+        }
+        if (offered)
+        {
+            std::lock_guard<std::mutex> guard(LfgLock);
+            LfgClassAsked[{ account, ask.classId }] = now;
+            continue;
+        }
+        if (ask.role == CoaLfgAnyRole)
+        {
+            chat.PSendSysMessage(playable ? "No free {} bot right now." : "No {} bot can join on this realm.", className);
+            continue;
+        }
+        CoaRole const role = CoaRole(ask.role);
+        if (playable)
+            chat.PSendSysMessage("No free {} bot can play {} right now: other {} bots are asked instead.", className,
+                                 RoleName(role), RoleName(role));
+        else
+            chat.PSendSysMessage("A {} cannot play {}: other {} bots are asked instead.", className, RoleName(role),
+                                 RoleName(role));
+        addRole(wanted, role);
+    }
+
+    for (CoaRole const role : wanted)
+    {
+        if (offer(role, 0))
+            continue;
+        if (PlayerbotFactory::SelfFoundAt(player->GetLevel()))
             chat.PSendSysMessage("No free bot of your level can play {} in self-found mode.", RoleName(role));
-        else if (!offered)
+        else
             chat.PSendSysMessage("No free bot can play {} right now.", RoleName(role));
     }
 }

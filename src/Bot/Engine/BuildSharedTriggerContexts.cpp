@@ -5,6 +5,7 @@
  */
 
 #include "AiObjectContext.h"
+#include "CoaGardesContext.h"
 #include "Aq20TriggerContext.h"
 #include "Aq40TriggerContext.h"
 #include "BTTriggerContext.h"
@@ -78,6 +79,7 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     triggerContexts.Add(new VanillaDungeonDMTriggerContext());
     triggerContexts.Add(new CoaDungeonOtherSideTriggerContext());
     triggerContexts.Add(new CoaDungeonVaultsTriggerContext());
+    triggerContexts.Add(new VanillaDungeonDMTriggerContext());
     triggerContexts.Add(new TbcDungeonAuchenaiCryptsTriggerContext());
     triggerContexts.Add(new TbcDungeonSethekkHallsTriggerContext());
     triggerContexts.Add(new TbcDungeonMechanarTriggerContext());
@@ -102,4 +104,5 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     // CoA: generische, parametrisierbare Bausteine (GenericTrigger)
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     triggerContexts.Add(new CoaGenericTriggerContext());
+    triggerContexts.Add(new CoaGardesTriggerContext());
 }

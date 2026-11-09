@@ -33,7 +33,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.9.3";
+static constexpr char const* COA_BOTS_VERSION = "2.9.5";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -308,6 +308,17 @@ public:
         if (lang == LANG_ADDON)
             return true;
 
+        // "summon" from the leader of a raid built by ".playerbots coa raid" (SquidBots Lite Regroup): this hook runs
+        // in the world thread (CMSG_MESSAGECHAT), so the server brings every bot of the raid itself, across maps, and
+        // the bots do not get the command again (RC11c). Any other group or command: unchanged.
+        if (group && msg == "summon" && CoaIsBuiltRaid(group) && group->IsLeader(player->GetGUID()) &&
+            !GET_PLAYERBOT_AI(player))
+        {
+            uint32 const sent = CoaRegroupRaid(player);
+            LOG_WARN("playerbots", "coa regroup: {} summons the raid: {} teleport(s) sent", player->GetName(), sent);
+            return true;
+        }
+
         for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
         {
             Player* const member = itr->GetSource();
@@ -487,6 +498,7 @@ public:
         PlayerbotWorldThreadProcessor::instance().Update(diff);
         sRandomPlayerbotMgr.UpdateAI(diff);  // World thread only
         sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
+        CoaRegroupUpdate();  // raid check after ".playerbots coa raid" (RC11c), world thread
         CityDuels::Update(diff);
     }
 
@@ -661,6 +673,8 @@ void AddPlayerbotsAltReagentDepositScripts();
 void AddPlayerbotsBotTalentsScripts();
 void AddSC_random_bot_transmog();
 void AddSC_coa_leave_instance();
+void AddSC_coa_player_main_tank();
+void AddSC_coa_gardes_menace();
 
 void AddPlayerbotsScripts()
 {
@@ -694,5 +708,7 @@ void AddPlayerbotsScripts()
     AddSC_coa_arena_ready();
     AddSC_random_bot_transmog();
     AddSC_coa_leave_instance();
+    AddSC_coa_player_main_tank();
+    AddSC_coa_gardes_menace();
     AddSC_coa_lfg();
 }

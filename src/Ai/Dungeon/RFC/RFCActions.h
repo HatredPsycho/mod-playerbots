@@ -63,6 +63,7 @@ class TaragamanHideBehindPillarAction : public MovementAction
 public:
     TaragamanHideBehindPillarAction(PlayerbotAI* ai) : MovementAction(ai, "hide behind earth pillar") {}
     bool Execute(Event event) override;
+    bool isUseful() override;
 };
 
 #endif

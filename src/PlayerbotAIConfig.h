@@ -177,6 +177,8 @@ public:
     uint32 minRandomBotChangeStrategyTime, maxRandomBotChangeStrategyTime;
     uint32 minRandomBotReviveTime, maxRandomBotReviveTime;
     uint32 minRandomBotTeleportInterval, maxRandomBotTeleportInterval;
+    // Whether the refresh at each random teleport empties the bags of the bots that are not self-found.
+    bool refreshClearsInventory;
     uint32 permanentlyInWorldTime;
     uint32 minRandomBotPvpTime, maxRandomBotPvpTime;
     uint32 randomBotsPerInterval;
@@ -428,6 +430,7 @@ public:
     bool coaSmartHeal;
     bool coaSmartTank;
     bool coaLfgMissingRoles;
+    bool lfgKeepRandomBots;
     bool coaHoldBehindTank;
     uint32 coaPlayersReplaceBots;
     uint32 coaPlayersReplaceBotsMin;
@@ -446,6 +449,7 @@ public:
     bool coaAvoidMarkedAlly;
     bool coaMeleeNoRangedHardcast;
     bool coaLootMakeRoom;
+    bool openChestsWithoutOrder;
     // AiPlayerbot.Missions.*: gathering missions of the alts ("mission gather <minutes>" whispered to the bot).
     bool missionsEnable;
     uint32 missionsMaxMinutes;
@@ -462,6 +466,10 @@ public:
     bool catchUpQuestChains;
     // AiPlayerbot.AltDisenchant: the enchanter of the team (CoaEnchanter).
     bool altDisenchant;
+    // AiPlayerbot.AltLootCompanion: the alts bring out a loot pet and leave it the corpses (CoaLootPetAction).
+    bool altLootCompanion;
+    // AiPlayerbot.CoaTotemRecall: bots of any class put their totems away after the fight (CoaTotemRecall).
+    bool coaTotemRecall;
     // AiPlayerbot.GuildBankDeposit.*: bots of a real player's guild fill the guild bank near a guild vault.
     bool guildBankDepositEnable;
     std::vector<std::pair<int32, int32>> guildBankDepositItems;  // item class, subclass (-1 = all)
@@ -519,6 +527,7 @@ public:
     bool autoDoQuests;
     bool enableNewRpgStrategy;
     std::unordered_map<NewRpgStatus, uint32> RpgStatusProbWeight;
+    uint32 questMaxDropsPerPass;
     bool syncLevelWithPlayers;
     bool randomBotConcentrateInPlayerZone;
     bool autoLearnQuestSpells;
@@ -587,6 +596,10 @@ public:
     uint32 randomBotTransmogPercent;
     uint32 randomBotTransmogMinLevel;
     uint32 randomBotTransmogCosmeticSets;
+    // Below this health (percent) the player main tank's enemies are no longer left to the player (0: never).
+    uint32 playerMainTankRescueHealth;
+    // A bot tank says in /say each order of the Main Tank bar it carries out (a failure stays in the bar).
+    bool coaTankOrdersSay;
     // Bot gear rolls its random property or suffix like a looted item instead of the best one for the spec:
     // 0 never, 1 random bots out in the world, 2 every bot.
     uint32 gearRollRandomSuffix;

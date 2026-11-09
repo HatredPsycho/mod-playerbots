@@ -10,12 +10,15 @@
 #include "AiObjectContext.h"
 #include "ArenaTeam.h"
 #include "ArenaTeamMgr.h"
+#include "AscensionBloodforging.h"
+#include "CoaGearRules.h"
 #include "CoaSpecLookup.h"
 #include "CoaSpecStatWeights.h"
 #include "CoaSpecialization.h"
 #include "Config.h"
 #include "CoaWildcard.h"
 #include "CoaReborn.h"
+#include "CoaRefreshRules.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "GuildMgr.h"
@@ -1132,34 +1135,8 @@ void PlayerbotFactory::Refresh()
     //     InitEquipment(true);
     // }
     InitAttunementQuests();
-    // Self-found: the bot keeps everything it found, so a refresh leaves its bags alone.
-    if (!SelfFound())
-    {
-        // mod-playerbots-auctions: a refresh no longer empties the bags - the bots keep what they looted, bought
-        // and made. Only food, drink and potions are renewed, because InitFood() and InitPotions() below hand out
-        // fresh ones every time (potions also ones the bot cannot use, which would pile up). A realm built without
-        // that module has no PlayerbotsAuctions.Enable and empties the bags as before.
-        if (!sConfigMgr->GetOption<bool>("PlayerbotsAuctions.Enable", false, false))
-            ClearInventory();
-        else
-        {
-            std::vector<Item*> renewed;
-            auto look = [&renewed](Item* item)
-            {
-                if (item && item->GetTemplate() && item->GetTemplate()->Class == ITEM_CLASS_CONSUMABLE &&
-                    (item->GetTemplate()->SubClass == ITEM_SUBCLASS_FOOD || item->GetTemplate()->SubClass == ITEM_SUBCLASS_POTION))
-                    renewed.push_back(item);
-            };
-            for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
-                look(bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot));
-            for (uint8 bagSlot = INVENTORY_SLOT_BAG_START; bagSlot < INVENTORY_SLOT_BAG_END; ++bagSlot)
-                if (Bag* bag = bot->GetBagByPos(bagSlot))
-                    for (uint32 slot = 0; slot < bag->GetBagSize(); ++slot)
-                        look(bag->GetItemByPos(slot));
-            for (Item* item : renewed)
-                bot->DestroyItem(item->GetBagSlot(), item->GetSlot(), true);
-        }
-    }
+    if (CoaRefreshClearsInventory(SelfFound(), sPlayerbotAIConfig.refreshClearsInventory))
+        ClearInventory();
     InitAmmo();
     InitFood();
     InitReagents();
@@ -4820,10 +4797,9 @@ void PlayerbotFactory::InitPotions()
 
         FindPotionVisitor visitor(bot, effect);
         IterateItems(&visitor);
-        if (!visitor.GetResult().empty())
-            continue;
-
-        uint32 itemId = sRandomItemMgr.GetRandomPotion(level, effect);
+        // Kept bags (AiPlayerbot.RefreshClearsInventory = 0): top up the potion already held instead of adding another.
+        uint32 itemId = visitor.GetResult().empty() ? sRandomItemMgr.GetRandomPotion(level, effect)
+                                                    : visitor.GetResult().front()->GetEntry();
         if (!itemId)
         {
             // LOG_INFO("playerbots", "No potions (type {}) available for bot {} ({} level)", effect,
@@ -4836,7 +4812,10 @@ void PlayerbotFactory::InitPotions()
             continue;
 
         uint32 maxCount = proto->GetMaxStackSize();
-        if (Item* newItem = StoreNewItemInInventorySlot(bot, itemId, urand(maxCount / 2, maxCount)))
+        uint32 count = CoaRefreshMissingCount(urand(maxCount / 2, maxCount), bot->GetItemCount(itemId));
+        if (!count)
+            continue;
+        if (Item* newItem = StoreNewItemInInventorySlot(bot, itemId, count))
             newItem->AddToUpdateQueueOf(bot);
     }
 }
@@ -4926,6 +4905,12 @@ void PlayerbotFactory::InitFood()
     {
         uint32 category = categories[i];
         std::vector<uint32>& ids = items[category];
+        // Food of this category already held: kept bags (AiPlayerbot.RefreshClearsInventory = 0) are only topped
+        // up to two stacks, never piled up at each refresh.
+        uint32 have = 0;
+        for (uint32 id : ids)
+            have += bot->GetItemCount(id);
+        uint32 target = 0;
         int tries = 0;
         for (int j = 0; j < 2; j++)
         {
@@ -4948,7 +4933,12 @@ void PlayerbotFactory::InitFood()
                 j--;
                 continue;
             }
-            StoreItem(itemId, proto->GetMaxStackSize());
+            target += proto->GetMaxStackSize();
+            uint32 count = CoaRefreshMissingCount(target, have);
+            if (!count)
+                continue;
+            StoreItem(itemId, count);
+            have += count;
         }
     }
 }
@@ -5621,6 +5611,11 @@ void PlayerbotFactory::InitInventoryEquip()
             continue;
 
         if (proto->Quality != desiredQuality)
+            continue;
+
+        // Same Bloodforged filter as RandomItemMgr::IsValidItem: this scan reads the item store directly.
+        static bool const bloodforgedEnabled = sConfigMgr->GetOption<bool>("Bloodforged.Enable", false);
+        if (!CoaGearAllowed(Bloodforging::IsBloodforged(*proto), bloodforgedEnabled))
             continue;
 
         if (!CanEquipItem(proto))

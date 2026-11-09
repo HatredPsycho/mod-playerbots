@@ -697,6 +697,65 @@ AiPlayerbot.RandomBotTransmogMinLevel = 10
 # Default: 50
 AiPlayerbot.RandomBotTransmogCosmeticSets = 50
 
+# A player who tanks with bot off-tanks ("tank main on", SquidBots Lite Main Tank bar): the bot tanks leave the
+# enemies hitting that player to the player, until the player's health falls below this percent (or the player dies).
+# 0: never take them back while the player lives.
+# Default: 10
+AiPlayerbot.PlayerMainTankRescueHealth = 10
+
+# A bot tank says in /say each order of the Main Tank bar it carries out ("Taking <target>.", "Holding here.",
+# "<target> down, back to assisting you."...). A refused order shows in the bar only.
+# Default: 1 (enabled)
+AiPlayerbot.CoaTankOrdersSay = 1
+
+# Combat guards that came from Dungeon Clear (07/11), for every bot. Each one reads the old DungeonClear.* setting
+# first when your dungeon_clear.conf has it, so an update never changes a value you set.
+#
+# A healer walks back into sight and heal range of a hurt member it cannot heal from where it stands
+# (old setting: DungeonClear.HealReposition).
+AiPlayerbot.CoaHealReposition = 1
+# Health % under which a member counts as needing heals for that walk, 1-100 (DungeonClear.HealRepositionHpFloor).
+AiPlayerbot.CoaHealRepositionHpFloor = 90
+# Health % by which the group's tank is favoured when choosing whom to walk to, 0-50
+# (DungeonClear.HealRepositionTankBias).
+AiPlayerbot.CoaHealRepositionTankBias = 15
+# Farthest heal target, in yards, a healer walks to; beyond it, it does not chase, 20-120
+# (DungeonClear.HealRepositionMaxRange).
+AiPlayerbot.CoaHealRepositionMaxRange = 60
+# Out of combat, CoA healers top off members below the floor before drinking.
+AiPlayerbot.CoaTopOffParty = 1
+# Top-off floor in %, 0-100; 0 = the lower of 90 and AlmostFullHealth (DungeonClear.RestHealthPct).
+AiPlayerbot.CoaTopOffHealthPct = 0
+# Seconds damage-dealer bots wait after the tank's first hit before dealing damage, 0 = off; heroic tier: ...Heroic
+# (DungeonClear.PullPlayerReleaseDelay, DungeonClear.PullPlayerReleaseDelay.Heroic).
+AiPlayerbot.CoaThreatLeadDelay = 1.5
+AiPlayerbot.CoaThreatLeadDelayHeroic = 3.0
+# Below this tank health %, nobody waits for the threat lead, 0 = never
+# (DungeonClear.PullThreatLeadPanicHp, DungeonClear.PullThreatLeadPanicHp.Heroic).
+AiPlayerbot.CoaThreatLeadPanicHp = 60
+AiPlayerbot.CoaThreatLeadPanicHpHeroic = 70
+# Seconds the group's fight stays "on" after the last combat seen, for the assist on the tank's fight
+# (DungeonClear.PartyCombatLatch).
+AiPlayerbot.CoaTankFightLatch = 3
+# Yards from the tank within which a bot's combat counts as the tank's fight; raids: ...Raid
+# (DungeonClear.PartyMaxSpread, DungeonClear.PartyMaxSpread.Raid).
+AiPlayerbot.CoaTankFightSpread = 25
+AiPlayerbot.CoaTankFightSpreadRaid = 40
+# In combat, a bot that strayed too far from the group's tank walks back (DungeonClear.CombatRegroup); the hard
+# outer tether in yards, the slack before it walks, and the seconds between two walks (DungeonClear.CombatRegroup*).
+AiPlayerbot.CombatRegroup = 1
+AiPlayerbot.CombatRegroupDistance = 40.0
+AiPlayerbot.CombatRegroupSlack = 8.0
+AiPlayerbot.CombatRegroupCooldown = 5.0
+# Health % under which a member counts as hurt for the regroup and escape guards (DungeonClear.HealRepositionHpFloor).
+AiPlayerbot.HealRepositionHpFloor = 90.0
+# Yards added to a mob's aggro range, and to the path around a sleeping room boss (DungeonClear.AggroRangeMargin,
+# DungeonClear.RoomAggroPathPadding).
+AiPlayerbot.AggroRangeMargin = 2.0
+AiPlayerbot.RoomAggroPathPadding = 3.0
+# A bot standing in a ground effect or a trap steps out of it (DungeonClear.HazardVacate).
+AiPlayerbot.HazardVacate = 1
+
 # Random property and random suffix of the gear given to bots ("of the Bear", "of the Eagle"...).
 # 0: each item takes a property or suffix that scores well for the bot's role (stamina, and defense for a tank,
 #    count too), chosen among the best ones by the bot itself, so bots of the same spec do not all wear the same.
@@ -1623,7 +1682,7 @@ AiPlayerbot.CoaRaidPlayerCooldown = 30
 AiPlayerbot.CoaOrphanGroupReleaseDelay = 300
 
 # Bots whisper their master each item they put on by themselves (loot, trade, regear: "Equipping [item]").
-# In a raid of 25 bots that is a lot of whispers. An item you ask for (e <item>) is always answered.
+# In a raid of 25 bots that is a lot of whispers. An item you ask for (e <item>) is always answered, and so is a trade from you.
 # Default: 0 (silent), 1 = whisper every automatic upgrade, as before. Read again by ".reload config".
 AiPlayerbot.CoaTellEquipUpgrades = 0
 
@@ -1810,6 +1869,14 @@ AiPlayerbot.CoaPlayersReplaceBotsMin = 0
 # Default: 1 (enabled)
 AiPlayerbot.CoaLfgMissingRoles = 1
 
+# Random bots of a Dungeon Finder group stay in the group when the player leaves the dungeon
+# alive (teleport, hearthstone): they follow the player out like the alts, and the player can
+# queue the same group again in the Dungeon Finder for the next dungeon. A player who leaves the
+# group still lets them go.
+# 0 - they leave the group and go back to where they entered, as before.
+# Default: 0 (disabled)
+AiPlayerbot.LfgKeepRandomBots = 0
+
 # CoA 2.3, ideas taken from other mod-playerbots forks. Each one can be turned off on its own.
 # They are read once at start-up (and again by ".reload config").
 
@@ -1839,6 +1906,12 @@ AiPlayerbot.CoaMeleeNoRangedHardcast = 1
 # room for it. Random bots only: the bags of a real player's own bots are never touched.
 # Default: 1 (enabled)
 AiPlayerbot.CoaLootMakeRoom = 1
+
+# Whether bots open chests on their own (dungeon chests, crates, locked boxes; a rogue picks their lock), every bot
+# alike. At 0 a bot opens a chest only when told to ("add all loot" in chat, or "use" on it); herb and ore nodes,
+# and objects holding a quest item the bot still needs, are still taken.
+# Default: 1 (enabled)
+AiPlayerbot.OpenChestsWithoutOrder = 1
 
 # In a dungeon or a raid, a bot no longer casts an area spell (its own AoE, a ground spell, a tank's
 # Thunder Clap) that would also hit an attackable creature not yet in combat: the next pack, or the
@@ -1903,6 +1976,26 @@ AiPlayerbot.AltChatToAddon = 1
 # of the team (kept, not sold), never anything out of the guild bank, never an epic.
 # Default: 1 (enabled)
 AiPlayerbot.AltDisenchant = 1
+
+# The loot pet of your alts (the bots of your account you play with, never the random bots). A companion out loots
+# the corpses around its owner: any companion while the Loot-Transfigurator appearance is active (wardrobe, needs
+# CoA.CollectionsForBots), Lootbot 3000 and the Kleptomanic Demon by themselves outside raids.
+# At 1, an alt that can have one brings it out, out of combat, alive, on foot, never in a battleground or an arena,
+# in a raid only with the appearance, every few seconds at most: its favourite if it knows it, else Lootbot 3000 or
+# the Kleptomanic Demon, else with the appearance any companion it knows. While its companion loots, the alt leaves
+# it the corpses within the companion's reach instead of walking to them (skinning too with the Skin Peeler);
+# herbs, ore, chests and the corpses farther off stay the alt's.
+# Whisper to an alt: "loot pet" (status), "loot pet list", "loot pet <spell id or link>" (favourite),
+# "loot pet off" (this alt brings out none), "loot pet auto" (no favourite, back on). Kept per alt.
+# Default: 1 (enabled; 0: the alts loot as before)
+AiPlayerbot.AltLootCompanion = 1
+
+# Totems put away after the fight: a bot of any class (Shaman, Witch Doctor, Cultist, Hero builds, random bots
+# and alts) with totems out recalls them (Totemic Recall when it knows it, else they are dismissed) once it and its
+# group have been out of combat for 5 seconds, never during a boss encounter or a Dungeon Clear run. Totems left
+# out would pull the mobs nearby.
+# Default: 1 (enabled; 0: the totems stay out as before)
+AiPlayerbot.CoaTotemRecall = 1
 
 # Automatic guild bank deposits: a bot in the guild of a real player (your alts, the bots you invited)
 # standing near a guild vault puts there the items of the classes below and the gold above KeepGold.
@@ -2264,7 +2357,8 @@ AiPlayerbot.CoaStealthIsNotStance = 0
 #                     with a kick ready and in reach, a damage dealer before a healer before the tank,
 #                     the one that kicked longest ago first; the others hold theirs until the kick has
 #                     landed. In a dungeon a routine cast is let through when only one kick is left in
-#                     reach, kept for a heal, crowd control or long cast. Kicks are only tried on casters
+#                     reach, kept for a heal, crowd control or long cast; in a raid only from an enemy
+#                     known for such casts. Kicks are only tried on casters
 #                     they reach. Bots without a group are not affected; real players are never counted on.
 #                     0 - every bot kicks the first cast it sees, as in 1.6. Either way CoaBots.log counts
 #                     the enemy casts seen and kicked and the kicks wasted on a cast already kicked.
@@ -2467,6 +2561,16 @@ AiPlayerbot.CoaLfgOfferMinutes = 2
 
 AiPlayerbot.CoaLfgCooldown = 15
 
+#    AiPlayerbot.CoaLfgClassCooldown
+#        Description: Seconds before the same account can ask again for the same CoA class by its full
+#                     name ("lfg bot tinker heal", "lfm bot witch doctor"); other classes stay available. Up
+#                     to two bots of that class answer. Meanwhile the request is answered by role. A class
+#                     with no free bot for the role falls back to the role too.
+#        Default:     60 - one minute
+#                     0  - no wait
+
+AiPlayerbot.CoaLfgClassCooldown = 60
+
 #    AiPlayerbot.CoaLfgAnnounceMinutes
 #        Description: Every so many minutes, a message to the whole realm on how to ask the bots.
 #        Default:     10
@@ -2581,6 +2685,12 @@ AiPlayerbot.RpgStatusProbWeight.TravelFlight = 15
 AiPlayerbot.RpgStatusProbWeight.Rest = 5
 AiPlayerbot.RpgStatusProbWeight.OutdoorPvp = 10
 AiPlayerbot.RpgStatusProbWeight.GoCity = 10
+
+# How many quests a random bot drops at most each time it tidies a nearly full quest log (fewer than 2 free slots).
+# Each quest is scored (progress made, level fit, quest map data, current zone) and the lowest go first; a quest
+# ready to turn in is never dropped. 0 is read as 1.
+# Default: 1
+AiPlayerbot.Quest.MaxDropsPerPass = 1
 
 # How long a bot on a city visit (GoCity above) stays among the city NPCs, in minutes: a random time between the
 # two. Both are read again by ".reload config", like the GoCity weight.
@@ -2947,6 +3057,13 @@ AiPlayerbot.MaxRandomBotReviveTime = 300
 # Defaults: 3600 (min), 18000 (max)
 AiPlayerbot.MinRandomBotTeleportInterval = 600
 AiPlayerbot.MaxRandomBotTeleportInterval = 2400
+
+# Whether a random bot's bags are emptied at each random teleport (the refresh, every 600 to 2400 seconds above).
+# Self-found bots always keep their bags. Food and potions are only topped up, so kept bags never pile them up.
+#    0 - keep the bags: meant for when bots sell their loot at vendors
+#    1 - empty the bags at each refresh
+# Default: 1 (enabled)
+AiPlayerbot.RefreshClearsInventory = 1
 
 # Number of seconds bots flagged as permanent stay in the world (31,104,000 ≈ 1 year)
 # Default: 31104000
