@@ -14,5 +14,6 @@ Manager.lua
 Missions.lua
 Alts.lua
 Dashboard.lua
+MainTank.lua
 BotQuests.lua
 BotTalents.lua
