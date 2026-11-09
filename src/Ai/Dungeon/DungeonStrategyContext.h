@@ -27,14 +27,13 @@
 #include "OtherSideStrategy.h"
 #include "VaultsStrategy.h"
 #include "PoSStrategy.h"
-#include "RFDStrategy.h"
 #include "RFCStrategy.h"
+#include "RFDStrategy.h"
 #include "RFKStrategy.h"
+#include "ScholoStrategy.h"
 #include "SethStrategy.h"
 #include "SFKStrategy.h"
 #include "SMStrategy.h"
-#include "ScholoStrategy.h"
-#include "StratStrategy.h"
 #include "Strategy.h"
 #include "StratStrategy.h"
 #include "TOCStrategy.h"
@@ -52,20 +51,19 @@ class DungeonStrategyContext : public NamedObjectContext<Strategy>
         DungeonStrategyContext() : NamedObjectContext<Strategy>(false, true)
         {
             // Vanilla
-            creators["vanilla-bfd"] = &DungeonStrategyContext::vanilla_bfd;  // Blackfathom Deeps
             creators["vanilla-rfc"] = &DungeonStrategyContext::vanilla_rfc;  // Ragefire Chasm
             creators["vanilla-sfk"] = &DungeonStrategyContext::vanilla_sfk;  // Shadowfang Keep
-            creators["vanilla-sm"] = &DungeonStrategyContext::vanilla_sm;  // Scarlet Monastery
+            creators["vanilla-sm"] = &DungeonStrategyContext::vanilla_sm;    // Scarlet Monastery
+            creators["vanilla-bfd"] = &DungeonStrategyContext::vanilla_bfd;  // Blackfathom Deeps
+            creators["vanilla-ulda"] = &DungeonStrategyContext::vanilla_ulda;  // Uldaman
             creators["vanilla-wc"] = &DungeonStrategyContext::vanilla_wc;  // Wailing Caverns
             creators["vanilla-rfk"] = &DungeonStrategyContext::vanilla_rfk;  // Razorfen Kraul
             creators["vanilla-rfd"] = &DungeonStrategyContext::vanilla_rfd;  // Razorfen Downs
-            creators["vanilla-brd"] = &DungeonStrategyContext::vanilla_brd;  // Blackrock Depths
             creators["vanilla-brs"] = &DungeonStrategyContext::vanilla_brs;  // Blackrock Spire
-            creators["vanilla-strat"] = &DungeonStrategyContext::vanilla_strat;  // Stratholme
+            creators["vanilla-brd"] = &DungeonStrategyContext::vanilla_brd;  // Blackrock Depths
             creators["vanilla-scholo"] = &DungeonStrategyContext::vanilla_scholo;  // Scholomance
+            creators["vanilla-strat"] = &DungeonStrategyContext::vanilla_strat;  // Stratholme
             creators["vanilla-mara"] = &DungeonStrategyContext::vanilla_mara;  // Maraudon
-            creators["vanilla-ulda"] = &DungeonStrategyContext::vanilla_ulda;  // Uldaman
-            creators["vanilla-dm"] = &DungeonStrategyContext::vanilla_dm;  // Dire Maul
             creators["coa-other-side"] = &DungeonStrategyContext::coa_other_side;  // Road to De Other Side
             creators["coa-vaults"] = &DungeonStrategyContext::coa_vaults;  // Vaults of the Inquisition
             creators["vanilla-dm"] = &DungeonStrategyContext::vanilla_dm;  // Dire Maul
@@ -95,20 +93,19 @@ class DungeonStrategyContext : public NamedObjectContext<Strategy>
             creators["wotlk-fos"] = &DungeonStrategyContext::wotlk_fos;     // The Forge of Souls
         }
     private:
-        static Strategy* vanilla_bfd(PlayerbotAI* botAI) { return new VanillaDungeonBFDStrategy(botAI); }
         static Strategy* vanilla_rfc(PlayerbotAI* botAI) { return new VanillaDungeonRFCStrategy(botAI); }
         static Strategy* vanilla_sfk(PlayerbotAI* botAI) { return new VanillaDungeonSFKStrategy(botAI); }
         static Strategy* vanilla_sm(PlayerbotAI* botAI) { return new VanillaDungeonSMStrategy(botAI); }
+        static Strategy* vanilla_bfd(PlayerbotAI* botAI) { return new VanillaDungeonBFDStrategy(botAI); }
+        static Strategy* vanilla_ulda(PlayerbotAI* botAI) { return new VanillaDungeonUldaStrategy(botAI); }
         static Strategy* vanilla_wc(PlayerbotAI* botAI) { return new VanillaDungeonWCStrategy(botAI); }
         static Strategy* vanilla_rfk(PlayerbotAI* botAI) { return new VanillaDungeonRFKStrategy(botAI); }
         static Strategy* vanilla_rfd(PlayerbotAI* botAI) { return new VanillaDungeonRFDStrategy(botAI); }
-        static Strategy* vanilla_brd(PlayerbotAI* botAI) { return new VanillaDungeonBRDStrategy(botAI); }
         static Strategy* vanilla_brs(PlayerbotAI* botAI) { return new VanillaDungeonBRSStrategy(botAI); }
-        static Strategy* vanilla_strat(PlayerbotAI* botAI) { return new VanillaDungeonStratStrategy(botAI); }
+        static Strategy* vanilla_brd(PlayerbotAI* botAI) { return new VanillaDungeonBRDStrategy(botAI); }
         static Strategy* vanilla_scholo(PlayerbotAI* botAI) { return new VanillaDungeonScholoStrategy(botAI); }
+        static Strategy* vanilla_strat(PlayerbotAI* botAI) { return new VanillaDungeonStratStrategy(botAI); }
         static Strategy* vanilla_mara(PlayerbotAI* botAI) { return new VanillaDungeonMaraStrategy(botAI); }
-        static Strategy* vanilla_ulda(PlayerbotAI* botAI) { return new VanillaDungeonUldaStrategy(botAI); }
-        static Strategy* vanilla_dm(PlayerbotAI* botAI) { return new VanillaDungeonDMStrategy(botAI); }
         static Strategy* coa_other_side(PlayerbotAI* botAI) { return new CoaDungeonOtherSideStrategy(botAI); }
         static Strategy* coa_vaults(PlayerbotAI* botAI) { return new CoaDungeonVaultsStrategy(botAI); }
         static Strategy* vanilla_dm(PlayerbotAI* botAI) { return new VanillaDungeonDMStrategy(botAI); }

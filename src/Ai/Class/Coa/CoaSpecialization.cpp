@@ -527,12 +527,15 @@ std::vector<std::pair<uint32, uint8>> BuildRanksAtLevel(Player* bot, uint32 spec
     }
     return wanted;
 }
+}  // namespace
 
 uint32 CoaFreeGroupOf(uint32 entryId)
 {
     return FreeGroupOf(entryId);
 }
 
+namespace
+{
 // Lowers every entry of the bot's class above its rank in `wanted` (0 when absent), with what has to follow. With
 // spentOnly, only talents and abilities bought with points are lowered, the free automatic ranks stay.
 uint32 LowerCoaEntries(Player* bot, std::vector<std::pair<uint32, uint8>> const& wanted, bool spentOnly,
