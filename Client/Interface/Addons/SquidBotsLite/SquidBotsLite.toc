@@ -2,7 +2,7 @@
 ## Title: SquidBots Lite
 ## Notes: A thin bar of bot orders, role badges on the party frames, lfg bot offers as toasts - CoA Bots
 ## Notes-frFR: Une barre fine d'ordres aux bots, rôles sur les cadres de groupe, offres lfg bot en notifications - CoA Bots
-## Version: 2.9.5
+## Version: 3.0
 ## Author: CoA Bots team
 ## OptionalDeps: CoATalentPath
 ## X-License: GPL-2.0
@@ -11,9 +11,12 @@
 ## SavedVariablesPerCharacter: SquidBotsLiteCharDB
 SquidBotsLite.lua
 Manager.lua
+TalentLayouts.lua
+TalentTree.lua
 Missions.lua
 Alts.lua
 Dashboard.lua
 MainTank.lua
+World.lua
 BotQuests.lua
 BotTalents.lua

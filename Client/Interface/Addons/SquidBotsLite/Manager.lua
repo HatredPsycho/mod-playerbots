@@ -18,9 +18,17 @@ local STRINGS = {
 		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all", BOUND_HINT = "Red frame: soulbound, cannot be traded.",
 		GEAR_HINT = "Right-click a piece to take it off.", TRADE_HINT = "Give it to me opens a trade with the bot: accept it.",
 		MOUNTS = "Mounts", AUTO_MOUNT = "Automatic choice", PREFERRED = "preferred",
+		PETS = "Pets", PET_CAT_loot = "Loot", PET_CAT_quest = "Quests", PET_CAT_class = "Class trainer",
+		PET_CAT_craft = "Professions", PETS_FAV = "Favourite", PETS_USE = "Use", PETS_DISMISS = "Dismiss",
+		PETS_AUTO = "Uses them by itself", PETS_IS_FAV = "favourite", PETS_IS_OUT = "out", PETS_UNKNOWN = "not learned",
+		PETS_HINT = "One favourite per use: the alt summons it by itself when needed (loot out of combat, class and profession books when it can learn something). Use calls it now.",
+		PETS_NO_CMD = "No answer: this realm's CoA Bots has no pet command yet (3.0 or later).", PETS_ERR = "Refused: %s.", PETS_ERR_unknown = "this alt does not know that companion", PETS_ERR_dead = "the alt is dead",
+		PETS_ERR_combat = "in combat", PETS_ERR_mounted = "mounted", PETS_ERR_raid = "no loot pet in a raid", PETS_ERR_cast = "the summon failed",
 		FOR_GROUND = "favourite on the ground", FOR_FLYING = "favourite in the air",
 		MOUNT_SEARCH = "Search a mount...", MOUNT_NONE = "No mount matches \"%s\".",
 		GROUND = "ground", FLYING = "flying", BOTH = "ground and flying",
+		MOUNT_ALL = "All", MOUNT_F_GROUND = "Ground", MOUNT_F_FLYING = "Flying", MOUNT_COUNT = "%d mounts",
+		MOUNT_FAVS = "Favourites:  %s on the ground,  %s in the air", MOUNT_AUTO_WORD = "automatic",
 		MOUNT_HINT = "Click a mount: your bot rides it from now on. One ground and one flying favourite; a ground-and-flying mount is both. Automatic choice: the bot picks again.",
 		NO_MOUNT_CMD = "No answer: this server's CoA Bots has no mount command yet (2.1 or later).",
 		NO_MOUNTS = "No mount known: give this alt a mount, it rides when you ride.",
@@ -33,6 +41,7 @@ local STRINGS = {
 		TIP_LOOT_PET = "The companion this alt summons out of combat, and that loots for it when it can.",
 		PET_APP = "Loot-Transfigurator on: any companion loots. Shift-click one (your spellbook's companions, a link in the chat) into the box, or type its spell id, then Enter.",
 		USAGE = "/sbl bot <name>, or target a bot of your group and type /sbl bot.",
+		READ_ONLY = "read only", READ_ONLY_NO = "Read-only sheet: this bot is not one of your characters.",
 		NOT_A_MEMBER = "%s is not in your group.",
 		STRATS = "Strategies", COMBAT = "In combat", NONCOMBAT = "Out of combat", ADD = "Add...",
 		STRAT_HINT = "Click a strategy to remove it; Add... to give one. The server resets them on a specialization switch.",
@@ -72,9 +81,17 @@ local STRINGS = {
 		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer", BOUND_HINT = "Cadre rouge : lié, impossible à échanger.",
 		GEAR_HINT = "Clic droit sur une pièce pour la retirer.", TRADE_HINT = "Me le donner ouvre un échange avec le bot : acceptez-le.",
 		MOUNTS = "Montures", AUTO_MOUNT = "Choix automatique", PREFERRED = "préférée",
+		PETS = "Familiers", PET_CAT_loot = "Butin", PET_CAT_quest = "Quêtes", PET_CAT_class = "Maître de classe",
+		PET_CAT_craft = "Métiers", PETS_FAV = "Favori", PETS_USE = "Sortir", PETS_DISMISS = "Renvoyer",
+		PETS_AUTO = "Les utilise tout seul", PETS_IS_FAV = "favori", PETS_IS_OUT = "sorti", PETS_UNKNOWN = "pas appris",
+		PETS_HINT = "Un favori par usage : l'alt le sort tout seul au besoin (butin hors combat, livres de classe et de métiers quand il peut apprendre). Sortir l'appelle maintenant.",
+		PETS_NO_CMD = "Pas de réponse : le CoA Bots de ce royaume n'a pas encore la commande pet (3.0 ou plus).", PETS_ERR = "Refusé : %s.", PETS_ERR_unknown = "cet alt ne connaît pas cette mascotte", PETS_ERR_dead = "l'alt est mort",
+		PETS_ERR_combat = "en combat", PETS_ERR_mounted = "sur sa monture", PETS_ERR_raid = "pas de familier de butin en raid", PETS_ERR_cast = "l'invocation a échoué",
 		FOR_GROUND = "préférée au sol", FOR_FLYING = "préférée en vol",
 		MOUNT_SEARCH = "Chercher une monture...", MOUNT_NONE = "Aucune monture ne correspond à « %s ».",
 		GROUND = "sol", FLYING = "vol", BOTH = "sol et vol",
+		MOUNT_ALL = "Toutes", MOUNT_F_GROUND = "Sol", MOUNT_F_FLYING = "Vol", MOUNT_COUNT = "%d montures",
+		MOUNT_FAVS = "Préférées :  %s au sol,  %s en vol", MOUNT_AUTO_WORD = "automatique",
 		MOUNT_HINT = "Cliquez une monture : votre bot la prend désormais. Une préférée au sol, une en vol ; une monture sol et vol compte pour les deux. Choix automatique : le bot choisit à nouveau.",
 		NO_MOUNT_CMD = "Pas de réponse : le CoA Bots de ce serveur n'a pas encore la commande des montures (2.1 ou plus).",
 		NO_MOUNTS = "Aucune monture connue : donnez une monture à cet alt, il monte quand vous montez.",
@@ -87,6 +104,7 @@ local STRINGS = {
 		TIP_LOOT_PET = "La mascotte que cet alt invoque hors combat, et qui ramasse pour lui quand elle sait le faire.",
 		PET_APP = "Loot-Transfigurator actif : toute mascotte ramasse. Maj-clic sur une mascotte (mascottes du grimoire, lien du chat) dans la case, ou tapez son id de sort, puis Entrée.",
 		USAGE = "/sbl bot <nom>, ou ciblez un bot de votre groupe et tapez /sbl bot.",
+		READ_ONLY = "lecture seule", READ_ONLY_NO = "Fiche en lecture seule : ce bot n'est pas un de vos personnages.",
 		NOT_A_MEMBER = "%s n'est pas dans votre groupe.",
 		STRATS = "Stratégies", COMBAT = "En combat", NONCOMBAT = "Hors combat", ADD = "Ajouter...",
 		STRAT_HINT = "Cliquez une stratégie pour la retirer ; Ajouter... pour en donner une. Le serveur les remet à zéro à un changement de spé.",
@@ -135,6 +153,10 @@ local NONCOMBAT_STRATS = { "follow", "stay", "grind", "loot", "gather", "food", 
 	"travel", "mount", "buff", "maintenance", "ready check", "emote", "chat", "duel", "sit" }
 
 local sheet, current, tab
+-- 3.0: a sheet opened read only (a random bot of the group, from its sheet icon): its own tabs only, and only the
+-- questions below are whispered; any order is refused with a line in the chat.
+local readOnly = { on = false, HIDDEN = { bags = true, mounts = true, pets = true },
+	ASK = { ["stats"] = true, ["quests all"] = true, ["talents ?"] = true, ["talents tree"] = true, ["co ?"] = true, ["nc ?"] = true } }
 local capture, hideFrom, lastAsked = nil, {}, {}
 local bags, quests, stats, mounts, bank = {}, {}, {}, {}, {}
 local talents, talentSpent, talentOffset = {}, nil, 0
@@ -150,12 +172,11 @@ local spells, spellOffset = {}, 0
 local bagOffset = 0
 -- Items marked for selling, by item id: the bag list is read again after every change and its order moves.
 local marked = {}
--- 2.9.5: the loot pet (the Mounts tab's second list). pets: { id, entry, name, loots, fav }; petState: the alt's
--- favourite and whether it summons; petAskedAt: no answer after a while, an older realm.
-local pets, petsPending, petState, petAskedAt, petMode, petApp = {}, nil, nil, nil, false, false
+-- 3.0: the Mounts tab's filter: "all", "ground" or "flying" (the loot pet moved to the Pets tab).
+local mountKind = "all"
 
 local function Print(text)
-	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Lite|r: " .. text)
+	DEFAULT_CHAT_FRAME:AddMessage("|cff66ccffSquidBots Manager|r: " .. text)
 end
 
 local function UnitOf(name)
@@ -170,6 +191,10 @@ end
 
 local function Whisper(text)
 	if not current then return end
+	if readOnly.on and not readOnly.ASK[text] then
+		Print(T("READ_ONLY_NO"))
+		return
+	end
 	hideFrom[current] = GetTime() + QUIET + 1
 	SquidBotsLite_QuietWhisper(text, current)
 end
@@ -337,7 +362,13 @@ local function Finish()
 		return
 	end
 	hideFrom[done.name] = GetTime() + 1
-	if done.name ~= current then return end
+	if done.name ~= current then
+		-- Another bot's answer: the sheet's own questions (queued meanwhile) go on.
+		sheet.status:SetText("")
+		local nextOne = table.remove(queue, 1)
+		if nextOne then Ask(nextOne.kind, nextOne.command) end
+		return
+	end
 	if done.kind == "bags" then
 		bags = ParseBags(done.lines)
 	elseif done.kind == "quests" then
@@ -609,7 +640,7 @@ tradeWatch:SetScript("OnEvent", function()
 	-- A trade with one of the group's bots opens its sheet on the bags (/sbl sheettrade off to stop).
 	local partner = UnitName("NPC")
 	if partner and SquidBotsLiteDB.sheetOnTrade ~= false and SquidBotsLite_OpenSheet and UnitOf(partner)
-		and (partner:find(" Bot$") or (SquidBotsLiteDB.alts and SquidBotsLiteDB.alts[partner])) then
+		and ((SquidBotsLite_IsBot and SquidBotsLite_IsBot(partner)) or (SquidBotsLiteDB.alts and SquidBotsLiteDB.alts[partner])) then
 		tab = "bags"
 		SquidBotsLite_OpenSheet(partner)
 	end
@@ -1371,48 +1402,69 @@ end
 
 local RenderMounts
 
--- The mounts the search box keeps: a part of the name, any case. Empty box: all of them.
+-- The mounts shown: the kind chosen (a ground-and-flying mount is in both) and the search box (a part of the name,
+-- any case). The favourites first, then by name.
 local function ShownMounts(page)
 	local search = page.search and strlower(strtrim(page.search:GetText() or "")) or ""
-	local source = petMode and pets or mounts
-	if search == "" or (petMode and (search:find("|hspell:", 1, true) or search:find("^%d+$"))) then return source, search end
 	local list = {}
-	for _, m in ipairs(source) do
-		if strlower(m.name or ""):find(search, 1, true) then table.insert(list, m) end
+	for _, m in ipairs(mounts) do
+		local kindOk = mountKind == "all" or m.kind == mountKind or m.kind == "both"
+		if kindOk and (search == "" or strlower(m.name or ""):find(search, 1, true)) then table.insert(list, m) end
 	end
+	table.sort(list, function(x, y)
+		if (x.preferred and 1 or 0) ~= (y.preferred and 1 or 0) then return x.preferred == true end
+		return (x.name or "") < (y.name or "")
+	end)
 	return list, search
 end
 
+local MOUNT_COLORS = { ground = { 0.85, 0.7, 0.45 }, flying = { 0.5, 0.8, 1 }, both = { 0.55, 0.9, 0.55 } }
+
 local function BuildMounts(page)
 	page.search = CreateFrame("EditBox", "SquidBotsLiteMountSearch", page, "InputBoxTemplate")
-	page.search:SetWidth(220)
+	page.search:SetWidth(190)
 	page.search:SetHeight(20)
 	page.search:SetPoint("TOPLEFT", 18, -2)
 	page.search:SetAutoFocus(false)
 	page.search:SetScript("OnEscapePressed", function(self) self:SetText(""); self:ClearFocus() end)
-	page.search:SetScript("OnEnterPressed", function(self)
-		-- The loot pet: a companion's link or spell id makes it the favourite (any companion loots with the
-		-- Loot-Transfigurator, the list shows only those that loot by themselves).
-		local text = self:GetText() or ""
-		local id = petMode and (text:match("|Hspell:(%d+)") or text:match("^%s*(%d+)%s*$"))
-		if id then
-			Whisper("loot pet " .. id)
-			self:SetText("")
-		end
-		self:ClearFocus()
-	end)
+	page.search:SetScript("OnEnterPressed", function(self) self:ClearFocus() end)
 	page.search:SetScript("OnTextChanged", function() mountOffset = 0; RenderMounts(page) end)
 	page.search:SetScript("OnEditFocusGained", function() page.typing = true; RenderMounts(page) end)
 	page.search:SetScript("OnEditFocusLost", function() page.typing = nil; RenderMounts(page) end)
 	page.searchHint = page.search:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	page.searchHint:SetPoint("LEFT", 4, 0)
+	-- The kind filter: All, Ground, Flying.
+	page.kinds = {}
+	for i, kind in ipairs({ "all", "ground", "flying" }) do
+		local b = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+		b:SetWidth(62)
+		b:SetHeight(20)
+		b:SetPoint("LEFT", page.search, "RIGHT", 10 + (i - 1) * 64, 0)
+		b:SetNormalFontObject(GameFontNormalSmall)
+		b:SetHighlightFontObject(GameFontHighlightSmall)
+		b:SetScript("OnClick", function() mountKind = kind; mountOffset = 0; RenderMounts(page) end)
+		b.kind = kind
+		page.kinds[i] = b
+	end
+	page.count = 0
+	page.countText = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	page.countText:SetPoint("TOPRIGHT", -12, -6)
+	page.favs = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	page.favs:SetPoint("TOPLEFT", 14, -28)
+	page.favs:SetWidth(470)
+	page.favs:SetJustifyH("LEFT")
 	page.rows = {}
 	for i = 1, MOUNT_ROWS do
 		local row = CreateFrame("Button", nil, page)
-		row:SetWidth(370)
-		row:SetHeight(22)
-		row:SetPoint("TOPLEFT", 10, -26 - (i - 1) * 24)
+		row:SetWidth(456)
+		row:SetHeight(23)
+		row:SetPoint("TOPLEFT", 10, -46 - (i - 1) * 24)
 		row:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+		-- Every other row a shade lighter: the eye follows the line to its kind.
+		row.stripe = row:CreateTexture(nil, "BACKGROUND")
+		row.stripe:SetAllPoints()
+		row.stripe:SetTexture("Interface\\Buttons\\WHITE8X8")
+		row.stripe:SetVertexColor(1, 1, 1, i % 2 == 0 and 0.04 or 0)
 		row.icon = row:CreateTexture(nil, "ARTWORK")
 		row.icon:SetWidth(20)
 		row.icon:SetHeight(20)
@@ -1424,10 +1476,12 @@ local function BuildMounts(page)
 		row.check:SetPoint("RIGHT", -4, 0)
 		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 		row.name:SetPoint("LEFT", 28, 0)
-		row.name:SetWidth(220)
+		row.name:SetWidth(240)
 		row.name:SetJustifyH("LEFT")
-		row.kind = row:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-		row.kind:SetPoint("LEFT", 252, 0)
+		row.kind = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.kind:SetPoint("LEFT", 276, 0)
+		row.kind:SetWidth(156)
+		row.kind:SetJustifyH("LEFT")
 		row:SetScript("OnEnter", function(self)
 			if self.mount then
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -1437,12 +1491,7 @@ local function BuildMounts(page)
 		end)
 		row:SetScript("OnLeave", function() GameTooltip:Hide() end)
 		row:SetScript("OnClick", function(self)
-			if self.mount and petMode then
-				-- The alt answers every "loot pet" command with its list: no need to ask again.
-				Whisper("loot pet " .. self.mount.id)
-			elseif self.mount then
-				Whisper("mount " .. self.mount.id); AfterChange()
-			end
+			if self.mount then Whisper("mount " .. self.mount.id); AfterChange() end
 		end)
 		row:EnableMouseWheel(true)
 		row:SetScript("OnMouseWheel", function(_, delta)
@@ -1452,10 +1501,10 @@ local function BuildMounts(page)
 		page.rows[i] = row
 	end
 	page.up = CreateFrame("Button", nil, page, "UIPanelScrollUpButtonTemplate")
-	page.up:SetPoint("TOPRIGHT", -6, -26)
+	page.up:SetPoint("TOPLEFT", page.rows[1], "TOPRIGHT", 4, 0)
 	page.up:SetScript("OnClick", function() mountOffset = math.max(0, mountOffset - MOUNT_ROWS); RenderMounts(page) end)
 	page.down = CreateFrame("Button", nil, page, "UIPanelScrollDownButtonTemplate")
-	page.down:SetPoint("TOPRIGHT", -6, -26 - (MOUNT_ROWS * 24) + 16)
+	page.down:SetPoint("BOTTOMLEFT", page.rows[MOUNT_ROWS], "BOTTOMRIGHT", 4, 0)
 	page.down:SetScript("OnClick", function()
 		if mountOffset + MOUNT_ROWS < (page.count or 0) then mountOffset = mountOffset + MOUNT_ROWS end
 		RenderMounts(page)
@@ -1463,42 +1512,11 @@ local function BuildMounts(page)
 	page.auto = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.auto:SetWidth(150)
 	page.auto:SetHeight(22)
-	page.auto:SetPoint("TOPLEFT", 10, -26 - (MOUNT_ROWS * 24) - 6)
-	page.auto:SetScript("OnClick", function()
-		if petMode then Whisper("loot pet auto") else Whisper("mount clear"); AfterChange() end
-	end)
-	-- 2.9.5: the loot pet: the same list, the alt's companions.
-	page.off = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-	page.off:SetWidth(110)
-	page.off:SetHeight(22)
-	page.off:SetPoint("LEFT", page.auto, "RIGHT", 6, 0)
-	page.off:SetScript("OnClick", function() Whisper("loot pet off") end)
-	page.switch = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-	page.switch:SetWidth(120)
-	page.switch:SetHeight(20)
-	page.switch:SetPoint("TOPRIGHT", -30, -2)
-	page.switch:SetScript("OnClick", function()
-		petMode = not petMode
-		mountOffset = 0
-		page.search:SetText("")
-		page.search:ClearFocus()
-		if petMode then SquidBotsLite_AskLootPets() else Ask("mounts", "mount ?") end
-		RenderMounts(page)
-	end)
-	page.switch:SetScript("OnEnter", function(self)
-		GameTooltip:SetOwner(self, "ANCHOR_TOP")
-		GameTooltip:SetText(T("LOOT_PET"), 1, 0.82, 0)
-		GameTooltip:AddLine(T("TIP_LOOT_PET"), 1, 1, 1, true)
-		GameTooltip:Show()
-	end)
-	page.switch:SetScript("OnLeave", function() GameTooltip:Hide() end)
+	page.auto:SetPoint("TOPLEFT", page.rows[MOUNT_ROWS], "BOTTOMLEFT", 0, -8)
+	page.auto:SetScript("OnClick", function() Whisper("mount clear"); AfterChange() end)
 	page.hint = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	page.hint:SetPoint("TOPLEFT", page.auto, "TOPRIGHT", 8, 2)
-	page.hint:SetWidth(270)
-	page.hintPets = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
-	page.hintPets:SetPoint("TOPLEFT", page.auto, "BOTTOMLEFT", 0, -4)
-	page.hintPets:SetWidth(380)
-	page.hintPets:SetJustifyH("LEFT")
+	page.hint:SetPoint("TOPLEFT", page.auto, "TOPRIGHT", 10, 2)
+	page.hint:SetWidth(300)
 	page.hint:SetJustifyH("LEFT")
 	page.note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	page.note:SetPoint("TOP", 0, -120)
@@ -1509,37 +1527,20 @@ RenderMounts = function(page)
 	local shown, search = ShownMounts(page)
 	page.count = #shown
 	mountOffset = math.max(0, math.min(mountOffset, #shown - MOUNT_ROWS))
-	page.switch:SetText(T(petMode and "BACK_MOUNTS" or "LOOT_PET"))
-	if petMode then
-		page.searchHint:SetText(search == "" and not page.typing and T("PET_SEARCH") or "")
-		if petsPending == nil and #pets == 0 and petAskedAt and GetTime() - petAskedAt > 6 and not petState then
-			page.note:SetText(T("NO_PET_CMD"))
-		elseif #pets == 0 then
-			page.note:SetText(petState and T("NO_PETS") or "")
-		elseif #shown == 0 then
-			page.note:SetText(string.format(T("PET_NONE"), page.search:GetText()))
-		else
-			page.note:SetText("")
-		end
-		page.auto:SetText(T("PET_AUTO"))
-		page.off:SetText(T("PET_OFF"))
-		page.off:Show()
-		page.hint:SetText("")
-		page.hintPets:SetText((petState and not petState.on) and ("|cffffd100" .. T("PET_IS_OFF") .. "|r")
-			or (petState and petState.app) and T("PET_APP") or T("PET_HINT"))
-		page.hintPets:Show()
+	page.searchHint:SetText(search == "" and not page.typing and T("MOUNT_SEARCH") or "")
+	if #mounts == 0 then
+		page.note:SetText(capture == nil and sheet.status:GetText() == "" and T("NO_MOUNTS") or "")
 	else
-		page.searchHint:SetText(search == "" and not page.typing and T("MOUNT_SEARCH") or "")
-		if #mounts == 0 then
-			page.note:SetText(capture == nil and sheet.status:GetText() == "" and T("NO_MOUNTS") or "")
-		else
-			page.note:SetText(#shown == 0 and string.format(T("MOUNT_NONE"), page.search:GetText()) or "")
-		end
-		page.auto:SetText(T("AUTO_MOUNT"))
-		page.off:Hide()
-		page.hint:SetText(T("MOUNT_HINT"))
-		page.hintPets:Hide()
+		page.note:SetText(#shown == 0 and string.format(T("MOUNT_NONE"), page.search:GetText()) or "")
 	end
+	local labels = { all = "MOUNT_ALL", ground = "MOUNT_F_GROUND", flying = "MOUNT_F_FLYING" }
+	for _, b in ipairs(page.kinds) do
+		b:SetText(T(labels[b.kind]))
+		if b.kind == mountKind then b:LockHighlight() else b:UnlockHighlight() end
+	end
+	page.countText:SetText(#mounts > 0 and string.format(T("MOUNT_COUNT"), #shown) or "")
+	page.auto:SetText(T("AUTO_MOUNT"))
+	page.hint:SetText(T("MOUNT_HINT"))
 	local kinds = { ground = T("GROUND"), flying = T("FLYING"), both = T("BOTH") }
 	-- The server marks a favourite without saying for what. A ground-and-flying favourite next to a ground one
 	-- is the flying favourite (and the other way round): the list says which, so the old one does not look stuck.
@@ -1555,18 +1556,35 @@ RenderMounts = function(page)
 		if flyingFav and not groundFav then return T("FOR_GROUND") end
 		return T("PREFERRED")
 	end
+	-- The line at the top: which mount for the ground, which for the air (automatic: none chosen).
+	local groundName, flyingName
+	for _, m in ipairs(mounts) do
+		if m.preferred then
+			local role = FavouriteFor(m)
+			if role == T("FOR_GROUND") then groundName = m.name
+			elseif role == T("FOR_FLYING") then flyingName = m.name
+			else groundName, flyingName = groundName or m.name, flyingName or m.name end
+		end
+	end
+	local auto = "|cff808080" .. T("MOUNT_AUTO_WORD") .. "|r"
+	page.favs:SetText(#mounts > 0 and string.format(T("MOUNT_FAVS"),
+		groundName and ("|cffffd100" .. groundName .. "|r") or auto, flyingName and ("|cffffd100" .. flyingName .. "|r") or auto) or "")
 	for i, row in ipairs(page.rows) do
 		local m = shown[mountOffset + i]
 		row.mount = m
 		if m then
 			row.icon:SetTexture(select(3, GetSpellInfo(m.id)) or "Interface\\Icons\\INV_Misc_QuestionMark")
 			row.name:SetText(m.name)
-			if petMode then
-				row.kind:SetText((m.loots and T("PET_LOOTS") or "") .. (m.fav and ("  |cffffd100" .. T("PET_FAV") .. "|r") or ""))
-				if m.fav then row.check:Show() else row.check:Hide() end
+			local color = MOUNT_COLORS[m.kind] or { 0.7, 0.7, 0.7 }
+			row.kind:SetText(kinds[m.kind] or m.kind or "")
+			row.kind:SetTextColor(color[1], color[2], color[3])
+			if m.preferred then
+				row.name:SetTextColor(1, 0.82, 0)
+				row.kind:SetText((kinds[m.kind] or m.kind or "") .. "  |cffffd100" .. FavouriteFor(m) .. "|r")
+				row.check:Show()
 			else
-				row.kind:SetText((kinds[m.kind] or m.kind or "") .. (m.preferred and ("  |cffffd100" .. FavouriteFor(m) .. "|r") or ""))
-				if m.preferred then row.check:Show() else row.check:Hide() end
+				row.name:SetTextColor(1, 1, 1)
+				row.check:Hide()
 			end
 			row:Show()
 		else
@@ -1656,6 +1674,7 @@ local TABS = { { "gear", "GEAR", BuildGear, "Interface\\Icons\\INV_Chest_Chain_0
 	{ "talents", "TALENTS", BuildTalents, "Interface\\Icons\\INV_Misc_Book_11" },
 	{ "spells", "SPELLS", BuildSpells, "Interface\\Icons\\INV_Misc_Book_09" },
 	{ "mounts", "MOUNTS", BuildMounts, "Interface\\Icons\\Ability_Mount_RidingHorse" },
+	{ "pets", "PETS", function(page) SquidBotsLite_Pets.Build(page) end, "Interface\\Icons\\INV_Misc_Book_09" },
 	{ "info", "INFO", BuildInfo, "Interface\\Icons\\INV_Misc_Note_01" } }
 -- The Strategies tab (BuildStrats) is kept out for now: too easy to break a bot with it (decision 12/10).
 -- Put { "strats", "STRATS", BuildStrats } back in TABS to show it.
@@ -1750,13 +1769,24 @@ local function RenderQuests(page)
 end
 
 local function RenderInfo(page)
-	page.text:SetText(table.concat(stats, "\n"))
+	local text = table.concat(stats, "\n")
+	local W = SquidBotsLite_World
+	if W and current then
+		local arch, traits = W.SoulText(current)
+		if arch then
+			text = text .. (text ~= "" and "\n\n" or "") .. "|cffffd100" .. W.T("SOUL") .. " : " .. arch .. "|r\n|cffaaaaaa" .. traits .. "|r"
+		else
+			W.Soul(current)
+		end
+	end
+	page.text:SetText(text)
 	for _, b in ipairs(page.buttons) do b:SetText(T(b.label)) end
 end
 
 Render = function()
 	if not sheet or not sheet:IsShown() then return end
-	sheet.title:SetText("SquidBots Lite - " .. T("TITLE") .. " : " .. (current or "?"))
+	sheet.title:SetText("SquidBots Manager - " .. T("TITLE") .. " : " .. (current or "?")
+		.. (readOnly.on and ("  |cffaaaaaa(" .. T("READ_ONLY") .. ")|r") or ""))
 	local info = SquidBotsLiteDB.altInfo and current and SquidBotsLiteDB.altInfo[current] or {}
 	local gold = sheet.gold or info.gold
 	-- A wrong value saved before the fix ("Strategies: ...") is not shown.
@@ -1774,10 +1804,9 @@ Render = function()
 	if info.xp then
 		sheet.xp:SetValue(info.xp)
 		sheet.xp.text:SetText(string.format("%s %d%%%s", T("XP"), info.xp, (info.rest or 0) > 0 and (" (+" .. info.rest .. "%)") or ""))
-		sheet.xp:Show()
-	else
-		sheet.xp:Hide()
 	end
+	sheet.xp.has = info.xp ~= nil
+	sheet.xp:Update()
 	sheet.refresh:SetText(T("REFRESH"))
 	for _, def in ipairs(TABS) do
 		local key = def[1]
@@ -1788,14 +1817,18 @@ Render = function()
 			text:SetPoint("LEFT", sheet.tabs[key].tabIcon, "RIGHT", 4, 0)
 		end
 		if key == tab then sheet.tabs[key]:LockHighlight() else sheet.tabs[key]:UnlockHighlight() end
+		if readOnly.on and readOnly.HIDDEN[key] then sheet.tabs[key]:Hide() else sheet.tabs[key]:Show() end
 		if key == tab then pages[key]:Show() else pages[key]:Hide() end
 	end
 	if tab == "gear" then RenderGear(pages.gear)
 	elseif tab == "bags" then RenderBags(pages.bags)
 	elseif tab == "quests" then RenderQuests(pages.quests)
 	elseif tab == "mounts" then RenderMounts(pages.mounts)
-	elseif tab == "talents" then RenderTalents(pages.talents)
 	elseif tab == "spells" then RenderSpells(pages.spells)
+	elseif tab == "pets" then SquidBotsLite_Pets.Render(pages.pets)
+	elseif tab == "talents" then
+		RenderTalents(pages.talents)
+		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Render(pages.talents) end
 	elseif tab == "strats" then RenderStrats(pages.strats)
 	else RenderInfo(pages.info) end
 end
@@ -1810,9 +1843,12 @@ local function Load()
 	elseif tab == "quests" then
 		Ask("quests", "quests all")
 	elseif tab == "mounts" then
-		if petMode then SquidBotsLite_AskLootPets() else Ask("mounts", "mount ?") end
+		Ask("mounts", "mount ?")
+	elseif tab == "pets" then
+		SquidBotsLite_Pets.Ask()
 	elseif tab == "talents" then
 		Ask("talents", "talents ?")
+		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Ask() end
 	elseif tab == "spells" then
 		Ask("spells", "spells abilities")
 	elseif tab == "strats" then
@@ -1826,7 +1862,8 @@ end
 
 local function Build()
 	sheet = CreateFrame("Frame", "SquidBotsLiteSheet", UIParent)
-	sheet:SetWidth(470)
+	-- 3.0: 520 wide (was 470): seven tabs.
+	sheet:SetWidth(520)
 	sheet:SetHeight(540)
 	sheet:SetPoint("CENTER", 120, 0)
 	sheet:SetBackdrop(BACKDROP)
@@ -1856,7 +1893,7 @@ local function Build()
 		b:SetWidth(60)
 		b:SetHeight(22)
 		b:SetPoint("TOPLEFT", 16 + (i - 1) * 62, -36)
-		b:SetScript("OnClick", function() tab = def[1]; Load() end)
+		b:SetScript("OnClick", function() tab = def[1]; sheet.xp:Update(); Load() end)
 		-- A small icon before the name, the name a size smaller to make room.
 		b:SetNormalFontObject(GameFontNormalSmall)
 		b:SetHighlightFontObject(GameFontHighlightSmall)
@@ -1872,6 +1909,8 @@ local function Build()
 		page:SetPoint("TOPLEFT", 8, -86)
 		page:SetPoint("BOTTOMRIGHT", -8, 40)
 		def[3](page)
+		-- 3.0: the Talents tab's tree view (TalentTree.lua).
+		if def[1] == "talents" and SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Build(page) end
 		pages[def[1]] = page
 	end
 	sheet.refresh = CreateFrame("Button", nil, sheet, "UIPanelButtonTemplate")
@@ -1895,6 +1934,10 @@ local function Build()
 	xpBg:SetTexture(0, 0, 0, 0.6)
 	sheet.xp.text = sheet.xp:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	sheet.xp.text:SetPoint("CENTER")
+	-- The Pets tab has its buttons ("Dismiss", "Uses them by itself") where the bar sits: no bar on that tab.
+	sheet.xp.Update = function(self)
+		if self.has and tab ~= "pets" then self:Show() else self:Hide() end
+	end
 	sheet.status = sheet:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
 	sheet.status:SetPoint("BOTTOMLEFT", 18, 20)
 	-- The flat buttons of the other panels (SquidBotsLite.lua).
@@ -1902,66 +1945,191 @@ local function Build()
 	sheet:Hide()
 end
 
--- Opened from a bot's menu, the My alts panel, or /sbl bot <name>.
-local insertLink = ChatEdit_InsertLink
-ChatEdit_InsertLink = function(link, ...)
-	local box = pages.mounts and pages.mounts.search
-	if petMode and link and box and box:IsVisible() and box:HasFocus() then
-		box:SetText(link)
-		return true
-	end
-	return insertLink(link, ...)
+-- ---------------------------------------------------------------------------
+-- 3.0: the Pets tab. The alt's companions by use (loot, quests, class trainer, professions), one favourite per use
+-- that it summons by itself. Protocol: docs/PETS-PROTOCOLE-3.0.md ("pet list|set|use|dismiss|auto", "PET ..." lines).
+-- ---------------------------------------------------------------------------
+SquidBotsLite_Pets = {
+	CATEGORIES = { "loot", "quest", "class", "craft" },
+	-- What the tab shows before (or without) an answer; the server's lines replace it.
+	KNOWN = {
+		{ id = 9930889, entry = 44022, cat = "loot", name = "Lootbot 3000" },
+		{ id = 83086, entry = 79026, cat = "loot", name = "Kleptomanic Demon" },
+		{ id = 83050, entry = 79025, cat = "quest", name = "Wondrous Wisdomball" },
+		{ id = 979602, entry = 75115, cat = "class", name = "Book of Ascension" },
+		{ id = 499992, entry = 499992, cat = "class", name = "Book of Ascension" },
+		{ id = 499908, entry = 75137, cat = "class", name = "Bloody Book of Ascension" },
+		{ id = 105307, entry = 108587, cat = "class", name = "Book of Conquest" },
+		{ id = 750750, entry = 57500, cat = "craft", name = "Book of Artisans" },
+	},
+	-- 8 rows: the server sends both Books of Ascension (979602 and 499992).
+	ROWS = 8, WAIT = 6.5,
+	list = nil, pending = nil, fav = {}, out = 0, auto = true, askedAt = nil, answered = false,
+}
+local PT = SquidBotsLite_Pets
+
+function PT.Reset()
+	PT.list, PT.pending, PT.fav, PT.out, PT.auto, PT.askedAt, PT.answered = nil, nil, {}, 0, true, nil, false
+	PT.err, PT.errPending, PT.favPending = nil, nil, nil
 end
 
--- 2.9.5: the loot pet. The alt answers "loot pet list" (and every "loot pet ..." command) on the addon channel:
--- "LP pet <spellId> <entry> <name> <loots 1|0>" per companion, "LP fav <spellId|0> <summons 1|0>", "LP -" (end).
-function SquidBotsLite_AskLootPets()
+function PT.Send(command)
 	if not current then return end
-	if SquidBotsLite_Alts and SquidBotsLite_Alts.Handle and not SquidBotsLite_Alts.Handle.LP then
-		SquidBotsLite_Alts.Handle.LP = SquidBotsLite_OnLootPet
-	end
-	petAskedAt = GetTime()
-	Whisper("loot pet list")
-	-- No answer: the note says so (an older realm).
-	local name, wait = current, CreateFrame("Frame")
-	local t = 0
+	if SquidBotsLite_Alts and SquidBotsLite_Alts.Handle then SquidBotsLite_Alts.Handle.PET = PT.OnLine end
+	PT.askedAt = GetTime()
+	Whisper(command)
+	local name, wait, t = current, CreateFrame("Frame"), 0
 	wait:SetScript("OnUpdate", function(self, delta)
 		t = t + delta
-		if t < 6.5 then return end
+		if t < PT.WAIT then return end
 		self:SetScript("OnUpdate", nil)
-		if current == name and sheet and sheet:IsShown() and tab == "mounts" and petMode then RenderMounts(pages.mounts) end
+		if current == name and sheet and sheet:IsShown() and tab == "pets" then PT.Render(pages.pets) end
 	end)
 end
 
-function SquidBotsLite_OnLootPet(name, f)
+function PT.Ask() PT.Send("pet list") end
+
+function PT.OnLine(name, f)
 	if name ~= current then return end
 	if f[2] == "pet" then
-		petsPending = petsPending or {}
 		local id = tonumber(f[3] or "")
 		if id then
-			table.insert(petsPending, { id = id, entry = tonumber(f[4] or ""), name = (f[5] and f[5] ~= "") and f[5]
-				or GetSpellInfo(id) or ("#" .. id), loots = f[6] == "1" })
+			PT.pending = PT.pending or {}
+			table.insert(PT.pending, { id = id, entry = tonumber(f[4] or ""), cat = f[5], known = f[6] == "1",
+				name = (f[7] and f[7] ~= "") and f[7] or GetSpellInfo(id) or ("#" .. id) })
 		end
-	elseif f[2] == "app" then
-		-- The Loot-Transfigurator appearance (2.9.5): any companion loots, picked by its link or id.
-		petApp = f[3] == "1"
-	elseif f[2] == "fav" then
-		petState = { fav = tonumber(f[3] or "") or 0, on = f[4] ~= "0", app = petApp }
+	elseif f[2] == "fav" and f[3] then
+		PT.favPending = PT.favPending or {}
+		PT.favPending[f[3]] = tonumber(f[4] or "") or 0
+	elseif f[2] == "out" then
+		PT.out = tonumber(f[3] or "") or 0
+	elseif f[2] == "auto" then
+		PT.auto = f[3] ~= "0"
+	elseif f[2] == "err" then
+		-- A refused use / dismiss / set (in combat, in a raid...): shown until the next answer.
+		PT.errPending = f[3] or "?"
 	elseif f[2] == "-" then
-		pets, petsPending = petsPending or {}, nil
-		petState = petState or { fav = 0, on = true }
-		for _, p in ipairs(pets) do p.fav = p.id == petState.fav end
-		-- The companions that loot by themselves first, then the favourite, then by name.
-		table.sort(pets, function(a, b)
-			if a.fav ~= b.fav then return a.fav end
-			if a.loots ~= b.loots then return a.loots end
-			return a.name < b.name
-		end)
-		if sheet and sheet:IsShown() and tab == "mounts" and petMode then RenderMounts(pages.mounts) end
+		PT.list, PT.pending = PT.pending or PT.list or {}, nil
+		PT.fav, PT.favPending = PT.favPending or PT.fav, nil
+		PT.err, PT.errPending = PT.errPending, nil
+		PT.answered = true
+		if sheet and sheet:IsShown() and tab == "pets" then PT.Render(pages.pets) end
 	end
 end
 
-function SquidBotsLite_OpenSheet(name)
+-- The rows: the server's list, in use order, else the companions the tab knows (greyed until an answer).
+function PT.Shown()
+	local order = {}
+	for i, cat in ipairs(PT.CATEGORIES) do order[cat] = i end
+	local list = {}
+	for _, p in ipairs(PT.list or PT.KNOWN) do table.insert(list, p) end
+	table.sort(list, function(a, b)
+		local ca, cb = order[a.cat] or 9, order[b.cat] or 9
+		if ca ~= cb then return ca < cb end
+		if (a.known and 1 or 0) ~= (b.known and 1 or 0) then return a.known == true end
+		return a.name < b.name
+	end)
+	return list
+end
+
+function PT.Build(page)
+	page.hint = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	page.hint:SetPoint("TOPLEFT", 10, -2)
+	page.hint:SetWidth(430)
+	page.hint:SetJustifyH("LEFT")
+	page.rows = {}
+	for i = 1, PT.ROWS do
+		local row = CreateFrame("Frame", nil, page)
+		row:SetWidth(440)
+		row:SetHeight(36)
+		row:SetPoint("TOPLEFT", 6, -34 - (i - 1) * 38)
+		row.icon = row:CreateTexture(nil, "ARTWORK")
+		row.icon:SetWidth(30)
+		row.icon:SetHeight(30)
+		row.icon:SetPoint("LEFT", 2, 0)
+		row.name = row:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		row.name:SetPoint("TOPLEFT", row.icon, "TOPRIGHT", 8, -1)
+		row.name:SetWidth(220)
+		row.name:SetJustifyH("LEFT")
+		row.kind = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		row.kind:SetPoint("BOTTOMLEFT", row.icon, "BOTTOMRIGHT", 8, 1)
+		row.kind:SetWidth(220)
+		row.kind:SetJustifyH("LEFT")
+		row.use = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+		row.use:SetWidth(70)
+		row.use:SetHeight(22)
+		row.use:SetPoint("RIGHT", -2, 0)
+		row.use:SetScript("OnClick", function(self) if self.pet then PT.Send("pet use " .. self.pet.id) end end)
+		row.fav = CreateFrame("Button", nil, row, "UIPanelButtonTemplate")
+		row.fav:SetWidth(80)
+		row.fav:SetHeight(22)
+		row.fav:SetPoint("RIGHT", row.use, "LEFT", -4, 0)
+		row.fav:SetScript("OnClick", function(self)
+			local p = self.pet
+			if not p then return end
+			-- A second click on the favourite: none (the alt takes the first it knows).
+			PT.Send("pet set " .. p.cat .. " " .. ((PT.fav[p.cat] == p.id) and 0 or p.id))
+		end)
+		page.rows[i] = row
+	end
+	page.dismiss = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
+	page.dismiss:SetWidth(100)
+	page.dismiss:SetHeight(22)
+	page.dismiss:SetPoint("BOTTOMLEFT", 10, 2)
+	page.dismiss:SetScript("OnClick", function() PT.Send("pet dismiss") end)
+	page.auto = CreateFrame("CheckButton", nil, page, "UICheckButtonTemplate")
+	page.auto:SetWidth(24)
+	page.auto:SetHeight(24)
+	page.auto:SetPoint("LEFT", page.dismiss, "RIGHT", 16, 0)
+	page.auto:SetScript("OnClick", function(self) PT.Send("pet auto " .. (self:GetChecked() and "on" or "off")) end)
+	page.autoText = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	page.autoText:SetPoint("LEFT", page.auto, "RIGHT", 2, 0)
+	page.note = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	page.note:SetPoint("BOTTOMLEFT", page.dismiss, "TOPLEFT", 0, 6)
+	page.note:SetWidth(430)
+	page.note:SetJustifyH("LEFT")
+end
+
+function PT.Render(page)
+	if not page or not page.rows then return end
+	page.hint:SetText(T("PETS_HINT"))
+	local answered = PT.answered
+	local list = PT.Shown()
+	for i, row in ipairs(page.rows) do
+		local p = list[i]
+		if p then
+			local _, _, icon = GetSpellInfo(p.id)
+			row.icon:SetTexture(icon or "Interface\\Icons\\INV_Misc_QuestionMark")
+			row.icon:SetDesaturated(not (answered and p.known))
+			row.name:SetText(p.name)
+			local words = { T("PET_CAT_" .. p.cat) or p.cat }
+			if answered and not p.known then table.insert(words, "|cff808080" .. T("PETS_UNKNOWN") .. "|r") end
+			if PT.fav[p.cat] == p.id then table.insert(words, "|cffffd100" .. T("PETS_IS_FAV") .. "|r") end
+			if PT.out == p.id then table.insert(words, "|cff40ff40" .. T("PETS_IS_OUT") .. "|r") end
+			row.kind:SetText(table.concat(words, "  ·  "))
+			row.fav.pet, row.use.pet = p, p
+			row.fav:SetText(T("PETS_FAV"))
+			row.use:SetText(T("PETS_USE"))
+			if answered and p.known then row.fav:Enable(); row.use:Enable() else row.fav:Disable(); row.use:Disable() end
+			row:Show()
+		else
+			row:Hide()
+		end
+	end
+	page.dismiss:SetText(T("PETS_DISMISS"))
+	if answered and PT.out ~= 0 then page.dismiss:Enable() else page.dismiss:Disable() end
+	page.auto:SetChecked(PT.auto)
+	if answered then page.auto:Enable() else page.auto:Disable() end
+	page.autoText:SetText(T("PETS_AUTO"))
+	local silent = not answered and PT.askedAt and GetTime() - PT.askedAt > PT.WAIT - 0.5
+	page.note:SetText(silent and T("PETS_NO_CMD") or PT.err and ("|cffff6060" .. string.format(T("PETS_ERR"), T("PETS_ERR_" .. PT.err) or PT.err) .. "|r") or "")
+end
+
+-- tabKey: the tab to open on (else the last one); ro: read only (a bot that is not the player's).
+function SquidBotsLite_OpenSheet(name, tabKey, ro)
+	readOnly.on = ro and true or false
+	if tabKey then tab = tabKey end
+	if readOnly.on and readOnly.HIDDEN[tab or ""] then tab = "gear" end
 	if not name or name == "" then
 		name = UnitName("target")
 		if not name or not UnitOf(name) then Print(T("USAGE")) return end
@@ -1971,7 +2139,8 @@ function SquidBotsLite_OpenSheet(name)
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
 		spells, spellOffset, bagOffset, marked = {}, 0, 0, {}
 		if pages.mounts and pages.mounts.search then pages.mounts.search:SetText(""); pages.mounts.search:ClearFocus() end
-		pets, petsPending, petState, petAskedAt, petApp = {}, nil, nil, nil, false
+		SquidBotsLite_Pets.Reset()
+		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Reset() end
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
 		bagMode = "bags"
@@ -1990,11 +2159,16 @@ function SquidBotsLite_OpenSheet(name)
 	end
 	sheet:Show()
 	sheet:Raise()
-	if not UnitOf(name) and tab == "gear" then tab = "bags" end
+	if not UnitOf(name) and tab == "gear" and not readOnly.on then tab = "bags" end
 	Load()
 	if not sheet.gold then Ask("stats", "stats") end
 	local info = SquidBotsLiteDB.altInfo and SquidBotsLiteDB.altInfo[name]
 	if not (info and info.spec) and SquidBotsLite_AskSpecs then SquidBotsLite_AskSpecs(name) end
+end
+
+-- The sheet's bot, and whether its sheet is read only (TalentTree.lua).
+function SquidBotsLite_SheetState()
+	return current, readOnly.on
 end
 
 function SquidBotsLite_SheetDebug()
