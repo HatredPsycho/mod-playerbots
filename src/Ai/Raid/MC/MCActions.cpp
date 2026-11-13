@@ -6,6 +6,7 @@
 
 #include "MCActions.h"
 #include "MCHelpers.h"
+#include "MCTriggers.h"
 #include "Playerbots.h"
 #include "RtiTargetValue.h"
 #include <algorithm>
@@ -457,4 +458,56 @@ bool McMajordomoStopAttackAction::Execute(Event /*event*/)
 {
     // Auto-attack keeps swinging into the Damage Shield; the multiplier keeps the bot from re-engaging.
     return bot->AttackStop();
+}
+
+bool McRagnarosSonsMarkAction::Execute(Event /*event*/)
+{
+    Group* group = bot->GetGroup();
+    if (!group)
+        return false;
+    ObjectGuid const skull = group->GetTargetIcon(RtiTargetValue::skullIndex);
+    if (Unit* current = skull.IsEmpty() ? nullptr : botAI->GetUnit(skull))
+        if (current->IsAlive() && (IsMcEntry(current->GetEntry(), NPC_COA_LESSER_SON_OF_FLAME) ||
+                                   IsMcEntry(current->GetEntry(), NPC_COA_SON_OF_FLAME) ||
+                                   IsMcEntry(current->GetEntry(), NPC_COA_GREATER_SON_OF_FLAME) ||
+                                   IsMcEntry(current->GetEntry(), NPC_COA_UNSTABLE_SON_OF_FLAME)))
+            return false;  // the kill in progress finishes
+    Creature* son = FindSonOfFlameToKill(bot);
+    if (!son)
+        return false;
+    group->SetTargetIcon(RtiTargetValue::skullIndex, bot->GetGUID(), son->GetGUID());
+    return true;
+}
+
+bool McGarrFireswornMarkAction::Execute(Event /*event*/)
+{
+    Group* group = bot->GetGroup();
+    if (!group)
+        return false;
+    ObjectGuid const skull = group->GetTargetIcon(RtiTargetValue::skullIndex);
+    if (Unit* current = skull.IsEmpty() ? nullptr : botAI->GetUnit(skull))
+        if (current->IsAlive() && IsMcEntry(current->GetEntry(), NPC_GARR_FIRESWORN))
+            return false;  // the kill in progress finishes
+    Creature* add = FindFireswornToKill(bot);
+    if (!add)
+        return false;
+    group->SetTargetIcon(RtiTargetValue::skullIndex, bot->GetGUID(), add->GetGUID());
+    return true;
+}
+
+bool McGarrMoveFromFireswornAction::Execute(Event /*event*/)
+{
+    Creature* add = FindDyingFireswornNear(bot, FIRESWORN_ERUPTION_YARDS + 1.0f);
+    if (!add)
+        return false;
+    return MoveAway(add, FIRESWORN_ERUPTION_YARDS + 3.0f - bot->GetDistance2d(add));
+}
+
+bool McRaidDispelAction::Execute(Event /*event*/)
+{
+    uint32 spellId = 0;
+    Player* target = McRaidDispelTarget(bot, spellId);
+    if (!target || !spellId || !botAI->CanCastSpell(spellId, target))
+        return false;
+    return botAI->CastSpell(spellId, target);
 }

@@ -4,7 +4,16 @@
  * or (at your option) any later version.
  */
 
+#include "CoaWorldGuildPresence.h"
+#include "CoaWorldBgSim.h"
 #include "RandomPlayerbotMgr.h"
+#include "GameTime.h"
+#include "Group.h"
+
+#include "CoaLive.h"
+
+#include "CoaRulesetPvpRules.h"  // CoA World: High Risk / War Mode bots keep PvP on
+#include "CoaWorldBots.h"  // CoA World: CoaWorldIsBotHeld, CoaWorldHearthInstead, CoaWorldDensityOrderAccounts
 #include "AscensionRulesets.h"
 #include "BattlegroundUtils.h"
 #include "AiFactory.h"
@@ -60,6 +69,13 @@
 #include <random>
 #include <set>
 #include <utility>
+#include <mutex>
+#include <unordered_map>
+
+// --- CoA World (CoA Monde session) ---
+static void CoaSyncBotRulesetPvp(Player* bot);
+static void CoaResetBotPvp(Player* bot);
+// --- end CoA World ---
 
 struct GuidClassRaceInfo
 {
@@ -256,7 +272,7 @@ void RandomPlayerbotMgr::LogPlayerLocation()
 
         if (sPlayerbotAIConfig.randomBotAutologin)
         {
-            for (auto i : GetAllBots())
+            for (auto const& i : GetAllBotsRef())  // read only: writes the location log
             {
                 Player* bot = i.second;
                 if (!bot)
@@ -390,8 +406,9 @@ void RandomPlayerbotMgr::UpdateAIInternal(uint32 /*elapsed*/, bool /*minimal*/)
     GetBots();
     CoaTrimBotsForPlayers(maxAllowedBotCount);
     // Copied deliberately: ProcessBot() erases from currentBots while this is
-    // being iterated below, so the loops must run over a snapshot.
-    std::unordered_set<uint32> availableBots = currentBots;
+    // being iterated below, so the loops must run over a snapshot. A vector in
+    // the same order: one allocation per tick instead of one per bot (2000 at the bench target).
+    std::vector<uint32> const availableBots(currentBots.begin(), currentBots.end());
     uint32 availableBotCount = availableBots.size();
     uint32 onlineBotCount = playerBots.size();
 
@@ -806,6 +823,13 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
                 }
             }
 
+            // --- CoA World (CoA Monde session) ---
+            // Density: the accounts with a character in a real player's zone log in first (CoaWorldDensity).
+            CoaWorldDensityOrderAccounts(shuffledAccounts);
+            // A real player's guild: its bot members first (Guilds.PlayerGuildOnline, CoaWorldGuildPresence).
+            CoaWorldGuildPresenceOrderAccounts(shuffledAccounts);
+            // --- end CoA World ---
+
             for (uint32 i = 0; i < accountsToUseCount && i < shuffledAccounts.size(); i++)
             {
                 accountsToUse.push_back(shuffledAccounts[i]);
@@ -885,6 +909,9 @@ uint32 RandomPlayerbotMgr::AddRandomBots()
                                 ? urand(sPlayerbotAIConfig.minRandomBotInWorldTime,
                                         sPlayerbotAIConfig.maxRandomBotInWorldTime)
                                 : sPlayerbotAIConfig.permanentlyInWorldTime;
+            // CoA Live sessions: a session of a believable length instead.
+            if (uint32 const session = CoaLive::SessionSeconds())
+                add_time = session;
 
             SetEventValue(charInfo.guid, "add", 1, add_time);
             SetEventValue(charInfo.guid, "logout", 0, 0);
@@ -1086,7 +1113,8 @@ static bool LeavesStuckBgQueue(Player* bot, BattlegroundQueueTypeId queueTypeId,
     if (!queue.GetPlayerGroupInfoData(bot->GetGUID(), &ginfo) || ginfo.IsInvitedToBGInstanceGUID)
         return false;
     uint32 const waited = getMSTimeDiff(ginfo.JoinTime, GameTime::GetGameTimeMS().count());
-    bool const noPlayer = !sPlayerbotAIConfig.randomBotAutoJoinBG && !(info.bgAlliancePlayerCount + info.bgHordePlayerCount);
+    bool const noPlayer = (!sPlayerbotAIConfig.randomBotAutoJoinBG || CoaWorldBgSimReplacesAutoJoin()) &&
+                          !(info.bgAlliancePlayerCount + info.bgHordePlayerCount);
     if (waited < (noPlayer ? 2 : 10) * MINUTE * IN_MILLISECONDS)
         return false;
     bot->RemoveBattlegroundQueueId(queueTypeId);
@@ -1410,7 +1438,9 @@ void RandomPlayerbotMgr::CheckBgQueue()
     // 95 %, not all: a few bots are always logging out and in again (rotation, a new bot count), and on a
     // CoA test realm with 1,000 bots no battleground started for 30 to 40 minutes of every hour while the
     // count sat at 975-999.
-    if (sPlayerbotAIConfig.randomBotAutoJoinBG && playerBots.size() * 100 >= GetMaxAllowedBotCount() * 95)
+    // CoA World (BgSim.ReplaceAutoJoin, default 1): no battle of bots only; the bots fill real players' queues.
+    if (sPlayerbotAIConfig.randomBotAutoJoinBG && !CoaWorldBgSimReplacesAutoJoin() &&
+        playerBots.size() * 100 >= GetMaxAllowedBotCount() * 95)
     {
         uint32 randomBotAutoJoinArenaBracket = sPlayerbotAIConfig.randomBotAutoJoinArenaBracket;
         uint32 randomBotAutoJoinBGRatedArena2v2Count = sPlayerbotAIConfig.randomBotAutoJoinBGRatedArena2v2Count;
@@ -1842,8 +1872,23 @@ void RandomPlayerbotMgr::ScheduleChangeStrategy(uint32 bot, uint32 time)
     SetEventValue(bot, "change_strategy", 1, time);
 }
 
+// --- CoA World (CoA Monde session) ---
+// Density: a bot far from every real player ends its time in the world now; ProcessBot logs it out as at the end
+// of its usual time, and the rotation logs in another one, near the players (CoaWorldDensity).
+void RandomPlayerbotMgr::CoaRetireBot(uint32 bot)
+{
+    SetEventValue(bot, "add", 0, 0);
+}
+// --- end CoA World ---
+
 bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
 {
+    // --- CoA World (CoA Monde session) ---
+    // A bot away on a simulated dungeon run stays offline until it comes back (CoaWorldDungeonSim).
+    if (CoaWorldIsBotHeld(bot))
+        return false;
+    // --- end CoA World ---
+
     ObjectGuid botGUID = ObjectGuid::Create<HighGuid::Player>(bot);
     Player* player = GetPlayerBot(botGUID);
     PlayerbotAI* botAI = player ? GET_PLAYERBOT_AI(player) : nullptr;
@@ -1951,19 +1996,65 @@ bool RandomPlayerbotMgr::ProcessBot(uint32 bot)
     }
 
     uint32 logout = GetEventValue(bot, "logout");
+    // CoA World (Guilds.PlayerGuildOnline): a bot member of a real player's guild logs out last.
+    if (player && !logout && !isValid && CoaWorldGuildPresenceKeep(player))
+        return false;
     if (player && !logout && !isValid)
     {
         LOG_DEBUG("playerbots", "Bot #{} {}:{} <{}>: log out", bot, IsAlliance(player->getRace()) ? "A" : "H",
                   player->GetLevel(), player->GetName().c_str());
         LogoutPlayerBot(botGUID);
         currentBots.erase(bot);
+        uint32 const away = CoaLive::OfflineSeconds();  // CoA Live sessions: a break of a believable length
         SetEventValue(bot, "logout", 1,
-                      urand(sPlayerbotAIConfig.minRandomBotInWorldTime, sPlayerbotAIConfig.maxRandomBotInWorldTime));
+                      away ? away
+                           : urand(sPlayerbotAIConfig.minRandomBotInWorldTime, sPlayerbotAIConfig.maxRandomBotInWorldTime));
         return true;
     }
 
     return false;
 }
+
+namespace
+{
+// A random bot in the group of a player (a recruit of ".playerbots coa raid", the addon, a guild party): the player
+// chose it at its level, so nothing rebuilds it, changes its level or teleports it while it is there. The members
+// are read from the group's slots, so a player offline (the bot logging in first) still counts.
+bool InPlayersGroup(Player* bot)
+{
+    Group* group = bot ? bot->GetGroup() : nullptr;
+    if (!group)
+        return false;
+    for (Group::MemberSlot const& slot : group->GetMemberSlots())
+        if (slot.guid != bot->GetGUID() &&
+            !sPlayerbotAIConfig.IsInRandomAccountList(sCharacterCache->GetCharacterAccountIdByGuid(slot.guid)))
+            return true;
+    return false;
+}
+
+// AiPlayerbot.CoaLive.HeavyRefreshPerTick: the bot rebuilds (Randomize) and refreshes (Refresh) of one world tick,
+// about 70 ms each at 2,000 bots; several in one tick made it pass 500 ms (a45). Over the budget, a bot's turn waits
+// for a later tick: its event is not consumed, the same rebuild comes back. World thread.
+uint64 heavyTickMs = 0;
+uint32 heavyThisTick = 0;
+
+bool HeavyAllowed()
+{
+    uint32 const budget = sPlayerbotAIConfig.coaLiveHeavyRefreshPerTick;
+    if (!budget)
+        return true;
+    uint64 const now = GameTime::GetGameTimeMS().count();  // one value for the whole world update
+    if (now != heavyTickMs)
+    {
+        heavyTickMs = now;
+        heavyThisTick = 0;
+    }
+    if (heavyThisTick >= budget)
+        return false;
+    ++heavyThisTick;
+    return true;
+}
+}  // namespace
 
 bool RandomPlayerbotMgr::ProcessBot(Player* bot)
 {
@@ -2028,16 +2119,18 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
     {
         uint32 const progress = bot->GetLevel() * 1000000 + bot->GetUInt32Value(PLAYER_XP) + 1;
         uint32 const now = uint32(time(nullptr));
-        if (GetEventValue(botId, "coaXp") != progress)
+        // In memory: two database writes a pass for every low level bot were too many at 2000 bots.
+        auto& [mark, since] = coaXpTrack[botId];
+        if (mark != progress)
         {
-            SetEventValue(botId, "coaXp", progress, 30 * DAY);
-            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+            mark = progress;
+            since = now;
         }
-        else if (now - GetEventValue(botId, "coaXpAt") >= 10 * MINUTE)
+        else if (now - since >= 10 * MINUTE)
         {
             LOG_INFO("playerbots", "coa: {} (level {}) earned no experience for 10 minutes, new grinding spot",
                      bot->GetName(), bot->GetLevel());
-            SetEventValue(botId, "coaXpAt", now, 30 * DAY);
+            since = now;
             RandomTeleportGrindForLevel(bot);
             return true;
         }
@@ -2057,12 +2150,18 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
         idleBot = true;
     }
 
+    // A recruit in a player's group keeps its level, gear and place (a raid's bots fell back from 60, a47).
+    if (idleBot && InPlayersGroup(bot))
+        return false;
+
     if (idleBot)
     {
         // randomize
         uint32 randomize = GetEventValue(botId, "randomize");
         if (!randomize)
         {
+            if (!HeavyAllowed())
+                return false;  // the budget of this tick is spent: a later one
             // bool randomiser = true;
             // if (player->GetGuildId())
             // {
@@ -2104,6 +2203,8 @@ bool RandomPlayerbotMgr::ProcessBot(Player* bot)
         uint32 teleport = GetEventValue(botId, "teleport");
         if (!teleport)
         {
+            if (!HeavyAllowed())
+                return false;
             LOG_DEBUG("playerbots", "Bot #{} <{}>: teleport for level and refresh", botId, bot->GetName());
             Refresh(bot);
             RandomTeleportForLevel(bot);
@@ -2128,6 +2229,45 @@ void RandomPlayerbotMgr::Revive(Player* player)
     Refresh(player);
     RandomTeleportGrindForLevel(player);
 }
+
+namespace
+{
+// What RandomTeleportByLocations reads of a location: the same for every bot of one phase and one collision height.
+struct TeleportSpot
+{
+    uint32 zoneId = 0;
+    uint32 areaId = 0;
+    bool inWater = false;
+    float ground = INVALID_HEIGHT;
+};
+
+std::mutex teleportSpotsLock;
+std::unordered_map<std::string, TeleportSpot> teleportSpots;  // map, x, y, z, phase, collision height -> spot
+
+TeleportSpot SpotOf(Map* map, Player* bot, float x, float y, float z)
+{
+    uint32 const phase = bot->GetPhaseMask();
+    float const height = bot->GetCollisionHeight();
+    std::string const key = std::to_string(map->GetId()) + ":" + std::to_string(x) + ":" + std::to_string(y) + ":" +
+                            std::to_string(z) + ":" + std::to_string(phase) + ":" + std::to_string(height);
+    {
+        std::lock_guard<std::mutex> guard(teleportSpotsLock);
+        auto it = teleportSpots.find(key);
+        if (it != teleportSpots.end())
+            return it->second;
+    }
+    TeleportSpot spot;
+    spot.zoneId = map->GetZoneId(phase, x, y, z);
+    spot.areaId = map->GetAreaId(phase, x, y, z);
+    spot.inWater = map->IsInWater(phase, x, y, z, height);
+    spot.ground = map->GetHeight(phase, x, y, z + 0.5f);
+    std::lock_guard<std::mutex> guard(teleportSpotsLock);
+    if (teleportSpots.size() > 200000)
+        teleportSpots.clear();
+    teleportSpots.emplace(key, spot);
+    return spot;
+}
+}  // namespace
 
 void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>& locs, bool hearth)
 {
@@ -2218,11 +2358,14 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
         if (!map)
             continue;
 
-        AreaTableEntry const* zone = sAreaTableStore.LookupEntry(map->GetZoneId(bot->GetPhaseMask(), x, y, z));
+        // CoA: the zone, area, water and ground of a location never change, but each lookup loaded the map cell from
+        // disk when no one stood there (up to 128 ms a call). Read once per location, then remembered.
+        TeleportSpot const spot = SpotOf(map, bot, x, y, z);
+        AreaTableEntry const* zone = sAreaTableStore.LookupEntry(spot.zoneId);
         if (!zone)
             continue;
 
-        AreaTableEntry const* area = sAreaTableStore.LookupEntry(map->GetAreaId(bot->GetPhaseMask(), x, y, z));
+        AreaTableEntry const* area = sAreaTableStore.LookupEntry(spot.areaId);
         if (!area)
             continue;
 
@@ -2240,10 +2383,10 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
                 continue;
         }
 
-        if (map->IsInWater(bot->GetPhaseMask(), x, y, z, bot->GetCollisionHeight()))
+        if (spot.inWater)
             continue;
 
-        float ground = map->GetHeight(bot->GetPhaseMask(), x, y, z + 0.5f);
+        float ground = spot.ground;
         if (ground <= INVALID_HEIGHT)
             continue;
 
@@ -2269,6 +2412,11 @@ void RandomPlayerbotMgr::RandomTeleport(Player* bot, std::vector<WorldLocation>&
         // Prevent blink to be detected by visible real players
         if (botAI->HasPlayerNearby(150.0f))
         {
+            // --- CoA World (CoA Monde session) ---
+            // Seen by a real player, a move to a new home goes by a visible hearthstone instead (CoaWorldTravel).
+            if (hearth)
+                CoaWorldHearthInstead(bot);
+            // --- end CoA World ---
             stop = true;
             break;
         }
@@ -2417,6 +2565,7 @@ void RandomPlayerbotMgr::RandomTeleportForLevel(Player* bot)
         }
     }
     std::vector<WorldLocation> locs = sTravelMgr.GetTeleportLocations(bot);
+    CoaWorldLevelingFilter(bot, locs);  // CoA World: the zones of its side's levelling route
 
     if (sPlayerbotAIConfig.randomBotConcentrateInPlayerZone && !locs.empty())
     {
@@ -2521,6 +2670,7 @@ void RandomPlayerbotMgr::RandomTeleportGrindForLevel(Player* bot)
         return;
 
     std::vector<WorldLocation> locs = sTravelMgr.GetTeleportLocations(bot);
+    CoaWorldLevelingFilter(bot, locs);  // CoA World: the zones of its side's levelling route
     LOG_DEBUG("playerbots", "Random teleporting bot {} for level {} ({} locations available)", bot->GetName().c_str(),
               bot->GetLevel(), locs.size());
 
@@ -2683,7 +2833,9 @@ void RandomPlayerbotMgr::RandomizeFirst(Player* bot)
     }
 
     // Self-found: a new bot stays at the level it was made at, an older one at the level it earned.
-    if (PlayerbotFactory::SelfFoundAt(level) || PlayerbotFactory::IsSelfFoundBot(bot))
+    // CoA Live launch of a new realm (AiPlayerbot.CoaFreshStart.Enable): every bot, whatever the roll (no 60 on day one).
+    if (PlayerbotFactory::SelfFoundAt(level) || PlayerbotFactory::IsSelfFoundBot(bot) ||
+        sPlayerbotAIConfig.coaFreshStartEnable)
         level = bot->GetLevel();
 
     SetValue(bot, "level", level);
@@ -2823,7 +2975,10 @@ void RandomPlayerbotMgr::Refresh(Player* bot)
 
     bot->DurabilityRepairAll(false, 1.0f, false);
     bot->SetFullHealth();
-    bot->SetPvP(sWorld->IsPvPRealm());
+    // --- CoA World (CoA Monde session) ---
+    // A High Risk / War Mode bot keeps PvP on after its revive (Discord: High Risk aura, no PvP flag).
+    CoaResetBotPvp(bot);
+    // --- end CoA World ---
 
     // The full-bags clean-up belongs to the "maintenance" strategy, which no random bot is given: run it
     // here, with the repair. It does nothing below 90% of the bag space.
@@ -3331,6 +3486,7 @@ void RandomPlayerbotMgr::HandleCommand(uint32 type, std::string const text, Play
 
 void RandomPlayerbotMgr::OnPlayerLogout(Player* player)
 {
+    coaXpTrack.erase(player->GetGUID().GetCounter());
     DisablePlayerBot(player->GetGUID());
 
     for (PlayerBotMap::const_iterator it = GetPlayerBotsBegin(); it != GetPlayerBotsEnd(); ++it)
@@ -3465,6 +3621,35 @@ constexpr uint32 COA_RULESET_PVE = 9931032;
 constexpr uint8 COA_RULESET_HIGH_RISK_MIN_LEVEL = 15;
 }
 
+// --- CoA World (CoA Monde session) ---
+// The PvP flag follows the ruleset auras the bot has, as the core does at login and map change
+// (AscensionRulesets.cpp, SyncRulesetPvP): the bot code resets PvP to the realm's default after a revive or a random
+// teleport, which left High Risk bots unflagged on a PvE realm until their next ruleset check.
+static void CoaSyncBotRulesetPvp(Player* bot)
+{
+    if (!bot || !bot->IsInWorld())
+        return;
+    bool const pveMarker = bot->HasAura(COA_RULESET_PVE);
+    bool const inPvp = CoaInPvpRuleset(bot->HasAura(COA_RULESET_HIGH_RISK), bot->HasAura(COA_RULESET_WAR_MODE), pveMarker);
+    int const change = CoaRulesetPvpFlagChange(inPvp, pveMarker, bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP));
+    if (change > 0)
+        bot->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
+    else if (change < 0)
+        bot->RemovePlayerFlag(PLAYER_FLAGS_IN_PVP);
+    if (inPvp && !bot->IsPvP())
+        bot->UpdatePvP(true, true);
+}
+
+// The realm's default PvP state for a random bot being reset, never off under a PvP ruleset.
+static void CoaResetBotPvp(Player* bot)
+{
+    bool const inPvp = CoaInPvpRuleset(bot->HasAura(COA_RULESET_HIGH_RISK), bot->HasAura(COA_RULESET_WAR_MODE),
+                                       bot->HasAura(COA_RULESET_PVE));
+    bot->SetPvP(CoaBotPvpAfterReset(sWorld->IsPvPRealm(), inPvp));
+    CoaSyncBotRulesetPvp(bot);
+}
+// --- end CoA World ---
+
 // The core puts every character without a ruleset in PvE at login, bots included. With
 // AiPlayerbot.CoaRulesetForBots, a share of the random bots is put in High Risk or War Mode instead: the bucket
 // comes from the guid, so a bot keeps its ruleset from one login to the next, and changing the shares moves
@@ -3473,6 +3658,8 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
 {
     if (!sPlayerbotAIConfig.coaRulesetForBots || !bot || !bot->IsInWorld() || !IsRandomBot(bot))
         return;
+    // CoA World: the flag is kept right in combat too (a High Risk bot fighting without it could not be attacked).
+    CoaSyncBotRulesetPvp(bot);
     if (bot->InBattleground() || bot->InArena() || bot->IsInCombat() || !bot->IsAlive())
         return;
 
@@ -3505,14 +3692,9 @@ void RandomPlayerbotMgr::CoaApplyRuleset(Player* bot)
     }
 
     // The core only puts the aura: on a PvE realm a High Risk or War Mode character was never flagged for PvP.
-    // These bots keep the PvP flag on, as the rulesets mean on Ascension; PvE bots let it run out.
-    bool const pvp = wanted != COA_RULESET_PVE;
-    if (pvp && !bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
-        bot->SetPlayerFlag(PLAYER_FLAGS_IN_PVP);
-    else if (!pvp && bot->HasPlayerFlag(PLAYER_FLAGS_IN_PVP))
-        bot->RemovePlayerFlag(PLAYER_FLAGS_IN_PVP);
-    if (pvp && !bot->IsPvP())
-        bot->UpdatePvP(true, true);
+    // These bots keep the PvP flag on, as the rulesets mean on Ascension; PvE bots let it run out. CoA World: from
+    // the auras the bot has, not the wanted ruleset, so a change the core refused never leaves High Risk unflagged.
+    CoaSyncBotRulesetPvp(bot);
 }
 
 void RandomPlayerbotMgr::CoaUpdateGear(Player* bot)
@@ -3689,7 +3871,7 @@ void RandomPlayerbotMgr::OnBotLoginInternal(Player* const bot)
         uint32 const levelCap = std::min<uint32>(sPlayerbotAIConfig.randomBotMaxLevel,
                                                  sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
         if (levelCap && bot->GetLevel() > levelCap && !PlayerbotFactory::SelfFoundAt(levelCap) &&
-            !PlayerbotFactory::IsSelfFoundBot(bot))
+            !PlayerbotFactory::IsSelfFoundBot(bot) && !InPlayersGroup(bot))
         {
             uint32 const oldLevel = bot->GetLevel();
             if (bot->IsMounted())
@@ -3873,7 +4055,7 @@ void RandomPlayerbotMgr::OnPlayerLogin(Player* player)
     {
         // ObjectGuid::LowType guid = player->GetGUID().GetCounter(); //not used, conditional could be rewritten for
         // simplicity. line marked for removal.
-        player->SetPvP(sWorld->IsPvPRealm());
+        CoaResetBotPvp(player);  // CoA World: the realm's PvP, but High Risk / War Mode keep it on at (re)login
     }
     else
     {

@@ -54,12 +54,9 @@ SETTINGS = [
     ('CrashingBotRaces', 'population', 'Custom races that crash the client',
      'Always excluded from bots, on top of the list above. Default 65, 72, 77, 80, 81 (Test Race, Skyborne, '
      'Darkfallen), per the custom races module author.'),
-    ('CoaBotSurname', 'population', 'Bot surnames',
-     '0 none; 1 the fixed surname below ("Kegarink Bot"), so players tell bots from real players at a glance; '
-     '2 a lore-style family name of the bot\'s race ("Kegarink Bloodfang"). '
-     'Applied to existing bots at the next start.'),
-    ('CoaBotSurnameText', 'population', 'Fixed bot surname',
-     'The surname of setting 1: one word of 2 to 12 letters; anything else falls back to "Bot".'),
+    ('CoaBotSurname', 'population', 'Bot surname',
+     'Random bots carry the surname "Bot" (1), so players tell them from real players at a glance, no surname (0), '
+     'or a family name of their own (2).'),
     ('RandomGearQualityLimit', 'population', 'Best gear quality',
      'Highest item quality random bots get: 2 uncommon, 3 rare, 4 epic.'),
     ('RandomGearScoreLimit', 'population', 'Item level cap',

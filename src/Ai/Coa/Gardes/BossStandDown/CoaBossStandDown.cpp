@@ -1,12 +1,18 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "CoaBossStandDown.h"
 
 #include "CoaGroupTank.h"
+#include "Ai/Coa/Combat/PlayerLed/CoaPlayerLedRule.h"
+#include "PlayerbotAIConfig.h"
 #include "CombatManager.h"
 #include "Creature.h"
 #include "Group.h"
@@ -42,7 +48,10 @@ namespace
     {
         if (!unit || unit->GetTypeId() != TYPEID_UNIT)
             return false;
-        if (RosterBoss)
+        // CoA Combat, the player leads (CoaPlayerLedRule::UseRosterProvider): Dungeon Clear's roster answers only in
+        // its runs; outside one, the creature's own boss flags.
+        if (CoaPlayerLedRule::UseRosterProvider(bool(RosterBoss), CoaGroupTank::InDungeonClearRun(at),
+                                                sPlayerbotAIConfig.coaCombatPlayerLedEnable))
             return RosterBoss(at, unit->GetEntry());
         Creature* creature = unit->ToCreature();
         return creature && (creature->IsDungeonBoss() || creature->isWorldBoss());

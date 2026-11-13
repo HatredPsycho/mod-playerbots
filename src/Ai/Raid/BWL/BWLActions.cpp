@@ -271,7 +271,7 @@ bool BwlBroodlordRangedMoveAwayAction::Execute(Event /*event*/)
 {
     if (Unit* boss = AI_VALUE2(Unit*, "find target", "broodlord lashlayer"))
     {
-        float distToTravel = BROODLORD_SAFE_DISTANCE - bot->GetDistance2d(boss);
+        float distToTravel = BroodlordSafeDistance() - bot->GetDistance2d(boss);
         if (distToTravel > 0.0f)
             return MoveAway(boss, distToTravel);
     }
@@ -383,4 +383,54 @@ bool BwlDeathTalonWyrmguardRangedMoveAwayAction::Execute(Event /*event*/)
         return false;
 
     return MoveAway(target, distToTravel);
+}
+
+// ---- CoA Combat (lot 7, C2) ----
+
+bool BwlChromaggusCureRedAction::Execute(Event /*event*/)
+{
+    Group* group = bot->GetGroup();
+    if (!group)
+        return false;
+
+    Player* target = nullptr;
+    for (GroupReference* itr = group->GetFirstMember(); itr != nullptr; itr = itr->next())
+    {
+        Player* member = itr->GetSource();
+        if (!member || !member->IsAlive() || !member->IsInWorld() || member->GetMapId() != bot->GetMapId() ||
+            bot->GetDistance(member) >= 40.0f || !HasCurableRedAffliction(member))
+            continue;
+        if (!target || member->GetHealthPct() < target->GetHealthPct())
+            target = member;
+    }
+    if (!target)
+        return false;
+
+    std::vector<std::string> spells;
+    switch (bot->getClass())
+    {
+        case CLASS_PRIEST:
+            spells = {"cure disease", "abolish disease"};
+            break;
+        case CLASS_PALADIN:
+            spells = {"cleanse", "purify"};
+            break;
+        case CLASS_SHAMAN:
+            spells = {"cure toxins", "cleanse spirit", "cure disease"};
+            break;
+        default:
+            return false;
+    }
+    for (std::string const& spell : spells)
+        if (botAI->CanCastSpell(spell, target))
+            return botAI->CastSpell(spell, target);
+    return false;
+}
+
+bool BwlFlamegorCombustionMoveAwayAction::Execute(Event /*event*/)
+{
+    Player* nearest = NearestRaidMemberWithin(bot, COMBUSTION_CLEAR_YARDS);
+    if (!nearest)
+        return false;
+    return MoveAway(nearest, COMBUSTION_CLEAR_YARDS + 2.0f - bot->GetDistance2d(nearest));
 }

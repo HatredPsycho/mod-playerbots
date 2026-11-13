@@ -1,7 +1,11 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "CoaGardesCombat.h"
@@ -12,7 +16,6 @@
 #include "Common/CoaGardesRunHooks.h"
 #include "Common/CoaGardesSettings.h"
 #include "Common/CoaGardesUnits.h"
-#include "EscapeLeap/CoaEscapeLeap.h"
 #include "RoomBoss/CoaRoomBossChase.h"
 
 #include "Creature.h"
@@ -27,17 +30,6 @@
 // strategies that carry every guard for every bot.
 namespace
 {
-    bool EscapeLeapBanned(Player* bot, std::string const& name, bool combatEngine)
-    {
-        if (!CoaEscapeLeap::IsBanned(name) || !CoaGroupTank::ModuleGuardActs(bot, CoaGardesGate::ESCAPE_LEAP_BAN))
-            return false;
-        CoaEscapeLeap::Gate g;
-        g.hasTank = CoaGardesUnits::Tank(bot) != nullptr;
-        g.inInstance = true;  // GuardScope, checked by the multiplier first
-        g.combatEngine = combatEngine;
-        g.raidStandDown = combatEngine && CoaGroupTank::InDungeonClearRun(bot) && CoaGardesRunHooks::IsRaidStandDown(bot);
-        return CoaEscapeLeap::Bans(true, g);
-    }
 
     // The Lyceum close-up, chase half: no stock reach / chase toward a target further than LEASH from the tank.
     bool LyceumChaseLeavesThePack(Player* bot, AiObjectContext* context, Action* action)
@@ -175,8 +167,6 @@ float CoaGardesCombatMultiplier::GetValue(Action* action)
     if (!action || !botAI || !CoaGroupTank::GuardScope(bot))
         return 1.0f;
     std::string const& name = action->getName();
-    if (EscapeLeapBanned(bot, name, true))
-        return 0.0f;
     if (LyceumChaseLeavesThePack(bot, context, action))
         return 0.0f;
     if (ChaseWakesSleepingRoomBoss(bot, context, action))
@@ -188,8 +178,6 @@ float CoaGardesNonCombatMultiplier::GetValue(Action* action)
 {
     if (!action || !botAI || !CoaGroupTank::GuardScope(bot))
         return 1.0f;
-    if (EscapeLeapBanned(bot, action->getName(), false))
-        return 0.0f;
     return 1.0f;
 }
 

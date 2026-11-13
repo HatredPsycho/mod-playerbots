@@ -6,26 +6,14 @@
 #ifndef _PLAYERBOT_COABOTNAMES_H
 #define _PLAYERBOT_COABOTNAMES_H
 
-#include "Define.h"
-
 #include <string>
 
-// AiPlayerbot.CoaBotSurname: what random bots carry after their first name.
-enum class CoaBotSurnameMode : uint8
-{
-    Off       = 0,  // "Kegarink"
-    Fixed     = 1,  // "Kegarink Bot", the text of AiPlayerbot.CoaBotSurnameText
-    Generated = 2   // "Kegarink Bloodfang", a surname drawn for the bot's race
-};
+// The name of a new random bot: "Kegarink Bot" when AiPlayerbot.CoaBotSurname is 1, the first name otherwise
+// (mode 2 gives the family name in ApplyCoaBotSurnames, once the bot has a guid).
+std::string CoaBotName(std::string const& firstName);
 
-CoaBotSurnameMode CoaBotSurnameSetting();
-
-// The bot's whole name for its first name and race: unchanged when surnames are off, when the first
-// name already has two words, or when no valid surname was found.
-std::string CoaBotName(std::string const& firstName, uint8 race);
-
-// Brings every random bot's surname in line with the setting: adds, replaces or takes it back. Run at
-// startup, once the random bots exist and before any of them logs in.
+// Gives every random bot the surname of AiPlayerbot.CoaBotSurname (none, "Bot" or its family name), whatever it
+// carried before. Run at startup, once the random bots exist and before any of them logs in.
 void ApplyCoaBotSurnames();
 
 #endif

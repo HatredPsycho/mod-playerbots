@@ -159,6 +159,8 @@ public:
     uint32 activeBots = 0;
     static bool HandlePlayerbotConsoleCommand(ChatHandler* handler, char const* args);
     bool IsRandomBot(Player* bot);
+    // CoA World (CoA Monde session), density: this bot's time in the world ends now.
+    void CoaRetireBot(uint32 bot);
     bool IsRandomBot(ObjectGuid::LowType bot);
     bool IsAddclassBot(Player* bot);
     bool IsAddclassBot(ObjectGuid::LowType bot);
@@ -182,7 +184,11 @@ public:
     void CoaReleaseOrphanGroups();
     Player* GetRandomPlayer();
     std::vector<Player*> GetPlayers() { return players; };
+    // A copy of the bot map: for a caller that logs bots in or out (or may) while it loops.
     PlayerBotMap GetAllBots() { return playerBots; };
+    // The bot map in place, no copy (2000 nodes allocated per call otherwise): for a caller that only reads it.
+    // World thread only, and nothing in the loop may log a bot in or out.
+    PlayerBotMap const& GetAllBotsRef() const { return playerBots; }
     void InitArenaTeams();
     void PrintStats();
     double GetBuyMultiplier(Player* bot);
@@ -312,6 +318,12 @@ private:
     void GetBots();
     std::vector<uint32> GetBgBots(uint32 bracket);
     time_t BgCheckTimer;
+
+public:
+    // CoA World (BgSim): a real player queued for a battleground or arena; the queues are looked at on the next update.
+    void RequestBgCheck() { BgCheckTimer = time(nullptr) - 36; }
+
+private:
     time_t ArenaCaptainCheckTimer = 0;
     time_t LfgCheckTimer;
     time_t PlayersCheckTimer;
@@ -319,6 +331,9 @@ private:
     time_t DelayLoginBotsTimer;
     time_t printStatsTimer;
     std::unordered_map<ObjectGuid::LowType, time_t> coaOrphanGroups;  // group -> since when it has been orphaned
+    // Low level bots: their last experience mark and since when (ProcessBot), in memory only: after a restart the
+    // check just starts over. World thread; a bot's entry goes when it logs out.
+    std::unordered_map<uint32, std::pair<uint32, uint32>> coaXpTrack;  // bot -> (progress, since)
     time_t coaOrphanCheckAt = 0;
     uint32 AddRandomBots();
     void CoaTrimBotsForPlayers(uint32 target);

@@ -126,7 +126,16 @@ bool EnsureCoaSpecialization(Player* bot);
 // would: one ability essence at every even level from 10 (class tree), one talent essence at every
 // odd level from 11 (specialization tree), in the order of the ascensionsidekick.com level build.
 // Returns the number of entries raised.
-uint32 ApplyCoaTalents(Player* bot);
+// maxRaises 0: all at once (as before); else at most that many now, the rest on the bot's next updates
+// (CoaTalentsTick), in the same order, to the same end.
+uint32 ApplyCoaTalents(Player* bot, uint32 maxRaises = 0);
+// AiPlayerbot.CoaLive.TalentsPerUpdate (0: off, all at once).
+uint32 CoaTalentsPerUpdate();
+// The bot's update: the raises left by a capped ApplyCoaTalents, a few at a time.
+void CoaTalentsTick(Player* bot);
+// The entries the build wants at the bot's level that it holds below their rank (0: complete). For the check
+// command ".bot coatalents".
+uint32 CoaTalentsMissing(Player* bot);
 
 // Takes back every talent and ability bought with points from a CoA character, so its owner can choose them again.
 // Returns the number of entries lowered.
@@ -175,7 +184,9 @@ char const* CoaClassName(uint8 classId);
 uint8 FindCoaClass(std::string const& name);
 
 // Recruits a free random bot for the role, of that class when classId is not 0.
-bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 classId = 0);
+// onlyGuildId: only a bot of that guild (0: any); noInstance: never a bot standing in a dungeon, raid or battleground.
+bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 classId = 0, uint32 onlyGuildId = 0,
+                   bool noInstance = false);
 // A CoA bot that joined the player's group by an invitation tells the player its role, as a recruit does
 // (SquidBots Lite reads "<name> joins as <role>" to know a bot and its specialization).
 void CoaAnnounceJoin(Player* bot, Player* master);
@@ -183,7 +194,10 @@ void CoaAnnounceJoin(Player* bot, Player* master);
 // Turns the master's group into a raid of `size` (25 when 0, 6 to 40) filled with recruited bots:
 // `tanks` tanks and `heals` healers (from the size when 0, see CoaRaidRoles: 2 and 4 for 25), the rest damage dealers,
 // the classes taken in turn. Members already there count. The outcome is told in `message`.
-bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message);
+// preferGuildId (0: as before): the bots of that guild first, then random bots to complete; neither one standing in
+// a dungeon, raid or battleground (the guild activities of CoA World).
+bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message,
+                    uint32 preferGuildId = 0);
 // The main tank flag follows the roles (CoaMainTankFlagHolder): a bot holder no longer a tank hands it to the first
 // living tank, or nobody; with assignIfNone a group without it gets one. Raid bots' group roles follow their role.
 // World thread only: CoaQueueMainTankSync queues it from a bot's map update. Not for LFG or battleground groups.
@@ -214,7 +228,7 @@ bool CoaQueueMainTankSync(Player* bot);
 // tells whether it already holds a specialization of the role.
 // With AiPlayerbot.CoaSelfFound, only a bot within levelTolerance of the master's level is taken.
 Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<ObjectGuid> const& skip, bool& chosenFits,
-                       uint32 levelTolerance = 0);
+                       uint32 levelTolerance = 0, uint32 onlyGuildId = 0, bool noInstance = false);
 
 // Makes the chosen bot ready to play `role` beside `master`: rebuilt at the master's level when more
 // than levelTolerance levels away, given a specialization of the role and its gear, talents spent.

@@ -5,6 +5,8 @@
  */
 
 #include "AiObjectContext.h"
+#include "CoaCombatContext.h"
+#include "STContexts.h"
 #include "CoaGardesContext.h"
 #include "Aq20TriggerContext.h"
 #include "Aq40TriggerContext.h"
@@ -63,20 +65,20 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     triggerContexts.Add(new RaidOnyxiaTriggerContext());
     triggerContexts.Add(new RaidIccTriggerContext());
     triggerContexts.Add(new RaidRsTriggerContext());
-    triggerContexts.Add(new VanillaDungeonBFDTriggerContext());
     triggerContexts.Add(new VanillaDungeonRFCTriggerContext());
     triggerContexts.Add(new VanillaDungeonSFKTriggerContext());
     triggerContexts.Add(new VanillaDungeonSMTriggerContext());
+    triggerContexts.Add(new VanillaDungeonBFDTriggerContext());
+    triggerContexts.Add(new VanillaDungeonUldaTriggerContext());
     triggerContexts.Add(new VanillaDungeonWCTriggerContext());
     triggerContexts.Add(new VanillaDungeonRFKTriggerContext());
     triggerContexts.Add(new VanillaDungeonRFDTriggerContext());
-    triggerContexts.Add(new VanillaDungeonBRDTriggerContext());
     triggerContexts.Add(new VanillaDungeonBRSTriggerContext());
-    triggerContexts.Add(new VanillaDungeonStratTriggerContext());
+    triggerContexts.Add(new VanillaDungeonBRDTriggerContext());
+    triggerContexts.Add(new VanillaDungeonSTTriggerContext());
     triggerContexts.Add(new VanillaDungeonScholoTriggerContext());
+    triggerContexts.Add(new VanillaDungeonStratTriggerContext());
     triggerContexts.Add(new VanillaDungeonMaraTriggerContext());
-    triggerContexts.Add(new VanillaDungeonUldaTriggerContext());
-    triggerContexts.Add(new VanillaDungeonDMTriggerContext());
     triggerContexts.Add(new CoaDungeonOtherSideTriggerContext());
     triggerContexts.Add(new CoaDungeonVaultsTriggerContext());
     triggerContexts.Add(new VanillaDungeonDMTriggerContext());
@@ -105,4 +107,6 @@ void AiObjectContext::BuildSharedTriggerContexts(SharedNamedObjectContextList<Tr
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     triggerContexts.Add(new CoaGenericTriggerContext());
     triggerContexts.Add(new CoaGardesTriggerContext());
+    // CoA Combat
+    triggerContexts.Add(new CoaCombatTriggerContext());
 }

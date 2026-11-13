@@ -6,6 +6,8 @@
 
 #include "ActionContext.h"
 #include "AiObjectContext.h"
+#include "CoaCombatContext.h"
+#include "STContexts.h"
 #include "CoaGardesContext.h"
 #include "Aq20ActionContext.h"
 #include "Aq40ActionContext.h"
@@ -68,20 +70,20 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     actionContexts.Add(new TbcDungeonMechanarActionContext());
     actionContexts.Add(new TbcDungeonUnderbogActionContext());
     actionContexts.Add(new TbcDungeonMagistersTerraceActionContext());
-    actionContexts.Add(new VanillaDungeonBFDActionContext());
     actionContexts.Add(new VanillaDungeonRFCActionContext());
     actionContexts.Add(new VanillaDungeonSFKActionContext());
     actionContexts.Add(new VanillaDungeonSMActionContext());
+    actionContexts.Add(new VanillaDungeonBFDActionContext());
+    actionContexts.Add(new VanillaDungeonUldaActionContext());
     actionContexts.Add(new VanillaDungeonWCActionContext());
     actionContexts.Add(new VanillaDungeonRFKActionContext());
     actionContexts.Add(new VanillaDungeonRFDActionContext());
-    actionContexts.Add(new VanillaDungeonBRDActionContext());
     actionContexts.Add(new VanillaDungeonBRSActionContext());
-    actionContexts.Add(new VanillaDungeonStratActionContext());
+    actionContexts.Add(new VanillaDungeonBRDActionContext());
+    actionContexts.Add(new VanillaDungeonSTActionContext());
     actionContexts.Add(new VanillaDungeonScholoActionContext());
+    actionContexts.Add(new VanillaDungeonStratActionContext());
     actionContexts.Add(new VanillaDungeonMaraActionContext());
-    actionContexts.Add(new VanillaDungeonUldaActionContext());
-    actionContexts.Add(new VanillaDungeonDMActionContext());
     actionContexts.Add(new CoaDungeonOtherSideActionContext());
     actionContexts.Add(new CoaDungeonVaultsActionContext());
     actionContexts.Add(new VanillaDungeonDMActionContext());
@@ -105,4 +107,6 @@ void AiObjectContext::BuildSharedActionContexts(SharedNamedObjectContextList<Act
     // machen Kampfverhalten zu Daten - siehe Ai/Coa/CoaGenericContext.h
     actionContexts.Add(new CoaGenericActionContext());
     actionContexts.Add(new CoaGardesActionContext());
+    // CoA Combat
+    actionContexts.Add(new CoaCombatActionContext());
 }

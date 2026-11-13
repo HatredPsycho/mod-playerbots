@@ -121,3 +121,14 @@ Authorship is assigned for each commit within the git history, which is stored i
 * zeb139
 * ZhengPeiRu21
 * 姜耀
+
+## Code under another license
+
+* The combat guards in `src/Ai/Coa/Gardes/` and the reference headers in `tests/dc294/` come from Dungeon Clear by Jared Wright and contributors, under AGPL-3.0-or-later (see `LICENSE-GARDES` and the full text in `LICENSE-AGPL3`).
+* The invasion schedule in `src/Ai/Coa/World/` (CoaWorldInvasion*) is adapted from wow-mod-era-events by buildthehomelab, under the MIT License; its notice is kept in `CoaWorldInvasion.h`.
+
+## Code taken from other projects
+
+* The auction house bot in `src/Ai/Coa/Economy/AuctionHouse/CoaAuctionHouseBot.cpp/.h` and its settings file `conf/mod_ahbot.conf.dist` come from mod-ah-bot-plus by Nathan Handley (after the AzerothCore mod-ah-bot, TrinityCore and MaNGOS), under GPL-2.0-or-later; their copyright notices are kept in the source files.
+* Ideas of the CoA economy (`src/Ai/Coa/Economy/`), rewritten, no code copied: the no-arbitrage rule, real-sales-only learning and rarity premium after stuhby; the purchase chance and rival bidder after felworld; the learned price band and bots trading at the auction house after aspollon; the deprecated-item filter after danieldfischer and Ithen.
+* Ideas of CoA World (`src/Ai/Coa/World/`), rewritten, no code copied: stuck-bot recovery and quest quarantine after Fuitad (GPL-2.0); resource rushes after Old-Man-Warcraft (GPL-2.0); balanced creation of bot guilds after Coralis (GPL-2.0); random bots creating Dungeon Finder demand after Wilhelm8585 (GPL-2.0).

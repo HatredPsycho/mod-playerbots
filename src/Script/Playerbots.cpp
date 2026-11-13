@@ -4,6 +4,10 @@
  * or (at your option) any later version.
  */
 
+#include "CoaWorldGuilds.h"
+#include "CoaWorldAiBudget.h"
+#include <chrono>
+#include "CoaWorldBgPace.h"
 #include "Playerbots.h"
 #include "CoaSpecialization.h"
 #include "BattleGroundTactics.h"
@@ -14,6 +18,8 @@
 #include "Channel.h"
 #include "CityDuels.h"
 #include "CoaAltAddon.h"
+#include "CoaBotIdentify.h"
+#include "CoaLive.h"
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
@@ -33,7 +39,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "2.9.5";
+static constexpr char const* COA_BOTS_VERSION = "3.0";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -252,9 +258,49 @@ public:
     {
         PlayerbotAI* const botAI = PlayerbotsMgr::instance().GetPlayerbotAI(player);
 
-        if (botAI != nullptr)
+        // CoA World (AiBudgetMs): over its map's AI budget this tick, the bot skips its AI and keeps the time.
+        if (botAI != nullptr && CoaWorldAiBudget::On() && CoaWorldAiBudget::Skip(player, botAI))
         {
-            botAI->UpdateAI(diff);
+            botAI->coaBudgetWaitMs += diff;
+            CoaLive::OnBotUpdate(player, botAI, diff);
+        }
+        else if (botAI != nullptr)
+        {
+            auto const aiStart = std::chrono::steady_clock::now();
+            diff += botAI->coaBudgetWaitMs;
+            botAI->coaBudgetWaitMs = 0;
+            // CoA World (BotOnlyBgPace): in a battleground or arena with no real player on the map nor in its queue,
+            // the bot thinks every IntervalMs; back to every tick as soon as one comes (checked every second).
+            if (CoaWorldBgPace::On() && player->InBattleground())
+            {
+                botAI->coaBgCheckMs += diff;
+                if (botAI->coaBgCheckMs >= 1000)
+                {
+                    botAI->coaBgCheckMs = 0;
+                    botAI->coaBgBotOnly = CoaWorldBgPace::BotOnly(player);
+                }
+            }
+            else
+                botAI->coaBgBotOnly = false;
+
+            if (botAI->coaBgBotOnly)
+            {
+                botAI->coaBgWaitMs += diff;
+                if (botAI->coaBgWaitMs >= CoaWorldBgPace::IntervalMs())
+                {
+                    botAI->UpdateAI(botAI->coaBgWaitMs);
+                    botAI->coaBgWaitMs = 0;
+                }
+            }
+            else
+            {
+                botAI->UpdateAI(diff + botAI->coaBgWaitMs);
+                botAI->coaBgWaitMs = 0;
+            }
+            if (CoaWorldAiBudget::On())
+                CoaWorldAiBudget::Spent(player, uint64(std::chrono::duration_cast<std::chrono::microseconds>(
+                                                           std::chrono::steady_clock::now() - aiStart).count()));
+            CoaLive::OnBotUpdate(player, botAI, diff);
         }
 
         if (PlayerbotMgr* playerbotMgr = GET_PLAYERBOT_MGR(player))
@@ -291,6 +337,14 @@ public:
         if (PlayerbotsAnswerQuestOffer(player, receiver, msg))
             return false;
 
+        // CoA World (Guilds.GearAsk): "yes"/"no" to a guildmate's offer of gear.
+        if (CoaWorldGuildGiftWhisper(player, receiver, msg))
+            return true;
+
+        // CoA Live: a stranger's whisper to a random bot gets a human answer, not a command.
+        if (CoaLive::OnWhisper(player, receiver, msg))
+            return true;
+
         botAI->HandleCommand(type, msg, player);
 
         // hotfix; otherwise the server will crash when whispering logout
@@ -305,8 +359,12 @@ public:
     bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Group* group) override
     {
         // Addon traffic (DBM, Carbonite, ...) is no bot command; its text used to trigger item commands like trade.
+        // Only the SquidBots Lite "WHO?" gets an answer from the bots of the group (CoaBotIdentify).
         if (lang == LANG_ADDON)
+        {
+            CoaBotIdentify::OnGroupAddonMessage(player, type, msg, group);
             return true;
+        }
 
         // "summon" from the leader of a raid built by ".playerbots coa raid" (SquidBots Lite Regroup): this hook runs
         // in the world thread (CMSG_MESSAGECHAT), so the server brings every bot of the raid itself, across maps, and
@@ -676,6 +734,15 @@ void AddSC_coa_leave_instance();
 void AddSC_coa_player_main_tank();
 void AddSC_coa_gardes_menace();
 
+// One entry point per code session, each defined in the session's own file:
+// Economy src/Ai/Coa/Economy/CoaEconomyScripts.cpp, World src/Ai/Coa/World/CoaWorldScripts.cpp,
+// Live src/Ai/Coa/Social/CoaLiveScripts.cpp, Combat src/Ai/Coa/Combat/CoaCombatScripts.cpp.
+// A session registers a new script in its own file, never here.
+void AddCoaEconomyScripts();
+void AddCoaWorldScripts();
+void AddCoaLiveScripts();
+void AddCoaCombatScripts();
+
 void AddPlayerbotsScripts()
 {
     new PlayerbotsBattlefieldScript();
@@ -711,4 +778,10 @@ void AddPlayerbotsScripts()
     AddSC_coa_player_main_tank();
     AddSC_coa_gardes_menace();
     AddSC_coa_lfg();
+
+    // Code sessions, in the order they were registered before (hooks shared by two of them keep their call order).
+    AddCoaEconomyScripts();
+    AddCoaWorldScripts();
+    AddCoaLiveScripts();
+    AddCoaCombatScripts();
 }

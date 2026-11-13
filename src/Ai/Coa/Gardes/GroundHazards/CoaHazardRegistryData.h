@@ -1,7 +1,11 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 // THE DATA of the ground hazards guard, ported as-is from Dungeon Clear 2.9.4 (DcHazardRegistry.cpp): every row, every
@@ -654,7 +658,7 @@ namespace CoaHazardData
     //
     // vacate 10 is the aura; hold 2 reads in danger inside 12yd; slack 6 aims the step at
     // 16yd, outside the 13yd placement radius.
-    inline constexpr std::array<CoaGroundHazard, 13> kGroundHazards = {{
+    inline constexpr std::array<CoaGroundHazard, 17> kGroundHazards = {{
         //                   radius  zBand  vacate  hold  slack
         // Cloud of Disease — the pool a dying Diseased Ghoul (10495) leaves.
         { 289, 17742, 8.0f, 6.0f, 5.0f, 2.0f, 6.0f },
@@ -688,6 +692,14 @@ namespace CoaHazardData
         { 668, 72362, 6.0f, 6.0f, 3.0f, 2.0f, 6.0f },
         // Rain of Fire -- Gehennas', on a random raid member every 6s.
         { 409, 19717, 13.0f, 6.0f, 10.0f, 2.0f, 6.0f },
+        // CoA Combat (not in Dungeon Clear 2.9.4) -- Burning Ground, the fire a CoA Living Bomb leaves
+        // where its carrier stood (boss_geddon_coa.cpp): a 2yd persistent area aura, 800 to 1,600 fire a second
+        // (D0..D3), with no end in the DBC, so the floor around Geddon fills up during the pull. Vacate 3 is the
+        // aura plus a body; the 6yd keep-out keeps the melee chase out of an old patch.
+        { 409, 2105713, 6.0f, 6.0f, 3.0f, 2.0f, 6.0f },
+        { 409, 2105714, 6.0f, 6.0f, 3.0f, 2.0f, 6.0f },
+        { 409, 2105715, 6.0f, 6.0f, 3.0f, 2.0f, 6.0f },
+        { 409, 2105716, 6.0f, 6.0f, 3.0f, 2.0f, 6.0f },
     }};
 
     // ---- the trap table --------------------------------------------------

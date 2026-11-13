@@ -1,7 +1,11 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef COA_GROUP_TANK_H
@@ -44,6 +48,10 @@ namespace CoaGroupTank
 
     // Whether this member is in an active Dungeon Clear run (the provider gives it a run leader).
     bool InDungeonClearRun(Player const* member);
+
+    // A guard that is always on inside a Dungeon Clear run and behind `keyOn` outside one. With
+    // AiPlayerbot.CoaCombat.BenchKeyOnly (bench only), the key alone decides, inside a run too.
+    bool RunOrKey(Player const* member, bool keyOn);
 
     // The guards Dungeon Clear still runs itself during its runs (by name, e.g. "heal reposition"): the module's guard
     // of the same name stands down for the members of an active run, so that no guard acts twice. Dungeon Clear

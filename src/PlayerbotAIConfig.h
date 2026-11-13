@@ -102,6 +102,13 @@ public:
 
     bool Initialize();
     void LoadRandomBotLevelConfig();
+
+    // Code sessions: each one loads its own settings, in a file of its own, called by Initialize().
+    void LoadCoaLiveConfig();     // src/Ai/Coa/Social/CoaLiveConfig.cpp
+    void LoadCoaWorldConfig();    // src/Ai/Coa/World/CoaWorldConfig.cpp
+    void LoadCoaEconomyConfig();  // src/Ai/Coa/Economy/CoaEconomyConfig.cpp
+    void LoadCoaCombatConfig();   // src/Ai/Coa/Combat/CoaCombatConfig.cpp
+
     bool IsInRandomAccountList(uint32 id);
     // "tradegoods,herb,7:9,5": item classes or class:subclass pairs, with a few names.
     void LoadGuildBankDepositItems(std::string const& value);
@@ -481,8 +488,6 @@ public:
     bool coaArenaPurge;
     bool coaBossKnowledge;
     bool coaRecruitSameFaction;
-    uint32 coaBotSurname;
-    std::string coaBotSurnameText;
     uint32 coaThreatHold;
     uint32 coaTankThreatBonus;
     bool coaAttackLoop;
@@ -671,6 +676,118 @@ public:
     uint32 resetBotLevelPlayedTimeCheckFrequency;
     bool resetBotLevelIgnoreGuildWithRealPlayers;
     std::vector<std::string> resetBotLevelExcludeNames;
+
+    // ---- CoA Live, owned by the CoA SquidBot session (loaded by LoadCoaLiveConfig, CoaLiveConfig.cpp) ----
+    uint32 coaBotSurname;  // 0 none, 1 "Bot" (default), 2 a family name (CoaSurnameRules.h)
+    bool coaBotIdentify;  // AiPlayerbot.CoaBotIdentify: bots answer the addon's "WHO?" (CoaBotIdentify)
+    std::vector<std::string> coaBotSurnameList;  // AiPlayerbot.CoaBotSurnameList, never empty (default list)
+    // AiPlayerbot.CoaLive.*: bots react like people, from the bank of CoA IA MIND (CoaLive)
+    bool coaLiveEnable;
+    uint32 coaLiveTypoChance;
+    uint32 coaLiveAbbrevChance;
+    uint32 coaLiveRareChance;
+    uint32 coaLiveNoRepeatBot;
+    uint32 coaLiveNoRepeatChannel;
+    uint32 coaLiveTypingMsPerCharMin;
+    uint32 coaLiveTypingMsPerCharMax;
+    uint32 coaLiveGreetRange;
+    // AiPlayerbot.CoaLive.Sessions.*: the random bots come and go like players (CoaSessionRules.h)
+    bool coaLiveSessionsEnable;
+    bool coaLiveDataFileEnable;      // AiPlayerbot.CoaLive.DataFile.Enable: world.json for the dashboard
+    std::string coaLiveDataDir;      // AiPlayerbot.CoaDataDir (shared with the other sessions)
+    bool coaLiveDataFiles;           // AiPlayerbot.CoaDataFiles (shared: 0 stops every data file)
+    bool coaPetsAutoBooks;        // AiPlayerbot.CoaPets.AutoBooks: alts use their class and craft books by themselves
+    bool coaSoulEnable;           // AiPlayerbot.CoaSoul.Enable (souls of the bots)
+    bool coaSoulAddon;            // AiPlayerbot.CoaSoul.Addon: SquidBots Lite asks a bot's soul (SQBW SOUL?)
+    std::string coaSoulWeights;   // AiPlayerbot.CoaSoul.Weights: lazy, quester, wanderer, trader, pvp
+    bool coaFreshStartEnable;  // AiPlayerbot.CoaFreshStart.Enable (launch of a new living realm)
+    bool coaCatchUpEnable;          // AiPlayerbot.CoaFreshStart.CatchUp.Enable (only with FreshStart)
+    uint32 coaCatchUpMarginLevels;  // AiPlayerbot.CoaFreshStart.CatchUp.MarginLevels
+    uint32 coaCatchUpStepPercent;   // AiPlayerbot.CoaFreshStart.CatchUp.StepPercent
+    float coaCatchUpMaxRate;        // AiPlayerbot.CoaFreshStart.CatchUp.MaxRate
+    uint32 coaCatchUpMinHumans;     // AiPlayerbot.CoaFreshStart.CatchUp.MinHumans
+    float coaCatchUpMaxTotalRate;   // AiPlayerbot.CoaFreshStart.CatchUp.MaxTotalRate (0: no cap)
+    uint32 coaCatchUpActiveDays;    // AiPlayerbot.CoaFreshStart.CatchUp.ActiveDays
+    std::vector<std::string> coaCatchUpServiceAccounts;  // AiPlayerbot.CoaFreshStart.CatchUp.ServiceAccounts (upper case)
+    bool coaCatchUpCountGameMasters;  // AiPlayerbot.CoaFreshStart.CatchUp.CountGameMasters (default 1)
+    bool coaLiveImmersionEnable;
+    uint32 coaLiveImmersionFishingPerThousand;  // AiPlayerbot.CoaLive.Immersion.FishingPerThousand  // AiPlayerbot.CoaLive.Immersion.Enable (L2 fishing)
+    bool coaLiveCleanWorldEnable;  // AiPlayerbot.CoaLive.CleanWorld.Enable
+    bool coaLiveSheathEnable;  // AiPlayerbot.CoaLive.Sheath.Enable (#11610)
+    uint32 coaLiveTradeMessagesPerMinute;  // AiPlayerbot.CoaLive.TradeMessagesPerMinute (0: the bank's own pace)
+    bool coaLiveNoAwayFlag;  // AiPlayerbot.CoaLive.NoAwayFlag: resting bots not shown <Away>
+    bool coaLiveChatEnable;  // AiPlayerbot.CoaLive.Chat.Enable: off, the bots write no CoA Live line (default 1)
+    bool coaLiveLegacyChat;  // AiPlayerbot.CoaLive.LegacyChat: the older lines speak with the living chat (default 0)
+    uint32 coaLiveHeavyRefreshPerTick;  // AiPlayerbot.CoaLive.HeavyRefreshPerTick (0: no budget)
+    bool coaLiveMaintenanceSpread;  // AiPlayerbot.CoaLive.MaintenanceSpread: level-up maintenance a step a second
+    bool coaLiveTrainerDedup;  // AiPlayerbot.CoaLive.TrainerDedup: each trainer's spell list walked once a round
+    uint32 coaLiveTalentsPerUpdate;  // AiPlayerbot.CoaLive.TalentsPerUpdate (0: all CoA talents at once)
+    bool coaLiveNightBankEnable;  // AiPlayerbot.CoaLive.NightBank.Enable (playerbots_coa_night_lines)
+    bool coaLiveDebugIgnoreRealPlayer;  // AiPlayerbot.CoaLive.Debug.IgnoreRealPlayer (hidden test key, bench only)
+    bool coaLiveCityEnable;  // AiPlayerbot.CoaLive.City.Enable (L2 City Life)
+    bool coaLiveSocialEnable;
+    uint32 coaLiveSocialInviteCooldownMinutes;  // AiPlayerbot.CoaLive.Social.InviteCooldownMinutes  // AiPlayerbot.CoaLive.Social.Enable (L2 social bots)
+    // ---- end of CoA Live ----
+
+    // ---- CoA World (LoadCoaWorldConfig, CoaWorldConfig.cpp) ----
+    // Most AiPlayerbot.CoaWorld.* are read by their own bricks (src/Ai/Coa/World).
+    // AiPlayerbot.CoaWorld.DpsTargetCache: the "dps target" value is kept for one AI pass (100 ms).
+    bool coaDpsTargetCache = false;
+    // AiPlayerbot.CoaWorld.SlowIdleTriggers: out of combat, an unforced bot checks its low-relevance triggers once a second.
+    bool coaSlowIdleTriggers = false;
+    // ---- end of CoA World ----
+
+    // ---- CoA Economy (LoadCoaEconomyConfig, CoaEconomyConfig.cpp) ----
+    // The auction house bot reads its own AiPlayerbot.CoaEconomy.* keys (Economy/AuctionHouse, Market, Launch).
+    // New rpg bots sell at vendors (Economy/Rpg/CoaRpgTrade): on/off, and the bag fill (%) that sends them there.
+    bool coaEconomyRpgSellEnable = false;
+    uint32 coaEconomyRpgSellBagPercent = 70;
+    // ---- end of CoA Economy ----
+
+    // ---- CoA Combat (LoadCoaCombatConfig, CoaCombatConfig.cpp) ----
+    // B2 breath guard outside a Dungeon Clear run (always on inside one).
+    bool coaCombatBreathGuardEnable = false;
+    // B3 stuck combat breaker outside a Dungeon Clear run (always on inside one), and its timeout in seconds (0 = off;
+    // DungeonClear.StuckCombatTimeout first when the player has it).
+    bool coaCombatStuckCombatEnable = false;
+    float coaCombatStuckCombatTimeoutSeconds = 15.0f;
+    // B4 combat purge outside a Dungeon Clear run (always on inside one), and its window in ms (no key of its own:
+    // DungeonClear.UnreachableCombatPurgeSecs when the player has it, else 60 s; 0 = off).
+    bool coaCombatCombatPurgeEnable = false;
+    uint32 coaCombatCombatPurgeWindowMs = 60000;
+    // B5 Sunken Temple, Avatar of Hakkar (vanilla-st) outside a Dungeon Clear run (always on inside one).
+    bool coaCombatSunkenTempleEnable = false;
+    // Telegraphs (Targorr): leave a listed ground marker that announces a hit. New everywhere, Dungeon Clear runs too.
+    bool coaCombatTelegraphEnable = false;
+    // Pursuit stop: no chase of a fleeing mob beyond 20 yd from the tank. New everywhere, Dungeon Clear runs too.
+    bool coaCombatPursuitStopEnable = false;
+    // Off-tank: a second tank takes the loose adds and never taunts what another tank holds.
+    bool coaCombatOffTankEnable = false;
+    // Gear score: item set bonuses and raid tokens count in the choice of gear (CoaGearScore).
+    bool coaCombatGearScoreEnable = false;
+    // At LootNeedRollLevel 2, how long a bot that wants an item waits for the real players to vote first (ms).
+    uint32 coaCombatLootNeedWaitMs = 20000;
+    // Lot 7: the session's Molten Core fixes (kill orders, burn phases, dodges; docs/MC-ETAT-3.0.md).
+    bool coaCombatMoltenCoreEnable = false;
+    // Lot 7: the session's Blackwing Lair fixes (drake tank swaps, Chromaggus, Dominion; docs/BWL-ETAT-3.0.md).
+    bool coaCombatBlackwingLairEnable = false;
+    // Lot 7: the session's Zul'Gurub fixes (Mandokir's gaze, Hakkar's heart and siphon, kill orders; docs/ZG-ETAT-3.0.md).
+    bool coaCombatZulGurubEnable = false;
+    // Lot 7: the session's Ahn'Qiraj fixes, AQ20 and AQ40 (Buru, Ossirian, Sartura; docs/AQ-ETAT-3.0.md).
+    bool coaCombatAhnQirajEnable = false;
+    // Loot Need refined: Need kept only for an upgrade of at least this many percent over the piece worn (0: off),
+    // and only on epic or better items (off).
+    float coaCombatLootNeedMinUpgradePct = 0.0f;
+    bool coaCombatLootNeedEpicOnly = false;
+    // Call of the Grave (Dire Maul West): the curse removed first, the melee out of its casters' 5 yd.
+    bool coaCombatCallOfTheGraveEnable = false;
+    // "The player leads" (docs/JOUEUR-MENE-3.0.md): the player's Main Tank bar comes first for the raid strategies'
+    // main tank, and the boss stand-down falls back to the boss flags outside a Dungeon Clear run.
+    bool coaCombatPlayerLedEnable = false;
+    // Bench only: the breath guard, stuck combat breaker, combat purge and Sunken Temple read their own key alone, also
+    // inside a Dungeon Clear run, so that a Dungeon Clear series compares key 0 with key 1.
+    bool coaCombatBenchKeyOnly = false;
+    // ---- end of CoA Combat ----
 
 private:
     PlayerbotAIConfig() = default;

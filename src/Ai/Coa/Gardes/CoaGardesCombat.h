@@ -1,7 +1,11 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #ifndef COA_GARDES_COMBAT_H
@@ -22,7 +26,6 @@ class PlayerbotAI;
 // play. Each one asks CoaGroupTank::ModuleGuardActs first, so it stays silent for a run whose Dungeon Clear still does
 // it itself. The tank they read is the group's reference tank (CoaGroupTank).
 //   combat regroup   - Regroup/: a follower that cannot contribute from where it stands walks back to the fight;
-//   escape leap ban  - EscapeLeap/: no Blink / Disengage in a dungeon or raid group;
 //   room boss chase  - RoomBoss/: no chase that ends inside a sleeping room-aggro boss's wake sphere;
 //   lyceum close up  - Brd/: Blackrock Depths' Lyceum, every member fights within 15yd of the tank;
 //   iron hall        - Brd/: Blackrock Depths' Iron Hall, never stop in the statues' fire.

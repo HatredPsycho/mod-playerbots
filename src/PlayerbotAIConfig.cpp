@@ -7,6 +7,7 @@
 #include "PlayerbotAIConfig.h"
 #include "BisListMgr.h"
 #include "CoaBotNames.h"
+#include "CoaLive.h"
 #include "CoaSpecialization.h"
 #include "Config.h"
 #include "ItemTemplate.h"
@@ -928,8 +929,6 @@ bool PlayerbotAIConfig::Initialize()
     coaArenaPurge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaArenaPurge", true, false);
     coaBossKnowledge = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaBossKnowledge", true);
     coaRecruitSameFaction = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaRecruitSameFaction", true);
-    coaBotSurname = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaBotSurname", 1);
-    coaBotSurnameText = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaBotSurnameText", "Bot");
     coaThreatHold = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaThreatHold", 90);
     coaTankThreatBonus = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTankThreatBonus", 0);
     coaAttackLoop = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAttackLoop", true);
@@ -1044,6 +1043,12 @@ bool PlayerbotAIConfig::Initialize()
     selfBotLevel = sConfigMgr->GetOption<int32>("AiPlayerbot.SelfBotLevel", 1);
     botTextLocale = sConfigMgr->GetOption<int32>("AiPlayerbot.BotTextLocale", -1);
 
+    // Code sessions (CoA Live, World, Economy, Combat): each one loads its settings in its own file.
+    LoadCoaLiveConfig();
+    LoadCoaWorldConfig();
+    LoadCoaEconomyConfig();
+    LoadCoaCombatConfig();
+
     RandomPlayerbotFactory::CreateRandomBots();
     if (World::IsStopped())
     {
@@ -1066,6 +1071,7 @@ bool PlayerbotAIConfig::Initialize()
     sBisListMgr->LoadAll();
     PlayerbotTextMgr::instance().LoadBotTexts();
     PlayerbotTextMgr::instance().LoadBotTextChance();
+    CoaLive::LoadBank();
     PlayerbotFactory::Init();
 
     AiObjectContext::BuildAllSharedContexts();

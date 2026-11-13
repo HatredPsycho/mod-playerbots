@@ -5,12 +5,17 @@
  */
 
 #include "PlayerbotAI.h"
+
+#include "CoaLive.h"
+#include "CoaChatRules.h"
+#include "CoaPet.h"
 #include "CurrentTargetValue.h"
 
 #include <set>
 #include <functional>
 #include "RaceMgr.h"
 #include "CoaSpecialization.h"
+#include "AutoMaintenanceOnLevelupAction.h"
 #include "CoaWildcard.h"
 #include "CoaReborn.h"
 #include "CoaMissionMgr.h"
@@ -563,6 +568,12 @@ void PlayerbotAI::UpdateAI(uint32 elapsed, bool minimal)
     CoaTankOrderTick(this);
     // The loot pet of an alt (AiPlayerbot.AltLootCompanion).
     CoaLootCompanionTick(this);
+    // The alt's class and craft books, used by themselves ("pet auto on", CoA Pets).
+    CoaPet::Tick(this);
+    // The CoA talents left by a capped rebuild (AiPlayerbot.CoaLive.TalentsPerUpdate).
+    CoaTalentsTick(bot);
+    // The level-up maintenance spread over the next updates (AiPlayerbot.CoaLive.MaintenanceSpread).
+    AutoMaintenanceOnLevelupAction::Tick(this);
     // Totems put away after the fight (AiPlayerbot.CoaTotemRecall).
     CoaTotemRecallTick(this);
 
@@ -1521,6 +1532,10 @@ void PlayerbotAI::HearChat(WorldPacket const& packet)
         // do not reply to self but always try to reply to real player
         if (guid1 != bot->GetGUID())
         {
+            // CoA Live answers a stranger's whispers to a random bot from its bank (CoaLive::OnWhisper).
+            if (msgtype == CHAT_MSG_WHISPER && CoaLive::AnswersWhispers(this, guid1))
+                return;
+
             time_t lastChat = GetAiObjectContext()->GetValue<time_t>("last said", "chat")->Get();
             bool isPaused = time(0) < lastChat;
             bool isFromFreeBot = false;
@@ -1540,6 +1555,11 @@ void PlayerbotAI::HearChat(WorldPacket const& packet)
                 return;
 
             if (HasGameClientMaster() && guid1 != GetMaster()->GetGUID())
+                return;
+
+            // Chat off (AiPlayerbot.CoaLive.Chat.Enable = 0), or the living chat speaking without
+            // AiPlayerbot.CoaLive.LegacyChat: no reply to chatter, only to the master.
+            if (!CoaChat::ChatReplyAllowed(CoaLive::LegacyChatOn(), GetMaster() && guid1 == GetMaster()->GetGUID()))
                 return;
 
             auto itemIds = GetChatHelper()->ExtractAllItemIds(message);
@@ -2004,7 +2024,14 @@ void PlayerbotAI::DoNextAction(bool min)
 
     if (minimal)
     {
-        if (!bot->isAFK() && !bot->InBattleground() && !HasGameClientMaster())
+        // CoA Live (AiPlayerbot.CoaLive.NoAwayFlag): a bot resting its turn of the BotActiveAlone rotation is not
+        // shown <Away>: it still talks (channels, trade, whispers), and the chat was full of <Away> bots.
+        if (sPlayerbotAIConfig.coaLiveNoAwayFlag)
+        {
+            if (bot->isAFK() && !IsSelfBot(bot))
+                bot->ToggleAFK();
+        }
+        else if (!bot->isAFK() && !bot->InBattleground() && !HasGameClientMaster())
             bot->ToggleAFK();
 
         SetNextCheckDelay(sPlayerbotAIConfig.passiveDelay);
@@ -2106,7 +2133,7 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
         "aq20", "aq40", "blacktemple", "bwl", "coa-other-side", "coa-vaults", "gruulslair", "hyjal", "icc", "karazhan", "magtheridon", "moltencore", "naxx",
         "onyxia", "rs", "ssc", "sunwell", "tbc-ac", "tbc-mech", "tbc-mgt", "tbc-seth", "tbc-ub", "tempestkeep", "ulduar",
         "vanilla-bfd", "vanilla-brd", "vanilla-brs", "vanilla-dm", "vanilla-mara", "vanilla-rfc", "vanilla-rfd", "vanilla-rfk",
-        "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an",
+        "vanilla-scholo", "vanilla-sfk", "vanilla-sm", "vanilla-st", "vanilla-strat", "vanilla-ulda", "vanilla-wc", "voa", "wotlk-an",
         "wotlk-cos", "wotlk-dtk", "wotlk-eoe",
         "wotlk-fos", "wotlk-gd", "wotlk-hol", "wotlk-hos", "wotlk-nex", "wotlk-occ", "wotlk-ok", "wotlk-os",
         "wotlk-pos", "wotlk-toc", "wotlk-uk", "wotlk-up", "wotlk-vh", "zulaman", "zulgurub"
@@ -2135,6 +2162,9 @@ void PlayerbotAI::ApplyInstanceStrategies(uint32 mapId, bool tellMaster)
             break;
         case 70:
             strategyName = "vanilla-ulda";  // Uldaman
+            break;
+        case 109:
+            strategyName = "vanilla-st";  // Sunken Temple
             break;
         case 129:
             strategyName = "vanilla-rfd";  // Razorfen Downs
@@ -3018,6 +3048,16 @@ ObjectGuid PlayerbotAI::GetMainTankGuid(Group* group)
     if (!group)
         return ObjectGuid::Empty;
 
+    // CoA Combat, the player leads (AiPlayerbot.CoaCombat.PlayerLed.Enable, CoaPlayerLedRule::ChooseMainTank): the
+    // player who opened the Main Tank bar is the main tank, as for CoaGroupTank::Reference; then the stock order.
+    if (sPlayerbotAIConfig.coaCombatPlayerLedEnable)
+        for (GroupReference* ref = group->GetFirstMember(); ref; ref = ref->next())
+        {
+            Player* member = ref->GetSource();
+            if (member && member->IsAlive() && member->IsInWorld() && CoaPlayerMainTank::IsSet(member))
+                return member->GetGUID();
+        }
+
     Group::MemberSlotList const& slots = group->GetMemberSlots();
     for (Group::member_citerator itr = slots.begin(); itr != slots.end(); ++itr)
     {
@@ -3446,6 +3486,8 @@ void PlayerbotAI::LogChat(std::string_view how, std::string const& msg) const
 
 bool PlayerbotAI::SayToGuild(std::string const& msg)
 {
+    if (!CoaChat::ChannelLineAllowed(CoaLive::ChatOn()))  // AiPlayerbot.CoaLive.Chat.Enable = 0
+        return false;
     if (msg.empty())
     {
         return false;
@@ -3470,6 +3512,8 @@ bool PlayerbotAI::SayToGuild(std::string const& msg)
 
 bool PlayerbotAI::SayToWorld(std::string const& msg)
 {
+    if (!CoaChat::ChannelLineAllowed(CoaLive::ChatOn()))  // AiPlayerbot.CoaLive.Chat.Enable = 0
+        return false;
     if (msg.empty())
         return false;
 
@@ -3479,6 +3523,8 @@ bool PlayerbotAI::SayToWorld(std::string const& msg)
 
 bool PlayerbotAI::SayToWorldNow(std::string const& msg)
 {
+    if (!CoaChat::ChannelLineAllowed(CoaLive::ChatOn()))  // AiPlayerbot.CoaLive.Chat.Enable = 0
+        return false;
     if (msg.empty())
     {
         return false;
@@ -3504,6 +3550,8 @@ bool PlayerbotAI::SayToWorldNow(std::string const& msg)
 
 bool PlayerbotAI::SayToChannel(std::string const& msg, ChatChannelId const& chanId)
 {
+    if (!CoaChat::ChannelLineAllowed(CoaLive::ChatOn()))  // AiPlayerbot.CoaLive.Chat.Enable = 0
+        return false;
     if (msg.empty())
         return false;
 
@@ -3514,6 +3562,8 @@ bool PlayerbotAI::SayToChannel(std::string const& msg, ChatChannelId const& chan
 
 bool PlayerbotAI::SayToChannelNow(std::string const& msg, ChatChannelId chanId)
 {
+    if (!CoaChat::ChannelLineAllowed(CoaLive::ChatOn()))  // AiPlayerbot.CoaLive.Chat.Enable = 0
+        return false;
     // Checks whether the message or ChannelMgr is valid
     if (msg.empty())
         return false;
@@ -4827,7 +4877,9 @@ bool PlayerbotAI::CanCastVehicleSpell(uint32 spellId, Unit* target)
     if (!spellId)
         return false;
 
-    if (!IsValidUnit(target))
+    // No target is allowed: a siege weapon aims at the vehicle's own spot or at the "bg siege" position (a gate is a
+    // game object, not a unit). Only a target that is gone stops the cast (CoA Combat, Isle of Conquest).
+    if (target && !IsValidUnit(target))
         return false;
 
     Vehicle* vehicle = bot->GetVehicle();
@@ -4912,7 +4964,9 @@ bool PlayerbotAI::CastVehicleSpell(uint32 spellId, Unit* target)
     if (!spellId)
         return false;
 
-    if (!IsValidUnit(target))
+    // No target is allowed: a siege weapon aims at the vehicle's own spot or at the "bg siege" position (a gate is a
+    // game object, not a unit). Only a target that is gone stops the cast (CoA Combat, Isle of Conquest).
+    if (target && !IsValidUnit(target))
         return false;
 
     Vehicle* vehicle = bot->GetVehicle();
@@ -5468,6 +5522,10 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
     if (activityType == PACKET_ACTIVITY)
         return true;
 
+    // CoA World (SlowIdleTriggers): forced active unless the rotation below decides.
+    if (activityType == ALL_ACTIVITY)
+        coaForcedActive = true;
+
     // all bots forced active, no rotation or scaling needed
     if (sPlayerbotAIConfig.botActiveAlone >= 100 && !sPlayerbotAIConfig.botActiveAloneSmartScale)
         return true;
@@ -5626,6 +5684,10 @@ bool PlayerbotAI::AllowActive(ActivityType activityType)
                 return true;
         }
     }
+
+    // CoA World (SlowIdleTriggers): nothing above forces this bot to stay active.
+    if (activityType == ALL_ACTIVITY)
+        coaForcedActive = false;
 
     // pathfinding only runs for bots forced active by the rules above —
     // skip it for bots that would only be active via random rotation

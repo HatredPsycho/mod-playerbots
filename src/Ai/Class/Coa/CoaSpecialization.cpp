@@ -31,6 +31,7 @@
 #include "Log.h"
 #include "Player.h"
 #include "Playerbots.h"
+#include "GameTime.h"
 #include "PlayerbotAIConfig.h"
 #include "PlayerbotFactory.h"
 #include "Random.h"
@@ -413,12 +414,41 @@ bool EnsureCoaSpecialization(Player* bot)
     return true;
 }
 
+namespace
+{
+// The entries by id and the free-choice groups by entry, built once (InitTalents: a linear search per build pick
+// and per entry made every refresh scan the whole table hundreds of times). Rebuilt if the data ever changes.
+std::mutex coaIndexLock;
+std::unordered_map<uint32, AscensionCompatData::CoATalentEntry const*> coaEntryIndex;
+std::unordered_map<uint32, uint32> coaFreeGroupIndex;
+void const* coaIndexedData = nullptr;
+size_t coaIndexedSize = 0;
+size_t coaIndexedFree = 0;
+
+void IndexCoaEntries()
+{
+    auto const& entries = AscensionCompatData::CoATalentEntries;
+    auto const& free = AscensionCompatData::CoASelectableFreeEntries;
+    if (coaIndexedData == entries.data() && coaIndexedSize == entries.size() && coaIndexedFree == free.size())
+        return;
+    coaEntryIndex.clear();
+    for (AscensionCompatData::CoATalentEntry const& entry : entries)
+        coaEntryIndex.emplace(entry.EntryId, &entry);  // the first of an id wins, as the linear search did
+    coaFreeGroupIndex.clear();
+    for (AscensionCompatData::CoASelectableFreeEntry const& f : free)
+        coaFreeGroupIndex.emplace(f.EntryId, f.GroupId);
+    coaIndexedData = entries.data();
+    coaIndexedSize = entries.size();
+    coaIndexedFree = free.size();
+}
+}  // namespace
+
 AscensionCompatData::CoATalentEntry const* FindCoaEntry(uint32 entryId)
 {
-    for (AscensionCompatData::CoATalentEntry const& entry : AscensionCompatData::CoATalentEntries)
-        if (entry.EntryId == entryId)
-            return &entry;
-    return nullptr;
+    std::lock_guard<std::mutex> guard(coaIndexLock);
+    IndexCoaEntries();
+    auto it = coaEntryIndex.find(entryId);
+    return it == coaEntryIndex.end() ? nullptr : it->second;
 }
 
 namespace
@@ -478,10 +508,10 @@ namespace
 // when one is set.
 uint32 FreeGroupOf(uint32 entryId)
 {
-    for (AscensionCompatData::CoASelectableFreeEntry const& free : AscensionCompatData::CoASelectableFreeEntries)
-        if (free.EntryId == entryId)
-            return free.GroupId;
-    return 0;
+    std::lock_guard<std::mutex> guard(coaIndexLock);
+    IndexCoaEntries();
+    auto it = coaFreeGroupIndex.find(entryId);
+    return it == coaFreeGroupIndex.end() ? 0 : it->second;
 }
 
 // Rank each entry should hold at the bot's level, in the order of the build: the build's picks up to that level,
@@ -536,6 +566,9 @@ uint32 CoaFreeGroupOf(uint32 entryId)
 
 namespace
 {
+std::mutex pendingTalentsLock;
+std::unordered_map<uint64, uint64> pendingTalents;  // bot -> next try (ms): raises left for its next updates
+
 // Lowers every entry of the bot's class above its rank in `wanted` (0 when absent), with what has to follow. With
 // spentOnly, only talents and abilities bought with points are lowered, the free automatic ranks stay.
 uint32 LowerCoaEntries(Player* bot, std::vector<std::pair<uint32, uint8>> const& wanted, bool spentOnly,
@@ -601,7 +634,7 @@ uint32 LowerCoaEntries(Player* bot, std::vector<std::pair<uint32, uint8>> const&
 }
 }  // namespace
 
-uint32 ApplyCoaTalents(Player* bot)
+uint32 ApplyCoaTalents(Player* bot, uint32 maxRaises)
 {
     if (!bot || !IsAscensionCustomClassId(bot->getClass()) || !sRandomPlayerbotMgr.IsRandomBot(bot))
         return 0;
@@ -620,14 +653,37 @@ uint32 ApplyCoaTalents(Player* bot)
     uint32 orphans = 0;
     uint32 const lowered = LowerCoaEntries(bot, wanted, false, changes, orphans);
 
+    // Each raise is a full SynchronizeProgression of the core (2 to 5 ms): a bot rebuilt 40 levels higher made
+    // 30 to 50 of them in one go on the world thread. With a cap (AiPlayerbot.CoaLive.TalentsPerUpdate), the rest
+    // is raised on the bot's next updates, in the same order, to the same end.
     uint32 raised = 0;
+    bool more = false;
     for (auto const& [entryId, rank] : wanted)
-        if (!belowSpecialization && GetAscensionTalentRank(bot, entryId) < rank && SetAscensionTalentRank(bot, entryId, rank) &&
-            GetAscensionTalentRank(bot, entryId) >= rank)
+    {
+        if (belowSpecialization || GetAscensionTalentRank(bot, entryId) >= rank)
+            continue;
+        if (maxRaises && raised >= maxRaises)
+        {
+            more = true;
+            break;
+        }
+        if (SetAscensionTalentRank(bot, entryId, rank) && GetAscensionTalentRank(bot, entryId) >= rank)
         {
             ++raised;
             changes += " +" + std::to_string(entryId);
         }
+    }
+    {
+        std::lock_guard<std::mutex> guard(pendingTalentsLock);
+        if (more)
+        {
+            if (pendingTalents.size() > 20000)  // bots logged out mid-way: they rebuild again anyway
+                pendingTalents.clear();
+            pendingTalents[bot->GetGUID().GetRawValue()] = 0;
+        }
+        else
+            pendingTalents.erase(bot->GetGUID().GetRawValue());
+    }
 
     if (raised || lowered)
         LOG_INFO("playerbots", "coa: {} (class {}, level {}, specialization {}) raised {}, lowered {} talent entries ({} orphan ranks):{}",
@@ -647,6 +703,39 @@ uint32 ResetCoaTalents(Player* bot)
         LOG_INFO("playerbots", "coa: {} (class {}, level {}) reset {} talent entries ({} orphan ranks):{}",
                  bot->GetName(), bot->getClass(), bot->GetLevel(), lowered, orphans, changes);
     return lowered;
+}
+
+uint32 CoaTalentsPerUpdate() { return sPlayerbotAIConfig.coaLiveTalentsPerUpdate; }
+
+void CoaTalentsTick(Player* bot)
+{
+    if (!bot || !CoaTalentsPerUpdate())
+        return;
+    uint64 const key = bot->GetGUID().GetRawValue();
+    uint64 const now = GameTime::GetGameTimeMS().count();
+    {
+        std::lock_guard<std::mutex> guard(pendingTalentsLock);
+        auto it = pendingTalents.find(key);
+        if (it == pendingTalents.end() || now < it->second)
+            return;
+        it->second = now + 1000;  // a few raises a second, never all on one update
+    }
+    if (bot->IsInWorld() && !bot->IsInCombat())
+        ApplyCoaTalents(bot, CoaTalentsPerUpdate());
+}
+
+uint32 CoaTalentsMissing(Player* bot)
+{
+    if (!bot || !IsAscensionCustomClassId(bot->getClass()) || bot->GetLevel() < SpecializationLevel)
+        return 0;
+    uint32 const specializationId = GetAscensionActiveSpecialization(bot);
+    if (!specializationId)
+        return 0;
+    uint32 missing = 0;
+    for (auto const& [entryId, rank] : BuildRanksAtLevel(bot, specializationId))
+        if (GetAscensionTalentRank(bot, entryId) < rank)
+            ++missing;
+    return missing;
 }
 
 uint32 SpendCoaTalentPoints(Player* bot)
@@ -709,6 +798,11 @@ bool SpendAltBotTalentPoints(Player* bot)
 
     if (IsAscensionCustomClassId(bot->getClass()))
         return SpendCoaTalentPoints(bot) > 0;
+
+    // Warcraft Reborn: the talents of a player's character are its Character Advancement, chosen by its owner; the
+    // tree below would apply the guide build over it.
+    if (IsRebornBot(bot))
+        return false;
 
     if (bot->GetFreeTalentPoints() <= 0)
         return false;
@@ -837,6 +931,20 @@ bool SwitchStockSpec(Player* bot, CoaRole role)
 }
 }  // namespace
 
+// Self-found, or a live server from 0 (AiPlayerbot.CoaFreshStart.Enable): nothing changes a bot's level, so a recruit
+// is never rebuilt at the master's; one within 2 levels is taken as it is.
+static bool CoaRecruitKeepsLevels(Player* master)
+{
+    return PlayerbotFactory::SelfFoundAt(master->GetLevel()) || sPlayerbotAIConfig.coaFreshStartEnable;
+}
+
+static bool CoaRecruitKeepsLevel(Player* master, Player* bot)
+{
+    return CoaRecruitKeepsLevels(master) || PlayerbotFactory::IsSelfFoundBot(bot);
+}
+
+static char const* CoaKeptLevelMode() { return sPlayerbotAIConfig.coaFreshStartEnable ? "on this live server" : "in self-found mode"; }
+
 // A recruit this far from the master's level is rebuilt at it by PrepareCoaRecruit.
 static bool CoaRecruitNeedsRebuild(Player* master, Player* bot, uint32 levelTolerance)
 {
@@ -844,13 +952,13 @@ static bool CoaRecruitNeedsRebuild(Player* master, Player* bot, uint32 levelTole
                               (master->GetLevel() >= sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL) &&
                                bot->GetLevel() < master->GetLevel());
     // Self-found: a bot is never raised to the master's level, so one up to 2 levels away is taken as it is.
-    if (PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot))
+    if (CoaRecruitKeepsLevel(master, bot))
         levelTolerance = std::max<uint32>(levelTolerance, 2);
     return blocksFinder || std::abs(int32(bot->GetLevel()) - int32(master->GetLevel())) > int32(levelTolerance);
 }
 
 Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<ObjectGuid> const& skip, bool& chosenFits,
-                       uint32 levelTolerance)
+                       uint32 levelTolerance, uint32 onlyGuildId, bool noInstance)
 {
     // A free random bot whose class can fill the role, preferably on the master's map (a
     // dungeon instance has none, so any map will do), then one that already holds a
@@ -860,13 +968,18 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
     chosenFits = false;
     uint32 chosenLevelGap = 0;
     float chosenDistance = 0.0f;
-    for (auto const& [guid, bot] : sRandomPlayerbotMgr.GetAllBots())
+    for (auto const& [guid, bot] : sRandomPlayerbotMgr.GetAllBotsRef())  // read only: picks one, acts after the loop
     {
         if (!bot || bot == master || !bot->IsInWorld() || bot->IsBeingTeleported() ||
             !(IsCoaBot(bot) || IsStockClass(bot->getClass())) || !bot->IsAlive() ||
             bot->IsInCombat() || bot->GetGroup() ||
             bot->GetGroupInvite() || bot->InBattleground() || bot->InBattlegroundQueue() || bot->IsInFlight() ||
             sLFGMgr->GetState(bot->GetGUID()) != lfg::LFG_STATE_NONE)
+            continue;
+
+        // The guild activities (CoA World): a bot of the player's guild, never one inside an instance.
+        if ((onlyGuildId && bot->GetGuildId() != onlyGuildId) ||
+            (noInstance && bot->GetMap() && bot->GetMap()->Instanceable()))
             continue;
 
         // Already offered to another player (lfg bots) or otherwise set aside by the caller.
@@ -891,8 +1004,7 @@ Player* FindCoaRecruit(Player* master, CoaRole role, uint8 classId, std::set<Obj
             continue;
 
         // Self-found: no bot is rebuilt at the master's level, only one already near it is taken.
-        if ((PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(bot)) &&
-            CoaRecruitNeedsRebuild(master, bot, levelTolerance))
+        if (CoaRecruitKeepsLevel(master, bot) && CoaRecruitNeedsRebuild(master, bot, levelTolerance))
             continue;
 
         PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot);
@@ -999,9 +1111,9 @@ bool PrepareCoaRecruit(Player* master, Player* chosen, CoaRole role, bool chosen
 
     if (CoaRecruitNeedsRebuild(master, chosen, levelTolerance))
     {
-        if (PlayerbotFactory::SelfFoundAt(master->GetLevel()) || PlayerbotFactory::IsSelfFoundBot(chosen))
+        if (CoaRecruitKeepsLevel(master, chosen))
         {
-            message = "No bot of your level is available in self-found mode.";
+            message = std::string("No bot of your level is available ") + CoaKeptLevelMode() + ".";
             return false;
         }
         uint32 const level = master->GetLevel();
@@ -1166,7 +1278,7 @@ bool CoaInOtherInstance(Player* bot, Player* master)
     return bot && master && bot->GetMapId() == master->GetMapId() && bot->GetInstanceId() != master->GetInstanceId();
 }
 
-bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 classId)
+bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 classId, uint32 onlyGuildId, bool noInstance)
 {
     Group* group = master->GetGroup();
     if (group && group->IsFull())
@@ -1182,12 +1294,12 @@ bool RecruitCoaBot(Player* master, CoaRole role, std::string& message, uint8 cla
     }
 
     bool chosenFits = false;
-    Player* chosen = FindCoaRecruit(master, role, classId, {}, chosenFits);
+    Player* chosen = FindCoaRecruit(master, role, classId, {}, chosenFits, 0, onlyGuildId, noInstance);
     if (!chosen)
     {
-        if (PlayerbotFactory::SelfFoundAt(master->GetLevel()))
+        if (CoaRecruitKeepsLevels(master))
         {
-            message = "No free bot of your level is available in self-found mode.";
+            message = std::string("No free bot of your level is available ") + CoaKeptLevelMode() + ".";
             return false;
         }
         message = classId ? "No free " + ClassName(classId) + " bot of your faction to play " + RoleName(role) + "."
@@ -1592,7 +1704,7 @@ bool CoaQueueMainTankSync(Player* bot)
     return PlayerbotWorldThreadProcessor::instance().QueueOperation(std::move(op));
 }
 
-bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message)
+bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std::string& message, uint32 preferGuildId)
 {
     size = std::clamp<uint32>(size ? size : 25, 6, MAXRAIDSIZE);
     CoaRaidRoles(size, tanks, heals);
@@ -1682,13 +1794,24 @@ bool RecruitCoaRaid(Player* master, uint32 size, uint32 tanks, uint32 heals, std
 
             bool recruited = false;
             std::string reason;
-            for (uint8 classId : classes)
-                if (RecruitCoaBot(master, role, reason, classId))
-                {
-                    ++classCount[classId];
-                    recruited = true;
-                    break;
-                }
+            bool const noInstance = preferGuildId != 0;
+            // The guild activities: a bot of the player's guild first, of any class that can play the role.
+            if (preferGuildId)
+                for (uint8 classId : classes)
+                    if (RecruitCoaBot(master, role, reason, classId, preferGuildId, true))
+                    {
+                        ++classCount[classId];
+                        recruited = true;
+                        break;
+                    }
+            if (!recruited)
+                for (uint8 classId : classes)
+                    if (RecruitCoaBot(master, role, reason, classId, 0, noInstance))
+                    {
+                        ++classCount[classId];
+                        recruited = true;
+                        break;
+                    }
             if (!recruited)
             {
                 stopped += " No free bot left to play " + std::string(RoleName(role)) + ".";
@@ -2052,8 +2175,8 @@ void CoaLfgHeard(Player* player, std::string const& message, Channel* channel)
     {
         if (offer(role, 0))
             continue;
-        if (PlayerbotFactory::SelfFoundAt(player->GetLevel()))
-            chat.PSendSysMessage("No free bot of your level can play {} in self-found mode.", RoleName(role));
+        if (CoaRecruitKeepsLevels(player))
+            chat.PSendSysMessage("No free bot of your level can play {} {}.", RoleName(role), CoaKeptLevelMode());
         else
             chat.PSendSysMessage("No free bot can play {} right now.", RoleName(role));
     }

@@ -1,0 +1,61 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
+// CoA World: monde.json for the CoA Dashboard, the current state of the session's systems (schema
+// "squidbot.monde/1"): invasions, rushes, guilds, guild orders, server firsts, recovery over 24 h, simulated dungeons
+// and battlegrounds (null when switched off). Every 30 s, only
+// while squidbot/watch.json asks for "monde" (less than 90 s old). events.jsonl keeps the history.
+// Off by default: AiPlayerbot.CoaWorld.StateFile.Enable = 1, and AiPlayerbot.CoaDataFiles not 0.
+
+#ifndef PLAYERBOTS_COAWORLDSTATE_H
+#define PLAYERBOTS_COAWORLDSTATE_H
+
+#include "Define.h"
+
+#include <ctime>
+#include <functional>
+#include <string>
+#include <vector>
+
+namespace CoaWorldState
+{
+// Kept only while the file is on; cheap no-ops otherwise. Any thread.
+void Order(std::string const& guild, uint32 item, uint32 count, char const* state, std::string const& by);
+void Recovery(uint32 botLowGuid, bool unstuck);
+void First(std::string const& what, std::string const& by, std::string const& guild, time_t at);
+// The start of "today": 00:00 server time, or the server's start when more recent.
+int64 TodaySince(time_t now);
+}  // namespace CoaWorldState
+
+// Built by their own bricks on the world thread: JSON arrays.
+namespace CoaWorld
+{
+std::string InvasionsJson(time_t now);
+std::string RushesJson(time_t now);
+// JSON objects, or "null" when the brick is off.
+std::string DungeonSimJson(time_t now);
+std::string BgSimJson(time_t now);
+}  // namespace CoaWorld
+
+// The SquidBots Lite world protocol, WEV? (CoaWorldAddon.cpp), world thread.
+class Player;
+namespace CoaWorldAddon
+{
+bool On();  // AiPlayerbot.CoaWorld.Events.Addon
+// Sends each player who asked WEV? less than 30 min ago the line lineFor gives them (empty: not for them), then "-".
+void Push(std::function<std::string(Player*)> const& lineFor);
+// The bricks' parts of the answer (their own visibility rules), and whether they are on.
+bool InvasionsOn();
+void Invasions(Player* player, std::vector<std::string>& out);
+bool RushOn();
+void Rushes(Player* player, std::vector<std::string>& out);
+bool FirstsOn();
+void Firsts(std::vector<std::string>& out);
+}  // namespace CoaWorldAddon
+
+void AddSC_coa_world_state();
+
+#endif

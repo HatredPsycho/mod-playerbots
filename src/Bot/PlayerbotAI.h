@@ -708,6 +708,18 @@ protected:
     uint32 coaAncestralCombatCheckedAt = 0;
     uint32 coaGearCheckedAt = 0;
     uint32 coaTeamTimer = 0;
+public:
+    // CoA World (BotOnlyBgPace, Playerbots.cpp OnPlayerAfterUpdate): a bot-only battleground or arena, last checked
+    // coaBgCheckMs ago, and the time its AI has waited.
+    bool coaBgBotOnly = false;
+    uint32 coaBgCheckMs = 0;
+    uint32 coaBgWaitMs = 0;
+    // CoA World (SlowIdleTriggers): the last AllowActive(ALL_ACTIVITY) kept the bot active for a reason of its own (real
+    // player near, group, queue, instance...), not by the rotation.
+    bool coaForcedActive = true;
+    // CoA World (AiBudgetMs, CoaWorldAiBudget): skipped its AI last tick, and the time it has waited.
+    bool coaBudgetSkipped = false;
+    uint32 coaBudgetWaitMs = 0;
 };
 
 #endif

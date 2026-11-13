@@ -7,6 +7,8 @@
 #include "BWLHelpers.h"
 #include "AiObjectContext.h"
 #include "Group.h"
+#include "PlayerbotAIConfig.h"
+#include "SpellAuras.h"
 
 #include <cstddef>
 
@@ -154,4 +156,86 @@ namespace BlackwingLairHelpers
         Unit const* charmer = unit->GetCharmer();
         return charmer && charmer->GetEntry() == static_cast<uint32>(BlackwingLairNPCs::NPC_LORD_VICTOR_NEFARIUS);
     }
+}
+
+// ---- CoA Combat (lot 7) ----
+
+namespace
+{
+    constexpr uint32 SCORCHED_AURAS[] = {2110813, 2110814, 2110815, 2110816};
+    constexpr uint32 SHADOW_OF_EBONROC_AURAS[] = {2110837, 2110838, 2110839, 2110840};
+    constexpr uint32 BROOD_AFFLICTION_RED = 2111012;
+    constexpr uint32 BLESSING_RED = 2111007;
+
+    uint32 ScorchedStacks(Unit const* unit)
+    {
+        uint32 stacks = 0;
+        for (uint32 spellId : SCORCHED_AURAS)
+            if (Aura const* aura = unit->GetAura(spellId))
+                stacks += aura->GetStackAmount();
+        return stacks;
+    }
+
+    bool HasShadowOfEbonroc(Unit const* unit)
+    {
+        for (uint32 spellId : SHADOW_OF_EBONROC_AURAS)
+            if (unit->HasAura(spellId))
+                return true;
+        return false;
+    }
+}
+
+bool BlackwingLairHelpers::BwlCoaFixesOn()
+{
+    return sPlayerbotAIConfig.coaCombatBlackwingLairEnable;
+}
+
+bool BlackwingLairHelpers::IsDrakeTankMarked(Unit const* tank, bool firemaw)
+{
+    return firemaw ? ScorchedStacks(tank) >= SCORCHED_SWAP_STACKS : HasShadowOfEbonroc(tank);
+}
+
+bool BlackwingLairHelpers::CanTakeDrake(Unit const* tank, bool firemaw)
+{
+    return firemaw ? ScorchedStacks(tank) < SCORCHED_SWAP_STACKS / 2 : !HasShadowOfEbonroc(tank);
+}
+
+bool BlackwingLairHelpers::HasCurableRedAffliction(Unit const* unit)
+{
+    return unit->HasAura(BROOD_AFFLICTION_RED) && !unit->HasAura(BLESSING_RED);
+}
+
+bool BlackwingLairHelpers::IsDominionCloneNear(Unit const* unit, float range)
+{
+    std::list<Creature*> clones;
+    unit->GetCreatureListWithEntryInGrid(clones, static_cast<uint32>(BlackwingLairNPCs::NPC_SHADOW_CLONE_COA), range);
+    for (Creature* clone : clones)
+        if (clone && clone->IsAlive())
+            return true;
+    return false;
+}
+
+float BlackwingLairHelpers::BroodlordSafeDistance()
+{
+    return BwlCoaFixesOn() ? 23.0f : BROODLORD_SAFE_DISTANCE;
+}
+
+bool BlackwingLairHelpers::IsInBwlGroundEffect(Unit const* unit)
+{
+    // Chromaggus: Incinerate rings 2111151..54 (5 yd), acid pools 2111160..63 (3 yd), Freezing Fog 2111165..68 (4 yd);
+    // Nefarius: Burning Ground 2111248..51 (4 yd). All persistent area auras on whoever stands inside.
+    static constexpr uint32 GROUND_AURAS[] = {2111151, 2111152, 2111153, 2111154, 2111160, 2111161, 2111162, 2111163,
+                                              2111165, 2111166, 2111167, 2111168, 2111248, 2111249, 2111250, 2111251};
+    for (uint32 spellId : GROUND_AURAS)
+        if (unit->HasAura(spellId))
+            return true;
+    return false;
+}
+
+bool BlackwingLairHelpers::HasCombustion(Unit const* unit)
+{
+    for (uint32 spellId : {2110858u, 2110859u, 2110860u, 2110861u})
+        if (unit->HasAura(spellId))
+            return true;
+    return false;
 }

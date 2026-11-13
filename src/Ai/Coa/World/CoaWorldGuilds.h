@@ -1,0 +1,42 @@
+/*
+ * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
+ * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
+ * or (at your option) any later version.
+ */
+
+#ifndef COA_WORLD_GUILDS_H
+#define COA_WORLD_GUILDS_H
+
+#include "Define.h"
+
+#include <string>
+#include <vector>
+
+class Player;
+
+// For PlayerbotGuildMgr::AssignToGuild: may a new random-bot guild be made for this side (0 Alliance,
+// 1 Horde), given the bot guilds each side has? With AiPlayerbot.CoaWorld.Guilds.Enable or .Balance
+// off: always true.
+bool CoaWorldGuildSideMayCreate(uint8 side, uint32 allianceGuilds, uint32 hordeGuilds);
+
+// The SquidBots Lite world protocol (CoaWorldAddon.cpp), world thread. On: Guilds.Enable, .Orders and .Addon.
+bool CoaWorldGuildAddonOn();
+// GORD\t<itemId>\t<qty> (args[0] is the word): GOK\t<id> or ERR\tGORD\t<reason>.
+std::vector<std::string> CoaWorldGuildAddonOrder(Player* player, std::vector<std::string> const& args);
+// GLIST: the player's GO (7 days) and GG (30 days) lines, newest first.
+std::vector<std::string> CoaWorldGuildAddonList(Player* player);
+// Guilds.GearAsk: GOFF (the player's pending offers, GF lines), GACC/GREF <offerId> (args[0] is the word).
+bool CoaWorldGuildGiftsOn();
+// A real player logged in less than Guilds.LoginGraceSeconds ago: no offer to them yet (charters, gifts).
+bool CoaWorldJustLoggedIn(Player* player);
+std::vector<std::string> CoaWorldGuildGiftList(Player* player);
+std::vector<std::string> CoaWorldGuildGiftAnswer(Player* player, std::vector<std::string> const& args, bool accept);
+// Guilds.Catalog: GCAT <search> <page> (args[0] is the word): GC lines (30 a page) and GCN <total> <page>.
+bool CoaWorldGuildCatalogOn();
+std::vector<std::string> CoaWorldGuildCatalog(Player* player, std::vector<std::string> const& args);
+// A whisper "yes"/"no" (oui/non) to the bot that made the player an offer. True: taken.
+bool CoaWorldGuildGiftWhisper(Player* player, Player* bot, std::string const& msg);
+// Sends lines to the player's addon (SQBW), then "-" (CoaWorldAddon.cpp).
+void CoaWorldAddonSendLines(Player* player, std::vector<std::string> const& lines);
+
+#endif

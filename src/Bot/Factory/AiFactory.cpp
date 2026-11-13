@@ -310,9 +310,17 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
         engine->addStrategiesNoInit("racials", "chat", "default", "cast time", "potions", "duel", "boost", nullptr);
         // Threat lead and assist on the tank's fight, which came from Dungeon Clear (CoaGardesMenaceStrategy).
         engine->addStrategy("coa gardes menace", false);
-        // Regroup, escape leap, room boss, Lyceum, Iron Hall, ground hazards and target exclusion guards (Dungeon Clear
+        // Regroup, room boss, Lyceum, Iron Hall, ground hazards and target exclusion guards (Dungeon Clear
         // session's port).
         engine->addStrategiesNoInit("coa gardes combat", "coa ground hazards", "coa target exclusion", nullptr);
+        // CoA Combat guards (src/Ai/Coa/Combat).
+        engine->addStrategy("coa combat escape leap", false);
+        engine->addStrategy("coa combat stuck combat", false);
+        engine->addStrategy("coa combat telegraph", false);
+        engine->addStrategy("coa combat pursuit stop", false);
+        // Only with its option on (restart): with it off, no bot evaluates its triggers.
+        if (sPlayerbotAIConfig.coaCombatCallOfTheGraveEnable)
+            engine->addStrategy("coa combat call of the grave", false);
     }
 
     // CoA: a grouped bot steps out of ground effects too, not only one a real player leads: in headless dungeon runs
@@ -437,7 +445,8 @@ void AiFactory::AddDefaultCombatStrategies(Player* player, PlayerbotAI* const fa
         // Random bots take a specialization from level 10; its role picks the rotation.
         EnsureCoaSpecialization(player);
         // Catch up on points earned before bots spent talents (or while this build was not live).
-        ApplyCoaTalents(player);
+        // Capped by AiPlayerbot.CoaLive.TalentsPerUpdate (0: all now, as before); the rest on its next updates.
+        ApplyCoaTalents(player, CoaTalentsPerUpdate());
         switch (GetCoaRole(player))
         {
             case CoaRole::Tank:
@@ -696,6 +705,9 @@ void AiFactory::AddDefaultNonCombatStrategies(Player* player, PlayerbotAI* const
                                             "gather", "duel", "pvp", "buff", "mount", "emote", nullptr);
         nonCombatEngine->addStrategy("coa gardes menace nc", false);
         nonCombatEngine->addStrategiesNoInit("coa gardes noncombat", "coa ground hazards", nullptr);
+        // CoA Combat guards (src/Ai/Coa/Combat).
+        nonCombatEngine->addStrategy("coa combat escape leap nc", false);
+        nonCombatEngine->addStrategy("coa combat stuck combat nc", false);
     }
 
     if (sPlayerbotAIConfig.autoSaveMana && PlayerbotAI::IsHeal(player, true))

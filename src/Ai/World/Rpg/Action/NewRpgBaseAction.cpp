@@ -5,6 +5,10 @@
  */
 
 #include "CoaQuestMenu.h"
+#include "CoaSoul.h"
+
+#include "CoaWorldBots.h"  // CoA World: CoaWorldQuestQuarantined, CoaWorldAreaTooHigh
+#include "CoaRpgTrade.h"
 #include "CoaQuestLogRules.h"
 #include "NewRpgBaseAction.h"
 #include "BroadcastHelper.h"
@@ -775,6 +779,14 @@ ObjectGuid NewRpgBaseAction::ChooseNpcOrGameObjectToInteract(bool questgiverOnly
     if (questgiverOnly)
         return ObjectGuid();
 
+    // CoA Economy: a vendor or an auctioneer the bot has business with, before a random NPC
+    if (CoaEconomy::RpgTrade::WantsTrade(botAI))
+    {
+        ObjectGuid const tradeNpc = CoaEconomy::RpgTrade::ChooseTradeNpc(botAI, possibleTargets, distanceLimit);
+        if (!tradeNpc.IsEmpty())
+            return tradeNpc;
+    }
+
     if (possibleTargets.empty())
         return ObjectGuid();
 
@@ -1016,6 +1028,12 @@ WorldPosition NewRpgBaseAction::SelectRandomGrindPos(Player* bot)
                                                 loc.GetPositionZ()) != bot->GetZoneId())
             continue;
 
+        // --- CoA World (CoA Monde session) ---
+        // Not a subzone for levels well above the bot's (CoaWorldLeveling's AreaGuard).
+        if (CoaWorldAreaTooHigh(bot, loc.GetMapId(), loc.GetPositionX(), loc.GetPositionY(), loc.GetPositionZ()))
+            continue;
+        // --- end CoA World ---
+
         if (bot->GetExactDist(loc) < hiRange)
         {
             hi_prepared_locs.push_back(loc);
@@ -1188,6 +1206,12 @@ WorldPosition NewRpgBaseAction::SelectRandomCampPos(Player* bot)
                                                 loc.GetPositionZ()) != bot->GetZoneId())
             continue;
 
+        // --- CoA World (CoA Monde session) ---
+        // Not a subzone for levels well above the bot's (CoaWorldLeveling's AreaGuard).
+        if (CoaWorldAreaTooHigh(bot, loc.GetMapId(), loc.GetPositionX(), loc.GetPositionY(), loc.GetPositionZ()))
+            continue;
+        // --- end CoA World ---
+
         prepared_locs.push_back(loc);
     }
     WorldPosition dest{};
@@ -1224,15 +1248,18 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
 {
     std::vector<NewRpgStatus> availableStatus;
     uint32 probSum = 0;
+    // CoA souls: the configured weight tilted by the bot's soul (the configured one when off).
+    auto weight = [this](NewRpgStatus status)
+    { return CoaSoul::RpgWeight(bot, status, sPlayerbotAIConfig.RpgStatusProbWeight[status]); };
     for (NewRpgStatus status : candidateStatus)
     {
-        if (sPlayerbotAIConfig.RpgStatusProbWeight[status] == 0)
+        if (weight(status) == 0)
             continue;
 
         if (CheckRpgStatusAvailable(status))
         {
             availableStatus.push_back(status);
-            probSum += sPlayerbotAIConfig.RpgStatusProbWeight[status];
+            probSum += weight(status);
         }
     }
     // Safety check. Default to "rest" if all RPG weights = 0
@@ -1247,7 +1274,7 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
     NewRpgStatus chosenStatus = RPG_STATUS_END;
     for (NewRpgStatus status : availableStatus)
     {
-        accumulate += sPlayerbotAIConfig.RpgStatusProbWeight[status];
+        accumulate += weight(status);
         if (accumulate >= rand)
         {
             chosenStatus = status;
@@ -1296,6 +1323,12 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
                 if (botAI->lowPriorityQuest.find(questId) != botAI->lowPriorityQuest.end())
                     continue;
 
+                // --- CoA World (CoA Monde session) ---
+                // A quest the bot got stuck on is left aside a while (CoaWorldRecovery).
+                if (CoaWorldQuestQuarantined(bot->GetGUID().GetCounter(), questId))
+                    continue;
+                // --- end CoA World ---
+
                 // An elite, group or too high quest in the log (copied from the master, shared, "accept all") is
                 // only handed in, never worked on alone: bots died on it again and again
                 // (jealous-sound/azerothcore-wotlk-coa#5521).
@@ -1306,6 +1339,12 @@ bool NewRpgBaseAction::RandomChangeStatus(std::vector<NewRpgStatus> candidateSta
                 std::vector<POIInfo> poiInfo;
                 if (GetQuestPOIPosAndObjectiveIdx(questId, poiInfo, true))
                 {
+                    // --- CoA World (CoA Monde session) ---
+                    // Not a quest whose place is a subzone for levels well above the bot's (Leveling's AreaGuard).
+                    if (!poiInfo.empty() && CoaWorldAreaTooHigh(bot, bot->GetMapId(), poiInfo.front().pos.x,
+                                                                poiInfo.front().pos.y, bot->GetPositionZ()))
+                        continue;
+                    // --- end CoA World ---
                     availableQuests.push_back(questId);
                 }
             }
@@ -1418,6 +1457,12 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
                 if (botAI->lowPriorityQuest.find(questId) != botAI->lowPriorityQuest.end())
                     continue;
 
+                // --- CoA World (CoA Monde session) ---
+                // A quest the bot got stuck on is left aside a while (CoaWorldRecovery).
+                if (CoaWorldQuestQuarantined(bot->GetGUID().GetCounter(), questId))
+                    continue;
+                // --- end CoA World ---
+
                 // An elite, group or too high quest in the log (copied from the master, shared, "accept all") is
                 // only handed in, never worked on alone: bots died on it again and again
                 // (jealous-sound/azerothcore-wotlk-coa#5521).
@@ -1428,6 +1473,11 @@ bool NewRpgBaseAction::CheckRpgStatusAvailable(NewRpgStatus status)
                 std::vector<POIInfo> poiInfo;
                 if (GetQuestPOIPosAndObjectiveIdx(questId, poiInfo, true))
                 {
+                    // --- CoA World (CoA Monde session) ---
+                    if (!poiInfo.empty() && CoaWorldAreaTooHigh(bot, bot->GetMapId(), poiInfo.front().pos.x,
+                                                                poiInfo.front().pos.y, bot->GetPositionZ()))
+                        continue;
+                    // --- end CoA World ---
                     return true;
                 }
             }

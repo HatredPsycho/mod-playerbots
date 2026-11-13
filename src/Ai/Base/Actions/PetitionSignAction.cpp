@@ -5,7 +5,9 @@
  */
 
 #include "PetitionSignAction.h"
+#include "CoaWorldCharters.h"
 #include "ArenaTeam.h"
+#include "CoaLive.h"
 #include "Event.h"
 #include "Playerbots.h"
 
@@ -73,6 +75,11 @@ bool PetitionSignAction::Execute(Event event)
     if (_inviter == bot)
         return false;
 
+    // CoA World (Guilds.Charters): a real player's guild charter offered to a random bot of its own without a guild
+    // is signed after a few seconds (or refused now and then). Only this request skips the security check below.
+    if (!isArena && accept && CoaWorldCharterOffered(bot, petitionGuid, _inviter, true))
+        return true;
+
     if (!accept || !botAI->GetSecurity()->CheckLevelFor(PLAYERBOT_SECURITY_INVITE, false, _inviter, true))
     {
         WorldPacket data(MSG_PETITION_DECLINE);
@@ -88,7 +95,15 @@ bool PetitionSignAction::Execute(Event event)
         WorldPacket data(CMSG_PETITION_SIGN, 20);
         data << petitionGuid << unk;
         bot->GetSession()->HandlePetitionSignOpcode(data);
-        bot->Say("Thanks for the invite!", LANG_UNIVERSAL);
+        // CoA Live bank first ("charter_signed" said aloud when the holder stands near, else "charter_signed_w" whispered
+        // to the holder; chance and delay in the bank's rules), for a guild charter. The older line only where the
+        // older chat speaks.
+        std::unordered_map<std::string, std::string> const slots{{"player", _inviter->GetName()}};
+        bool const said = !isArena && (bot->IsWithinDistInMap(_inviter, 20.0f)
+                                           ? CoaLive::SayLine(bot, "charter_signed", slots)
+                                           : CoaLive::SayLine(bot, "charter_signed_w", slots, _inviter->GetGUID()));
+        if (!said && CoaLive::LegacyChatOn())
+            bot->Say("Thanks for the invite!", LANG_UNIVERSAL);
         LOG_INFO("playerbots", "Bot {} <{}> accepts {} invite", bot->GetGUID().ToString().c_str(),
                  bot->GetName().c_str(), isArena ? "Arena" : "Guild");
         return true;

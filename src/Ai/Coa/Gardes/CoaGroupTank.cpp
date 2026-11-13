@@ -1,7 +1,11 @@
 /*
- * This file is part of the mod-playerbots module for AzerothCore. See AUTHORS file for Copyright
- * information; released under GNU GPL v2 license, redistribute/modify under version 2 of the License,
- * or (at your option) any later version.
+ * Copyright (C) 2026+ Jared Wright and contributors
+ *
+ * This program is free software: you can redistribute it and/or modify it under the terms of the GNU Affero
+ * General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your
+ * option) any later version. This program is distributed WITHOUT ANY WARRANTY; see <https://www.gnu.org/licenses/>.
+ *
+ * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
 #include "CoaGroupTank.h"
@@ -13,6 +17,7 @@
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerbotAI.h"
+#include "PlayerbotAIConfig.h"
 #include "Playerbots.h"
 
 #include <set>
@@ -84,6 +89,13 @@ Player* CoaGroupTank::Reference(Player const* member)
 bool CoaGroupTank::InDungeonClearRun(Player const* member)
 {
     return RunLeader(member).inRun;
+}
+
+bool CoaGroupTank::RunOrKey(Player const* member, bool keyOn)
+{
+    if (sPlayerbotAIConfig.coaCombatBenchKeyOnly)
+        return keyOn;
+    return keyOn || InDungeonClearRun(member);
 }
 
 void CoaGroupTank::SetHandledByDungeonClear(std::string const& guard, bool handled)

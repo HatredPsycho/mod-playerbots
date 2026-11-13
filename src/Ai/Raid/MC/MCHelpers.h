@@ -59,6 +59,17 @@ enum MoltenCoreNPCs
     // CoA: Majordomo's periodic add; it roots, silences and pacifies the players it chains until it dies
     // (npc_sacrificial_chains_coa.cpp)
     NPC_SACRIFICIAL_CHAINS = 92030,
+    // CoA Combat (docs/MC-ETAT-3.0.md): Lucifron's and Sulfuron's adds, for their kill orders.
+    NPC_COA_LESSER_SON_OF_FLAME = 12143,  // CoA: Ragnaros' Sons of Flame, ranked; two of one rank within 5 yd for
+    NPC_COA_SON_OF_FLAME = 92026,         // 1.5 s merge into one of the next rank (Lesser, Son, Greater, Unstable)
+    NPC_COA_GREATER_SON_OF_FLAME = 92027,
+    NPC_COA_UNSTABLE_SON_OF_FLAME = 92028,
+    NPC_SHADOW_OF_LUCIFRON = 12268,     // CoA: +39 % shadow damage to Lucifron while it lives
+    NPC_FLAMEWAKER_PROTECTOR = 12119,   // Dominate Mind
+    NPC_FLAMEWAKER_PRIEST = 11662,      // Sulfuron's healer
+    NPC_COA_CULL_THE_DESTROYER = 92031,  // CoA Mythic/Ascended: Cauterize, Curse of Gehennas
+    NPC_COA_PROXIMA_THE_OPRESSOR = 92032,  // Dampen Magic, Arcane Instability
+    NPC_COA_EBON_THE_CRUEL = 92033,     // Dark Mending, Curse of Lucifron
 };
 
 // CoA difficulty copies of a Molten Core creature: base + offset (01_mc_difficulty_templates.sql)
@@ -108,6 +119,9 @@ enum MoltenCoreSpells
 constexpr uint32 MAGMADAR_LAVA_BOMB_AURAS[] = {SPELL_LAVA_BOMB_DOT, SPELL_LAVA_BOMB_COA_D0, SPELL_LAVA_BOMB_COA_D1,
                                                SPELL_LAVA_BOMB_COA_D2, SPELL_LAVA_BOMB_COA_D3};
 
+// CoA Combat (O1): Golemagg's Cave In, a periodic-damage zone of 8 yd cast on his tank after each Massive Stomp, 15 s.
+constexpr uint32 GOLEMAGG_CAVE_IN_AURAS[] = {2105825, 2105826, 2105827, 2105828};
+
 // Standing in Gehennas' Rain of Fire (stock or CoA)
 constexpr uint32 GEHENNAS_RAIN_OF_FIRE_AURAS[] = {SPELL_RAIN_OF_FIRE, SPELL_RAIN_OF_FIRE_COA_D0, SPELL_RAIN_OF_FIRE_COA_D1,
                                                   SPELL_RAIN_OF_FIRE_COA_D2, SPELL_RAIN_OF_FIRE_COA_D3};
@@ -121,6 +135,34 @@ constexpr uint32 LIVING_BOMB_AURAS[] = {SPELL_LIVING_BOMB, SPELL_LIVING_BOMB_COA
 
 // Stacking debuff from striking Golemagg in melee
 constexpr uint32 MAGMA_SPLASH_AURAS[] = {SPELL_MAGMA_SPLASH, SPELL_MAGMA_SPLASH_DIFF_2_3};
+
+// CoA Combat (O2): CoA's own Magma Splash, a magic DoT that stacks to 100 (SpellDifficulty D0..D3). Counted with the
+// stock stacks only when AiPlayerbot.CoaCombat.MoltenCore.Enable is 1.
+constexpr uint32 MAGMA_SPLASH_COA_AURAS[] = {2105802, 2105803, 2105804, 2105805};
+
+// CoA Combat (A3): Magma Strike, the 2 yd fire patch Ragnaros and his Sons throw on the ground (4 s, D0..D3 of both
+// missiles). The Lava Burst geysers are not dodged on purpose: their trap (21158) hits everyone within 100 yd.
+constexpr uint32 RAGNAROS_MAGMA_STRIKE_AURAS[] = {2108657, 2108658, 2108659, 2108660,
+                                                  2108726, 2108727, 2108728, 2108729};
+
+// CoA Combat: Burning Ground, the 2 yd fire a CoA Living Bomb leaves where its carrier stood
+// (boss_geddon_coa.cpp, D0..D3, 800 to 1,600 a second, with no end in the DBC).
+constexpr uint32 GEDDON_BURNING_GROUND_AURAS[] = {2105713, 2105714, 2105715, 2105716};
+
+// CoA Combat: the debuffs the raid removes first, from the tanks down. Curses: Curse of Gehennas (stock
+// 19716, CoA 2105416 on the whole raid, -50 % healing taken, and Cull the Destroyer's 2105974), the Ancient Core
+// Hounds' Ancient Hysteria (19372 and CoA 2105311, -25 % stats) and Ancient Dread (19365 and CoA 2105312, -50 % stats,
+// so health), CoA's Curse of Lucifron (2105207). Ancient Despair (2105310) stays on purpose: its -50 % damage taken
+// outweighs its -50 % damage dealt in a pull that kills by burst. Magic: Shazzrah's Arcane Instability (2105606 on the whole raid,
+// +100 % magic damage taken, 5 min; Proxima's 2105970), Withering Heat (19367, -25 % health), Incite Flames (19635)
+// and Flame Buffet (16168, +5 % fire damage taken a stack). The removal spell follows the aura's own dispel type.
+constexpr uint32 MC_RAID_DISPEL_AURAS[] = {2105416, 19716, 2105974, 2105606, 2105970, 19367,
+                                           19372, 2105311, 19365, 2105312, 2105207, 16168, 19635};
+
+// CoA Combat (R1): Garr's Firesworn erupt when they die, 12 yd around them (CoA cut the 100 yd radius down to 12).
+constexpr uint32 NPC_GARR_FIRESWORN = 12099;
+constexpr float FIRESWORN_ERUPTION_YARDS = 12.0f;
+constexpr float FIRESWORN_DYING_PCT = 10.0f;
 
 constexpr uint32 MAGMA_SPLASH_BACK_OFF_STACKS = 20;
 constexpr float MAGMA_SPLASH_BACK_OFF_DISTANCE = 12.0f;
@@ -308,6 +350,64 @@ inline bool IsMajordomoAdd(Unit const* unit)
 {
     return unit &&
            (IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_HEALER) || IsMcEntry(unit->GetEntry(), NPC_FLAMEWAKER_ELITE));
+}
+// CoA Combat (A1): the Son of Flame of Ragnaros to kill now: the highest rank first (a merged one hits hardest), the
+// most damaged within a rank, within 100 yd. nullptr when none is up.
+inline Creature* FindSonOfFlameToKill(Unit* from)
+{
+    uint32 const ranks[] = {NPC_COA_UNSTABLE_SON_OF_FLAME, NPC_COA_GREATER_SON_OF_FLAME, NPC_COA_SON_OF_FLAME,
+                            NPC_COA_LESSER_SON_OF_FLAME};
+    for (uint32 entry : ranks)
+    {
+        Creature* best = nullptr;
+        for (uint32 variant : {entry, entry + MC_ENTRY_OFFSET_HEROIC, entry + MC_ENTRY_OFFSET_MYTHIC,
+                               entry + MC_ENTRY_OFFSET_ASCENDED})
+        {
+            std::list<Creature*> sons;
+            from->GetCreatureListWithEntryInGrid(sons, variant, 100.0f);
+            for (Creature* son : sons)
+                if (son && son->IsAlive() && (!best || son->GetHealth() < best->GetHealth()))
+                    best = son;
+        }
+        if (best)
+            return best;
+    }
+    return nullptr;
+}
+
+// CoA Combat (R1): every living Firesworn of Garr within 100 yd (all four difficulty entries).
+inline std::vector<Creature*> FindFiresworn(Unit* from)
+{
+    std::vector<Creature*> found;
+    for (uint32 variant : {NPC_GARR_FIRESWORN, NPC_GARR_FIRESWORN + MC_ENTRY_OFFSET_HEROIC,
+                           NPC_GARR_FIRESWORN + MC_ENTRY_OFFSET_MYTHIC, NPC_GARR_FIRESWORN + MC_ENTRY_OFFSET_ASCENDED})
+    {
+        std::list<Creature*> adds;
+        from->GetCreatureListWithEntryInGrid(adds, variant, 100.0f);
+        for (Creature* add : adds)
+            if (add && add->IsAlive())
+                found.push_back(add);
+    }
+    return found;
+}
+
+// The Firesworn to kill now: the lowest in health, so they die one at a time.
+inline Creature* FindFireswornToKill(Unit* from)
+{
+    Creature* best = nullptr;
+    for (Creature* add : FindFiresworn(from))
+        if (!best || add->GetHealth() < best->GetHealth())
+            best = add;
+    return best;
+}
+
+// A Firesworn about to die (FIRESWORN_DYING_PCT) within `range` of `bot`: its Eruption will hit there.
+inline Creature* FindDyingFireswornNear(Unit* bot, float range)
+{
+    for (Creature* add : FindFiresworn(bot))
+        if (add->GetHealthPct() <= FIRESWORN_DYING_PCT && bot->GetDistance2d(add) < range)
+            return add;
+    return nullptr;
 }
 }  // namespace MoltenCoreHelpers
 

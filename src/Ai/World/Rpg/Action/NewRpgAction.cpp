@@ -5,6 +5,8 @@
  */
 
 #include "NewRpgAction.h"
+#include "CoaCityLife.h"
+#include "CoaRpgTrade.h"
 #include "AreaDefines.h"
 #include "BroadcastHelper.h"
 #include "ChatHelper.h"
@@ -254,6 +256,12 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
                 LeaveCity();
                 return true;
             }
+            // CoA Economy: business with a vendor or an auctioneer in reach: go there first
+            if (CoaEconomy::RpgTrade::HasTradeNpcInReach(botAI))
+            {
+                info.ChangeToWanderNpc();
+                return true;
+            }
             return RandomChangeStatus({RPG_GO_CAMP, RPG_GO_GRIND, RPG_WANDER_RANDOM, RPG_WANDER_NPC, RPG_DO_QUEST,
                                        RPG_TRAVEL_FLIGHT, RPG_REST, RPG_OUTDOOR_PVP, RPG_GO_CITY});
 
@@ -327,6 +335,8 @@ bool NewRpgStatusUpdateAction::Execute(Event /*event*/)
                     std::max(sPlayerbotAIConfig.coaCityStayMinMinutes, sPlayerbotAIConfig.coaCityStayMaxMinutes);
                 // At least a minute: a zero stay would fall back to the short stop of a plain NPC visit.
                 info.cityStayMs = std::max<uint32>(urand(shortest, longest), 1) * MINUTE * IN_MILLISECONDS;
+                // CoA Live City Life: the residents stay longer (unchanged when off).
+                info.cityStayMs = CoaCityLife::VisitMs(bot, info.cityStayMs);
                 return true;
             }
             if (info.HasStatusPersisted(statusGoCityDuration))
@@ -460,8 +470,11 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
     auto& data = *dataPtr;
     if (!data.npcOrGo)
     {
+        // CoA Live City Life: on a city visit, now and then a station (inn, bank, auction house, forge, dummy).
+        ObjectGuid npcOrGo = CoaCityLife::ChooseStation(botAI);
+        if (npcOrGo.IsEmpty())
+            npcOrGo = ChooseNpcOrGameObjectToInteract();
         // No npc can be found, switch to IDLE
-        ObjectGuid npcOrGo = ChooseNpcOrGameObjectToInteract();
         if (npcOrGo.IsEmpty())
         {
             info.ChangeToIdle();
@@ -480,13 +493,17 @@ bool NewRpgWanderNpcAction::Execute(Event /*event*/)
             data.lastReach = getMSTime();
             if (bot->CanInteractWithQuestGiver(object))
                 InteractWithNpcOrGameObjectForQuest(data.npcOrGo);
+            // CoA Economy: sell, repair or use the auction house, as people do between two quests
+            CoaEconomy::RpgTrade::TradeAtNpc(botAI, object);
+            CoaCityLife::OnReach(botAI, object);
             return true;
         }
 
-        if (data.lastReach && GetMSTimeDiffToNow(data.lastReach) < npcStayTime)
+        if (data.lastReach && GetMSTimeDiffToNow(data.lastReach) < CoaCityLife::WhileStaying(botAI, object, npcStayTime))
             return false;
 
         // has reached the npc for more than `npcStayTime`, select the next target
+        CoaCityLife::Leave(botAI);
         data.npcOrGo = ObjectGuid();
         data.lastReach = 0;
     }
