@@ -13,12 +13,12 @@
 #include "Playerbots.h"
 #include "RandomPlayerbotMgr.h"
 
-// Alt bots put their reagents into the reagent bank (mod-reagent-bank-account) the way a played character does.
-// For a played character the ReagentBankUI addon sends ".rbank deposit all" every 30 seconds; an alt bot has no
-// client and no addon, so whatever it loots - cloth, herbs, ore - stayed in its bags. Each alt bot now runs the
-// same command itself every AiPlayerbot.AltBotReagentDepositInterval seconds. The module decides what counts as a
-// reagent and what is excluded; without the module the command is unknown and nothing happens. Random bots keep
-// their loot: their bank is no player's.
+// Alt bots put their materials into the account vault (mod-abyssal-storage-plus) the way a played character does.
+// The module vaults looted materials as they arrive; whatever else lands in an alt bot's bags - crafted, bought or
+// mailed materials - stays there, because an alt bot has no client and no addon to deposit it. Each alt bot runs
+// ".asp deposit" itself every AiPlayerbot.AltBotReagentDepositInterval seconds. The module decides what counts as
+// a material; without the module the command is unknown and nothing happens. Random bots keep their loot: their
+// vault is no player's.
 class PlayerbotsAltReagentDeposit : public PlayerScript
 {
 public:
@@ -45,7 +45,7 @@ public:
             sRandomPlayerbotMgr.IsRandomBot(player))
             return;
 
-        ChatHandler(player->GetSession()).ParseCommands(".rbank deposit all");
+        ChatHandler(player->GetSession()).ParseCommands(".asp deposit");
     }
 
     void OnPlayerLogout(Player* player) override

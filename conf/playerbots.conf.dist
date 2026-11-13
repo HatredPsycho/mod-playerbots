@@ -494,8 +494,8 @@ AiPlayerbot.SyncQuestAcceptWithPlayer = 1
 # Default: 300
 AiPlayerbot.NearbyQuestRadius = 300
 
-# Seconds between an alt bot's ".rbank deposit all": alt bots put the reagents they loot into the
-# reagent bank (mod-reagent-bank-account) as the ReagentBankUI addon does for a played character.
+# Seconds between an alt bot's ".asp deposit": alt bots put the materials in their bags into the
+# account vault (mod-abyssal-storage-plus) as the AbyssalStoragePlus addon does for a played character.
 # Random bots never do. 0 disables it, otherwise at least 10.
 # Default: 30
 AiPlayerbot.AltBotReagentDepositInterval = 30
