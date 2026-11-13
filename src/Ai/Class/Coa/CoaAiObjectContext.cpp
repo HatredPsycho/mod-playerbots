@@ -5994,6 +5994,7 @@ namespace CoaAbilities
         return bot && ClassHas(bot, KIND_RESURRECT) &&
                !KnownAbilities(bot, [](uint16 kind) { return (kind & KIND_RESURRECT) != 0; }).empty();
     }
+}
 
 // CoA Live, L2 social bots (CoaSocial.h): one ally spell of the bot's class on any friendly unit, from code outside
 // the strategies (a random bot buffing, healing or raising a real player it passes). The same checks as the
