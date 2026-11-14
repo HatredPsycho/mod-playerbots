@@ -38,6 +38,9 @@ namespace CoaEconomy::Artisans
         uint64 productValue = 0; // the product at market price, whole count, copper
     };
 
+    // A product worth selling to someone else: exists, not bound on pickup, not a quest item, has a value.
+    bool IsTradableProduct(ItemTemplate const* proto);
+
     // The bot's tradable recipes (empty when off or when it has no profession).
     std::vector<Recipe> KnownRecipes(Player* bot);
 
@@ -52,8 +55,9 @@ namespace CoaEconomy::Artisans
     // What the reagents missing for `times` crafts cost at market price (the held ones are free), copper.
     uint64 MissingCost(Player* bot, Recipe const& recipe, uint32 times);
     // Uses the reagents of `times` crafts (held ones first, the rest paid in gold); the products are the caller's to
-    // make. False, with nothing taken, when the gold is short.
-    bool Consume(Player* bot, Recipe const& recipe, uint32 times);
+    // make. False, with nothing taken, when the gold is short. payLater: the missing ones are not paid now (the order's
+    // cash on delivery pays them).
+    bool Consume(Player* bot, Recipe const& recipe, uint32 times, bool payLater = false);
 
     // The profession's name in the bot's language (English when it has none).
     std::string ProfessionName(Player* bot, uint32 skillId);

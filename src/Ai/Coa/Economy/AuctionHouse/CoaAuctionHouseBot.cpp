@@ -29,6 +29,7 @@
 #include "CoaMarketPrices.h"
 #include "CoaLaunchCurve.h"
 #include "CoaEconomyRules.h"
+#include "CoaSellable.h"
 #include "AuctionHouseSearcher.h"
 #include "AccountMgr.h"
 #include "Config.h"
@@ -603,6 +604,10 @@ void AuctionHouseBot::CalculateItemValue(ItemTemplate const* itemProto, uint64& 
     // scale the formula, never the learned market price, and both grow with it (no-arbitrage cap holds).
     outBuyoutPrice = uint64(double(outBuyoutPrice) * GetRarityPriceFactor(itemProto->ItemId) * sCoaLaunchCurve->PriceFactor());
 
+    // CoA Economy: the house-wide price scale (PriceScalePercent), before the real sales and the vendor floor below;
+    // the buyer reads the same value, so what the house pays follows what it asks.
+    outBuyoutPrice = CoaEconomyRules::ScalePrice(outBuyoutPrice, CoaEconomy::RealPrices::PriceScalePercent());
+
     // CoA Economy: move toward what real sales paid for this item (AiPlayerbot.CoaEconomy.Market.*)
     outBuyoutPrice = sCoaMarketPrices->Blend(itemProto->ItemId, outBuyoutPrice);
 
@@ -619,8 +624,9 @@ void AuctionHouseBot::CalculateItemValue(ItemTemplate const* itemProto, uint64& 
 
     // CoA: never under the real house's floor for the item's quality and level (median of its scanned items).
     if (CoaRealHousePrices)
-        if (uint64 const floor = CoaEconomy::RealPrices::Scaled(CoaEconomy::RealPrices::Floor(itemProto), itemProto,
-                                                                CoaRealPriceMultipliers); outBuyoutPrice < floor)
+        if (uint64 const floor = CoaEconomyRules::ScalePrice(CoaEconomy::RealPrices::Scaled(
+                CoaEconomy::RealPrices::Floor(itemProto), itemProto, CoaRealPriceMultipliers),
+                CoaEconomy::RealPrices::PriceScalePercent()); outBuyoutPrice < floor)
             outBuyoutPrice = PriceRoll(floor, uint64(floor * (1.0f + BuyoutVariationAddPercent)));
 
     // Calculate a bid price based on a variance against buyout price
@@ -977,6 +983,16 @@ void AuctionHouseBot::PopulateItemCandidatesAndProportions()
             LOG_ERROR("module", "AuctionHouseBot: No original-world item sources loaded; later expansions' goods are not filtered");
     }
     uint32 laterExpansionItems = 0;
+    // CoA: an item made only from later expansion reagents is of a later expansion too (a "level 1" Fel Iron Bar
+    // Upgrade Kit). The launch curve's price cap stays a second net.
+    std::unordered_set<uint32> laterCrafted;
+    if (coaVanillaOnly && !vanillaItems.empty())
+        laterCrafted = CoaEconomy::Sellable::LaterCraftedItems([&vanillaItems](uint32 itemId)
+        {
+            ItemTemplate const* proto = sObjectMgr->GetItemTemplate(itemId);
+            return proto && CoaEconomyRules::IsLaterExpansion(proto->ItemId, proto->RequiredLevel, proto->ItemLevel,
+                                                              vanillaItems.count(itemId) != 0);
+        });
     // CoA: what players sold on the real CoA auction house (scans of the house, incomplete) counts as obtainable too,
     // with ObtainableItemsOnly (the scans are a guide, not a whitelist).
     bool const coaSeenAdds = CoaEconomy::Conf::Get<bool>("AuctionHouseBot.CoA.SeenOnCoAHouse", false);
@@ -995,7 +1011,8 @@ void AuctionHouseBot::PopulateItemCandidatesAndProportions()
             continue;
 
         if (coaVanillaOnly && !vanillaItems.empty() && itr->second.ItemId >= 21000 && itr->second.ItemId <= 56806 &&
-            (itr->second.RequiredLevel >= 55 || itr->second.ItemLevel >= 58) && !vanillaItems.count(itr->second.ItemId))
+            (((itr->second.RequiredLevel >= 55 || itr->second.ItemLevel >= 58) && !vanillaItems.count(itr->second.ItemId)) ||
+             laterCrafted.count(itr->second.ItemId)))
         {
             ++laterExpansionItems;
             continue;
@@ -1336,7 +1353,17 @@ void AuctionHouseBot::AddNewAuctions(std::vector<Player*> AHBPlayers, FactionSpe
         return;
     }
 
-    uint32 currentAuctionItemListCount = auctionHouse->Getcount();
+    // CoA Economy: its own auctions only (CoaEconomyRules::HouseSellerCount): the bots' auctions no longer fill its
+    // quota, which kept it from ever listing on a realm with many bots (and with it, the house's epic gear).
+    std::unordered_set<uint32> sellers;
+    for (AuctionHouseBotCharacter const& seller : AHCharacters)
+        sellers.insert(seller.CharacterGUID);
+    std::vector<uint32> owners;
+    owners.reserve(auctionHouse->Getcount());
+    for (auto const& [id, auction] : auctionHouse->GetAuctions())
+        if (auction)
+            owners.push_back(auction->owner.GetCounter());
+    uint32 currentAuctionItemListCount = CoaEconomyRules::HouseSellerCount(owners, sellers);
     if (currentAuctionItemListCount >= minItems)
     {
         if (debug_Out)
@@ -1430,8 +1457,9 @@ void AuctionHouseBot::AddNewAuctions(std::vector<Player*> AHBPlayers, FactionSpe
                     }
                 }
 
-                // CoA Economy: only what the realm's population could have reached (LaunchCurve)
-                if (!sCoaLaunchCurve->AllowsListing(*prototype))
+                // CoA Economy: only what the realm's population could have reached and could pay (LaunchCurve)
+                if (!sCoaLaunchCurve->AllowsListing(*prototype) ||
+                    !sCoaLaunchCurve->AllowsUnitPrice(GetHouseLowestBuyoutPerItem(prototype)))
                 {
                     batchCount++;
                     continue;

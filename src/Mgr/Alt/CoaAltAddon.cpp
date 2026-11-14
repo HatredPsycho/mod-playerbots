@@ -5,6 +5,7 @@
  */
 
 #include "CoaAltAddon.h"
+#include "CoaAltBags.h"
 
 #include "Bag.h"
 #include "ChatHelper.h"
@@ -392,12 +393,14 @@ bool OnAddonWhisper(Player* from, Player* receiver, std::string const& msg)
         }
         std::ostringstream out;
         out << "HELLO\t" << PROTOCOL << "\t" << (sPlayerbotAIConfig.catchUpQuestChains ? 1 : 0) << "\t"
-            << (sPlayerbotAIConfig.altChatToAddon ? 1 : 0) << "\t1";
+            << (sPlayerbotAIConfig.altChatToAddon ? 1 : 0) << "\t1\t" << (sPlayerbotAIConfig.coaAltBags ? 1 : 0);
         Send(receiver, from, out.str());
         CoaEnchanter::SendStatus(botAI);
         return true;
     }
 
+    if (CoaAltBags::Enqueue(botAI, command))
+        return true;
     if (!command.empty())
         botAI->HandleCommand(CHAT_MSG_WHISPER, "alt " + command, from);
     return true;

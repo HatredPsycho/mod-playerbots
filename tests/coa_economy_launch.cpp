@@ -15,6 +15,24 @@ int main()
     assert(FrontLevel(mid, 80) == 30);
     assert(TopLevel(mid, 3) == 45);
 
+    // The level bounds follow the most advanced real player: bots spread over 1-80 and a player at 80 -> 80 (the
+    // percentile front alone would hold the house near 64); bots at 8 and a player at 8 -> unchanged.
+    {
+        std::map<std::uint32_t, std::uint32_t> spread;
+        for (std::uint32_t l = 1; l <= 80; ++l)
+            spread[l] = 40;
+        std::uint32_t const front = FrontLevel(spread, 80);
+        assert(front == 64 && LevelBoundFront(front, 80) == 80 && LevelBoundFront(TopLevel(spread, 3), 80) == 80);
+        std::map<std::uint32_t, std::uint32_t> early{{1, 200}, {8, 3034}};
+        assert(LevelBoundFront(FrontLevel(early, 80), 8) == 8 && FrontLevel(early, 80) == 8);
+        assert(LevelBoundFront(8, 0) == 8);   // no real player yet
+    }
+
+    // A solo realm without bots (under MinPopulation): its highest character stands for the front.
+    assert(SmallRealmFront({{1, 2}, {80, 1}, {34, 3}}) == 80 && SmallRealmFront({}) == 1 && SmallRealmFront({{1, 4}}) == 1);
+    // An established realm at the cap: nothing held back (full stock, no premium).
+    assert(LaunchStockFactor(0.10f, 1.0f) == 1.0f && LaunchPriceFactor(0.0f, 0.2f) == 1.0f);
+
     // Late: three characters at 60.
     std::map<std::uint32_t, std::uint32_t> late{{40, 100}, {55, 300}, {60, 3}};
     assert(TopLevel(late, 3) == 60);
@@ -46,6 +64,16 @@ int main()
     assert(!LaunchAllows(caps, 50, 60, 5));
     caps.allowLegendary = true;
     assert(LaunchAllows(caps, 50, 60, 5));
+
+    // Goods within 5 item levels of the cap even with a required level; no profession rank out of reach.
+    caps.front = 1;
+    assert(LaunchAllowsGoods(caps, false, 4, 0) && !LaunchAllowsGoods(caps, false, 60, 0)); // a level 1 wine of item level 60
+    assert(LaunchAllowsGoods(caps, true, 60, 0));                                          // gear: its required level rules
+    assert(LaunchSkillCap(4) == 49 && LaunchSkillCap(15) == 115 && LaunchSkillCap(80) == 450);
+    assert(!LaunchAllowsGoods(caps, false, 0, 300) && LaunchAllowsGoods(caps, false, 4, 1)); // rank 300 kit; rank 1 kit
+    // One item's price: 1 g at front 1, 25 g at 10, none from 60 or when off.
+    assert(LaunchUnitPriceCap(1, 0.25f, 60) == 10000 && LaunchUnitPriceCap(10, 0.25f, 60) == 250000);
+    assert(LaunchUnitPriceCap(60, 0.25f, 60) == 0 && LaunchUnitPriceCap(10, 0.0f, 60) == 0);
 
     // Stock 10 % at the start to 100 % at max level; launch premium x2.5 fading to x1.
     assert(LaunchStockFactor(0.1f, 0.0f) == 0.1f && LaunchStockFactor(0.1f, 1.0f) == 1.0f);

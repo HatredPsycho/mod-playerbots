@@ -15,6 +15,7 @@
 #include <functional>
 #include "RaceMgr.h"
 #include "CoaSpecialization.h"
+#include "CoaAltBags.h"
 #include "AutoMaintenanceOnLevelupAction.h"
 #include "CoaWildcard.h"
 #include "CoaReborn.h"
@@ -791,6 +792,7 @@ void PlayerbotAI::UpdateAIInternal([[maybe_unused]] uint32 elapsed, bool minimal
     }
 
     HandleCommands();
+    CoaAltBags::Drain(this);
 
     // logout if logout timer is ready or if instant logout is possible
     if (bot->GetSession()->isLogingOut())
@@ -1623,6 +1625,16 @@ void PlayerbotAI::HandleBotOutgoingPacket(WorldPacket const& packet)
     if (packet.GetOpcode() == SMSG_GROUP_INVITE)
         SetNextCheckDelay(0);
 
+    // A real player turned down the bot's invite: a word back (AiPlayerbot.CoaLive.PlayerReplies.Enable).
+    if (packet.GetOpcode() == SMSG_GROUP_DECLINE)
+    {
+        WorldPacket p(packet);
+        p.rpos(0);
+        std::string name;
+        p >> name;
+        CoaLive::InviteDeclined(bot, name);
+    }
+
     switch (packet.GetOpcode())
     {
         case SMSG_SPELL_FAILURE:
@@ -1973,6 +1985,13 @@ void PlayerbotAI::DoNextAction(bool min)
     {
         coaAncestralCombatCheckedAt = getMSTime();
         CoaRestoreAncestralCombat(bot);
+    }
+
+    // AiPlayerbot.CoaCursedFormUpkeep: a Bloodmage Eternal tank keeps its Cursed Form, looked at every 2 seconds.
+    if (sPlayerbotAIConfig.coaCursedFormUpkeep && GetMSTimeDiffToNow(coaCursedFormCheckedAt) >= 2000)
+    {
+        coaCursedFormCheckedAt = getMSTime();
+        CoaKeepCursedForm(this, bot);
     }
 
     if (!bot->IsInCombat() && GetMSTimeDiffToNow(coaGearCheckedAt) >= 10000)
@@ -2419,6 +2438,8 @@ bool PlayerbotAI::PlaySound(uint32 emote)
 
 bool PlayerbotAI::PlayEmote(uint32 emote)
 {
+    if (!CoaLive::GroupEmoteAllowed(bot))
+        return false;
     WorldPacket data(SMSG_TEXT_EMOTE);
     data << (TextEmotes)emote;
     data << EmoteAction::GetNumberOfEmoteVariants((TextEmotes)emote, bot->getRace(), bot->getGender());

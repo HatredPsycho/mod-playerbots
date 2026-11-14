@@ -696,6 +696,7 @@ public:
     bool coaLiveDataFileEnable;      // AiPlayerbot.CoaLive.DataFile.Enable: world.json for the dashboard
     std::string coaLiveDataDir;      // AiPlayerbot.CoaDataDir (shared with the other sessions)
     bool coaLiveDataFiles;           // AiPlayerbot.CoaDataFiles (shared: 0 stops every data file)
+    bool coaAltBags;  // AiPlayerbot.CoaAltBags.Enable: alt cmp|bags|sell|destroy for the addon (default 1)
     bool coaPetsAutoBooks;        // AiPlayerbot.CoaPets.AutoBooks: alts use their class and craft books by themselves
     bool coaSoulEnable;           // AiPlayerbot.CoaSoul.Enable (souls of the bots)
     bool coaSoulAddon;            // AiPlayerbot.CoaSoul.Addon: SquidBots Lite asks a bot's soul (SQBW SOUL?)
@@ -727,6 +728,22 @@ public:
     bool coaLiveCityEnable;  // AiPlayerbot.CoaLive.City.Enable (L2 City Life)
     bool coaLiveSocialEnable;
     uint32 coaLiveSocialInviteCooldownMinutes;  // AiPlayerbot.CoaLive.Social.InviteCooldownMinutes  // AiPlayerbot.CoaLive.Social.Enable (L2 social bots)
+    // Text emotes of the bots of a group with a real player, in 10 minutes (AiPlayerbot.CoaLive.GroupEmotes.*, 0: no cap).
+    uint32 coaLiveGroupEmotesPerBot;
+    uint32 coaLiveGroupEmotesPerGroup;
+    // Tank specializations bots play in normal dungeons only (AiPlayerbot.CoaTankNormalDungeonOnly).
+    std::set<uint32> coaTankNormalDungeonOnly;
+    bool coaLiveChannelQuestions;  // AiPlayerbot.CoaLive.ChannelQuestions.Enable: a bot answers open questions in channels
+    bool coaLivePlayerReplies;            // AiPlayerbot.CoaLive.PlayerReplies.Enable: bots answer what a player does
+    bool coaLiveDungeonChat;              // AiPlayerbot.CoaLive.DungeonChat.Enable: the group's bots talk in a dungeon
+    bool coaLiveGreetReplies;             // AiPlayerbot.CoaLive.GreetReplies.Enable: a hello back in /say and Zone
+    bool coaLiveLootNeedAsk;              // AiPlayerbot.CoaLive.LootNeedAsk.Enable: a bot asks before it Needs
+    uint32 coaLiveLootNeedAskPerDungeon;  // AiPlayerbot.CoaLive.LootNeedAsk.PerDungeon
+    float coaLiveLootNeedAskMinPct;       // AiPlayerbot.CoaLive.LootNeedAsk.MinUpgradePct
+    std::string coaLiveLootNeedAskTestPlayer;  // .TestPlayer: bench only, this character counts as a real player
+    std::string coaLiveLootNeedAskTestAnswer;  // .TestAnswer: bench only, its answer (yes, no, none)
+    uint32 coaLiveChannelClassAnswers;  // AiPlayerbot.CoaLive.ChannelQuestions.ClassAnswers: bots answering the class question
+    bool coaCursedFormUpkeep;      // AiPlayerbot.CoaCursedFormUpkeep: a Bloodmage Eternal tank keeps its Cursed Form
     // ---- end of CoA Live ----
 
     // ---- CoA World (LoadCoaWorldConfig, CoaWorldConfig.cpp) ----
@@ -746,7 +763,7 @@ public:
 
     // ---- CoA Combat (LoadCoaCombatConfig, CoaCombatConfig.cpp) ----
     // B2 breath guard outside a Dungeon Clear run (always on inside one).
-    bool coaCombatBreathGuardEnable = false;
+    bool coaCombatBreathGuardEnable = true;
     // B3 stuck combat breaker outside a Dungeon Clear run (always on inside one), and its timeout in seconds (0 = off;
     // DungeonClear.StuckCombatTimeout first when the player has it).
     bool coaCombatStuckCombatEnable = false;
@@ -787,6 +804,14 @@ public:
     // Bench only: the breath guard, stuck combat breaker, combat purge and Sunken Temple read their own key alone, also
     // inside a Dungeon Clear run, so that a Dungeon Clear series compares key 0 with key 1.
     bool coaCombatBenchKeyOnly = false;
+    // Body pull guard in a fight: an idle pack counts only if it would see the destination and the move brings the
+    // bot closer to it (CoaPullGuardSightRule), so ranged bots come out from behind walls. On by default: dungeon series
+    // SFK, BRD, Scholomance, 6 runs per arm, deaths 1 -> 0, ranged time out of sight 16.4 % -> 11.5 % of combat.
+    bool coaCombatPullGuardSightEnable = true;
+    // Its strict form: a step that stays as far from a pack but comes into its sight counts too.
+    bool coaCombatPullGuardSightStrict = false;
+    // Bot gear holds no PvP piece nobody can get (Grand Marshal's, High Warlord's; CoaGearPvp, CoaGearPvpRule).
+    bool coaCombatGearPvpSoldOnly = true;
     // ---- end of CoA Combat ----
 
 private:

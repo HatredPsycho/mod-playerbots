@@ -15,6 +15,7 @@
 #include "CoaArtisans.h"
 
 #include "CoaEconomyConf.h"
+#include "CoaEconomyRules.h"
 #include "CoaArtisansAddonRules.h"
 #include "ChatHelper.h"
 #include "CoaLive.h"
@@ -94,8 +95,10 @@ namespace
         uint32 eta = 0;                   // when the mail is (or was) in the mailbox
         uint32 sentAt = 0;
         uint64 sendAtMs = 0;              // preparing: when the mail goes
+        uint32 owed = 0;                  // reagents bought on credit, taken from the CoD when paid (memory only)
     };
     std::map<uint32, OrderRec> orders;    // by id
+    bool materialsOnDelivery = true;      // Artisans.MaterialsOnDelivery
     constexpr char const* OrdersTable = "coa_economy_orders";
     bool ordersTable = false;
     uint32 trackTimer = 0;
@@ -210,22 +213,35 @@ namespace
             return;
         }
         std::string const name = Rules::Clean(bot->GetName());
-        std::vector<uint32> seen;
+        // One entry per product, with the rank its recipe needs (to sort by tier).
+        struct Listed { Artisans::Recipe recipe; ItemTemplate const* proto; uint32 rank; };
+        std::vector<Listed> listed;
         for (Artisans::Recipe const& recipe : Artisans::KnownRecipes(bot))
         {
-            if (seen.size() >= Rules::MaxRecipes)
-                break;
-            if (std::find(seen.begin(), seen.end(), recipe.itemId) != seen.end())
+            if (std::any_of(listed.begin(), listed.end(), [&](Listed const& l) { return l.recipe.itemId == recipe.itemId; }))
                 continue;
-            seen.push_back(recipe.itemId);
-            ItemTemplate const* proto = sObjectMgr->GetItemTemplate(recipe.itemId);
-            // The rank the recipe needs (to sort by tier) and the English name (the client may not have the item cached).
             uint32 rank = 0;
             SkillLineAbilityMapBounds const bounds = sSpellMgr->GetSkillLineAbilityMapBounds(recipe.spell->Id);
             for (auto it = bounds.first; it != bounds.second; ++it)
                 if (it->second->SkillLine == recipe.skillId)
                     rank = it->second->MinSkillLineRank ? it->second->MinSkillLineRank : it->second->TrivialSkillLineRankLow;
-            // The name is last: Wire() cuts the line, so only the name can be cut.
+            listed.push_back({recipe, sObjectMgr->GetItemTemplate(recipe.itemId), rank});
+        }
+        // The best first, so the cap drops the least: a bot's spells come in no order.
+        std::sort(listed.begin(), listed.end(), [](Listed const& a, Listed const& b)
+        {
+            return Rules::RecipeBefore(a.proto ? a.proto->Quality : 0, a.rank, a.recipe.itemId,
+                                       b.proto ? b.proto->Quality : 0, b.rank, b.recipe.itemId);
+        });
+        if (listed.size() > Rules::MaxRecipes)
+            listed.resize(Rules::MaxRecipes);
+        for (Listed const& entry : listed)
+        {
+            Artisans::Recipe const& recipe = entry.recipe;
+            ItemTemplate const* proto = entry.proto;
+            uint32 const rank = entry.rank;
+            // The English name (the client may not have the item cached) is last: Wire() cuts the line, so only the
+            // name can be cut.
             lines.push_back("AR\t" + name + "\t" + std::to_string(recipe.itemId) + "\t" + std::to_string(recipe.spell->Id) +
                             "\t" + std::to_string(recipe.skillId) + "\t" + std::to_string(proto ? proto->Quality : 0) +
                             "\t" + std::to_string(rank) + "\t" + (proto ? Rules::Clean(proto->Name1) : std::string()));
@@ -272,10 +288,11 @@ namespace
         if (ItemTemplate const* product = sObjectMgr->GetItemTemplate(recipe.itemId);
             !product || Rules::Stacks(qty * recipe.count, product->GetMaxStackSize()) > Rules::MaxMailItems)
             return answer(0, "qty", 0);
-        if (Artisans::MissingCost(bot, recipe, qty) > bot->GetMoney())
-            return answer(0, "mats", 0);
-
         uint64 const price = std::min<uint64>(uint64(CraftOrders::QuoteFor(bot, recipe)) * qty, MAX_MONEY_AMOUNT);
+        uint64 const missing = Artisans::MissingCost(bot, recipe, qty);
+        if (missing > bot->GetMoney() &&
+            !CoaEconomyRules::MaterialsOnDelivery(materialsOnDelivery, missing, bot->GetMoney(), price))
+            return answer(0, "mats", 0);
         // Old quotes go (10 min); then this one.
         uint32 const now = Now();
         for (auto it = quotes.begin(); it != quotes.end();)
@@ -283,8 +300,7 @@ namespace
         uint32 const quoteId = nextQuoteId++;
         quotes[quoteId] = {player->GetGUID().GetCounter(), bot->GetGUID(), name, itemId, qty, uint32(price), now};
         answer(uint32(price), "ok", quoteId);
-
-        // No whisper here: the addon's quote card says the price; the artisan speaks when the order is taken.
+        // No whisper of the quote (CoaEconomyRules::QuoteWhispered): the addon's card shows it.
     }
 
     std::string OrderLine(OrderRec const& order)
@@ -321,6 +337,22 @@ namespace
             if (asker != askers.end() && asker->second.cachedRequest == "AMAIL")
                 asker->second.cachedRequest.clear();
         }
+    }
+
+    // The artisan whispers the player about its order (CoA Live, forced: a deal waits on it): "sent, COD 12g" when the
+    // mail goes (craft_order_sent), thanks when the CoD is paid (craft_order_paid). %item, %qty and %price (the CoD).
+    // Nothing when either is offline.
+    void Whisper(OrderRec const& order, char const* situation)
+    {
+        Player* bot = ObjectAccessor::FindConnectedPlayer(ObjectGuid::Create<HighGuid::Player>(order.bot));
+        if (!bot)
+            return;
+        std::unordered_map<std::string, std::string> slots;
+        if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(order.itemId))
+            slots["item"] = ChatHelper::FormatItem(proto);
+        slots["qty"] = std::to_string(order.qty);
+        slots["price"] = ChatHelper::formatMoney(order.copper);
+        CoaLive::SayLine(bot, situation, slots, ObjectGuid::Create<HighGuid::Player>(order.player), true);
     }
 
     // The artisan has "crafted" it: the pieces go in one CoD mail, no delivery delay (the core's MailDeliveryDelay is
@@ -362,6 +394,7 @@ namespace
         order.sentAt = Now();
         order.eta = order.sentAt;
         SetState(order, "sent");
+        Whisper(order, "craft_order_sent");
     }
 
     void Order(Player* player, std::vector<std::string> const& fields, std::vector<std::string>& lines)
@@ -392,7 +425,10 @@ namespace
             return answer("busy");
         if (Rules::PriceRose(quote.copper, uint64(CraftOrders::QuoteFor(bot, recipe)) * quote.qty))
             return answer("price");
-        if (!Artisans::Consume(bot, recipe, quote.qty))
+        // Short of gold: the missing reagents on credit, paid out of the CoD (Artisans.MaterialsOnDelivery).
+        uint64 const owed = CoaEconomyRules::MaterialsOnDelivery(
+            materialsOnDelivery, Artisans::MissingCost(bot, recipe, quote.qty), bot->GetMoney(), quote.copper);
+        if (!Artisans::Consume(bot, recipe, quote.qty, owed != 0))
             return answer("mats");
 
         quotes.erase(found);
@@ -408,6 +444,7 @@ namespace
         order.qty = quote.qty;
         order.perPiece = recipe.count;
         order.copper = quote.copper;
+        order.owed = uint32(owed);
         order.sendAtMs = NowMs() + Rules::SendDelayMs;
         order.eta = Now() + Rules::SendDelayMs / IN_MILLISECONDS;
         order.state = "preparing";
@@ -423,8 +460,8 @@ namespace
         slots["qty"] = std::to_string(quote.qty);
         slots["profession"] = Artisans::ProfessionLink(bot, recipe.skillId);
         slots["recipe"] = Artisans::RecipeLink(bot, recipe);
-        CoaLive::SayLine(bot, "craft_order_ack", slots, player->GetGUID());
-        CoaLive::SayLine(bot, "craft_order_sent", slots, player->GetGUID());
+        CoaLive::SayLine(bot, "craft_order_ack", slots, player->GetGUID(), true);
+        // "Sent, COD ..." is said when the mail goes (SendOrder), the thanks when the CoD is paid.
 
         Data::RecordOrder(player->GetName(), bot->GetName(), quote.itemId, quote.copper, "mailed", recipe.skillId, "player");
         answer("preparing");
@@ -628,7 +665,11 @@ namespace
                 if ((order.state == "sent" || order.state == "awaiting") && order.player == sender.GetSenderId() &&
                     order.bot == receiver.GetPlayerGUIDLow() && order.copper == draft->GetMoney())
                 {
+                    // The reagents bought on credit are paid now: the artisan gets the rest.
+                    if (order.owed)
+                        draft->AddMoney(order.copper > order.owed ? order.copper - order.owed : 0);
                     SetState(order, "paid");
+                    Whisper(order, "craft_order_paid");
                     return;
                 }
         }
@@ -651,6 +692,8 @@ void AddSC_coa_economy_artisans_addon()
     if (!CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.Artisans.Enable", true, false) ||
         !CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.Artisans.Addon", true, false))
         return;
+    CoaEconomy::ArtisansAddon::materialsOnDelivery =
+        CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.Artisans.MaterialsOnDelivery", true, false);
     new CoaEconomy::ArtisansAddon::CoaArtisansAddonPlayer();
     new CoaEconomy::ArtisansAddon::CoaArtisansAddonMail();
     new CoaEconomy::ArtisansAddon::CoaArtisansAddonWorld();

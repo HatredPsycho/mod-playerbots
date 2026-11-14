@@ -5,6 +5,7 @@
  */
 
 #include "PlayerbotFactory.h"
+#include "Ai/Coa/Combat/Gear/CoaGearPvp.h"
 #include "CoaQuietAchievements.h"
 #include "AccountMgr.h"
 #include "AiFactory.h"
@@ -21,6 +22,8 @@
 #include "CoaReborn.h"
 #include "CoaRebornGuideRules.h"
 #include "CoaRefreshRules.h"
+#include "CoaEconomyConf.h"
+#include "CoaEconomyRules.h"
 #include "DBCStores.h"
 #include "DBCStructure.h"
 #include "GuildMgr.h"
@@ -1121,7 +1124,12 @@ void PlayerbotFactory::Randomize(bool incremental)
 
     pmo = sPerfMonitor.start(PERF_MON_RNDBOT, "PlayerbotFactory_Save");
     LOG_DEBUG("playerbots", "Saving to DB...");
-    bot->SetMoney(urand(level * 100000, level * 5 * 100000));
+    // --- CoA Economy ---
+    // A random bot's starting gold, scaled by AiPlayerbot.CoaEconomy.BotStartGoldPercent (100: unchanged; below, a
+    // rebuilt bot keeps the gold it holds).
+    bot->SetMoney(CoaEconomyRules::RebuiltBotGold(bot->GetMoney(), urand(level * 100000, level * 5 * 100000),
+                                                  CoaBotStartGoldPercent()));
+    // --- end CoA Economy ---
     bot->SetHealth(bot->GetMaxHealth());
     bot->SetPower(POWER_MANA, bot->GetMaxPower(POWER_MANA));
     bot->SaveToDB(false, false);
@@ -1165,7 +1173,9 @@ void PlayerbotFactory::Refresh()
     bot->DurabilityRepairAll(false, 1.0f, false);
     if (bot->isDead())
         bot->ResurrectPlayer(1.0f, false);
-    uint32 money = urand(level * 1000, level * 5 * 1000);
+    // --- CoA Economy --- (the upkeep floor, scaled as the starting gold)
+    uint32 money = CoaEconomyRules::ScaleBotGold(urand(level * 1000, level * 5 * 1000), CoaBotStartGoldPercent());
+    // --- end CoA Economy ---
     if (bot->GetMoney() < money)
         bot->SetMoney(money);
     // bot->SaveToDB(false, false);
@@ -3048,6 +3058,10 @@ void PlayerbotFactory::InitEquipment(bool incremental, bool second_chance, int32
                             continue;
                         }
                         if (proto->Class != ITEM_CLASS_WEAPON && proto->Class != ITEM_CLASS_ARMOR)
+                            continue;
+
+                        // CoA Combat (GearPvpSoldOnly): no PvP piece a player cannot get (CoaGearPvp).
+                        if (sPlayerbotAIConfig.coaCombatGearPvpSoldOnly && CoaGearPvp::IsUnobtainablePvpItem(itemId))
                             continue;
 
                         if (maxItemLevel && proto->ItemLevel > maxItemLevel)

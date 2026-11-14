@@ -11,6 +11,8 @@
 #include <cctype>
 #include <cstdint>
 #include <cstdlib>
+#include <ctime>
+#include <vector>
 #include <string>
 
 // The rules of the guild orders and the guild's gear gifts (CoaWorldGuilds), apart from the game objects so that
@@ -88,6 +90,86 @@ namespace CoaWorldGuildRules
         if (caster)
             return !(physicalStats > 0 && casterStats == 0);
         return !(casterStats > 0 && physicalStats == 0);
+    }
+
+    // A real player's hello in guild chat is answered again GREET_REPLY_SECONDS after the last answer. Its own clock:
+    // being greeted at login does not silence the answer to its hello, and a new login starts it over.
+    constexpr time_t GREET_REPLY_SECONDS = 60;
+    inline bool GreetReplyDue(time_t lastReply, time_t now)
+    {
+        return !lastReply || now - lastReply >= GREET_REPLY_SECONDS;
+    }
+
+    // How many guildmates answer a hello or a goodbye in guild chat: 2 or 3 (extra 0 or 1), fewer only when fewer are
+    // online.
+    inline size_t AnswerCount(size_t online, uint32_t extra)
+    {
+        return std::min<size_t>(online, 2 + std::min<uint32_t>(extra, 1));
+    }
+
+    // The mates beyond the first "speakers" stand in for them, in turn: speaker k gets mates speakers + k,
+    // speakers + k + speakers... (a mate stands in for one speaker only, so nobody answers twice).
+    inline std::vector<size_t> StandIns(size_t speaker, size_t speakers, size_t online)
+    {
+        std::vector<size_t> out;
+        if (!speakers)
+            return out;
+        for (size_t i = speakers + speaker; i < online; i += speakers)
+            out.push_back(i);
+        return out;
+    }
+
+    // When the answers come: each 3 to 10 seconds after the hello, sorted, at least MIN_GAP seconds apart.
+    inline std::vector<time_t> AnswerTimes(std::vector<time_t> times, time_t minGap = 2)
+    {
+        std::sort(times.begin(), times.end());
+        for (size_t i = 1; i < times.size(); ++i)
+            times[i] = std::max(times[i], times[i - 1] + minGap);
+        return times;
+    }
+
+    // A goodbye in guild chat: a short line (5 words at most) with a goodbye word or phrase ("gn", "bye", "cya",
+    // "bonne nuit", "a+", "++"...), not a hello.
+    inline bool IsGoodbye(std::string text)
+    {
+        std::transform(text.begin(), text.end(), text.begin(), [](unsigned char c) { return char(std::tolower(c)); });
+        std::string words = " ";
+        size_t count = 0;
+        bool inWord = false;
+        for (size_t i = 0; i < text.size(); ++i)
+        {
+            unsigned char const c = text[i];
+            // "a+" and "++" are words here.
+            bool const doubled = (i + 1 < text.size() && text[i + 1] == '+') || (i && text[i - 1] == '+');
+            bool const afterA = i && text[i - 1] == 'a' && (i < 2 || !std::isalnum((unsigned char)text[i - 2]));
+            bool const plus = c == '+' && (doubled || afterA);
+            if ((c < 128 && std::isalnum(c)) || plus)
+            {
+                words += char(c);
+                if (!inWord)
+                    ++count;
+                inWord = true;
+            }
+            else if (inWord)
+            {
+                words += ' ';
+                inWord = false;
+            }
+        }
+        if (inWord)
+            words += ' ';
+        if (!count || count > 5)
+            return false;
+        static char const* const phrases[] = { " gn ", " gnight ", " goodnight ", " good night ", " night all ",
+                                               " nite ", " bye ", " byebye ", " bye bye ", " cya ", " cu ", " seeya ",
+                                               " see ya ", " see you ", " later all ", " laters ", " gtg ", " g2g ",
+                                               " logging off ", " off for tonight ", " bonne nuit ", " bn ", " a+ ",
+                                               " ++ ", " a plus ", " a demain ", " ciao ", " tchao ", " bisous ",
+                                               " je deco ", " je me deco ", " bonne soiree ", " au revoir " };
+        for (char const* p : phrases)
+            if (words.find(p) != std::string::npos)
+                return true;
+        return false;
     }
 
     // A hello in guild chat: a short line (4 words at most) with a greeting word ("hi", "hey", "bonjour", "re"...).

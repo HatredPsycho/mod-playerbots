@@ -14,6 +14,7 @@
 #include "DatabaseEnv.h"
 #include "ItemTemplate.h"
 #include "Log.h"
+#include "PlayerbotAIConfig.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "World.h"
@@ -39,7 +40,7 @@ LaunchCurve* LaunchCurve::instance()
 
 void LaunchCurve::LoadSettings()
 {
-    _enabled = CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.LaunchCurve.Enable", false, false);
+    _enabled = CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.LaunchCurve.Enable", true, false);
     _refreshMs = std::max<uint32>(1, CoaEconomy::Conf::Get<uint32>("AiPlayerbot.CoaEconomy.LaunchCurve.RefreshMinutes", 10)) * MINUTE * IN_MILLISECONDS;
     _frontPercentile = std::clamp<uint32>(CoaEconomy::Conf::Get<uint32>("AiPlayerbot.CoaEconomy.LaunchCurve.FrontPercentile", 80), 1, 100);
     _topCount = std::max<uint32>(1, CoaEconomy::Conf::Get<uint32>("AiPlayerbot.CoaEconomy.LaunchCurve.TopCount", 3));
@@ -49,7 +50,9 @@ void LaunchCurve::LoadSettings()
     _epicFromLevel = CoaEconomy::Conf::Get<uint32>("AiPlayerbot.CoaEconomy.LaunchCurve.EpicFromLevel", 50);
     _allowLegendary = CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.LaunchCurve.AllowLegendary", false);
     _startStock = std::clamp(CoaEconomy::Conf::Get<float>("AiPlayerbot.CoaEconomy.LaunchCurve.StartStockPercent", 10.0f) / 100.0f, 0.0f, 1.0f);
-    _launchPremium = std::max(0.0f, CoaEconomy::Conf::Get<float>("AiPlayerbot.CoaEconomy.LaunchCurve.LaunchPremiumPercent", 150.0f) / 100.0f);
+    _launchPremium = std::max(0.0f, CoaEconomy::Conf::Get<float>("AiPlayerbot.CoaEconomy.LaunchCurve.LaunchPremiumPercent", 0.0f) / 100.0f);
+    _unitPriceCapGold = std::max(0.0f, CoaEconomy::Conf::Get<float>("AiPlayerbot.CoaEconomy.LaunchCurve.UnitPriceCapGold", 0.25f));
+    _unitPriceCapUntilLevel = CoaEconomy::Conf::Get<uint32>("AiPlayerbot.CoaEconomy.LaunchCurve.UnitPriceCapUntilLevel", 60);
     // A changed setting is taken into account at the next survey.
     _timer = std::min(_timer, _refreshMs);
 }
@@ -101,6 +104,7 @@ void LaunchCurve::ReadLevels(QueryResult result)
     // level -> characters at that level, players' alts and bots alike, service accounts and unplayed GM characters left out
     std::map<uint32, uint32> byLevel;
     uint32 population = 0;
+    uint32 playerMax = 0; // the highest level of a real player's character (no random bot account)
     if (result)
     {
         do
@@ -109,19 +113,29 @@ void LaunchCurve::ReadLevels(QueryResult result)
             uint32 const account = fields[0].Get<uint32>();
             if (_excludedAccounts.count(account) || (_gmAccounts.count(account) && !fields[2].Get<uint32>()))
                 continue;
-            ++byLevel[fields[1].Get<uint8>()];
+            uint32 const level = fields[1].Get<uint8>();
+            ++byLevel[level];
             ++population;
+            if (!sPlayerbotAIConfig.IsInRandomAccountList(account))
+                playerMax = std::max(playerMax, level);
         } while (result->NextRow());
     }
 
     uint32 const maxLevel = std::max<uint32>(1, sWorld->getIntConfig(CONFIG_MAX_PLAYER_LEVEL));
     _population = population;
     _surveyed = true;
-    if (population < _minPopulation || byLevel.empty())
+    if (byLevel.empty())
     {
-        _frontLevel = 1;
-        _topLevel = 1;
+        _frontLevel = _topLevel = _levelFront = _levelTop = 1;
         _progress = 0.0f;
+        return;
+    }
+    // A small realm (a few characters, no bots): its highest level stands for the front and the top, so a solo
+    // realm at level 80 is not held at a level 1 house.
+    if (population < _minPopulation)
+    {
+        _frontLevel = _topLevel = _levelFront = _levelTop = CoaEconomyRules::SmallRealmFront(byLevel);
+        _progress = std::clamp(float(_frontLevel) / float(maxLevel), 0.0f, 1.0f);
         return;
     }
 
@@ -129,6 +143,8 @@ void LaunchCurve::ReadLevels(QueryResult result)
     // TopCount characters have reached.
     _frontLevel = CoaEconomyRules::FrontLevel(byLevel, _frontPercentile);
     _topLevel = CoaEconomyRules::TopLevel(byLevel, _topCount);
+    _levelFront = CoaEconomyRules::LevelBoundFront(_frontLevel, playerMax);
+    _levelTop = CoaEconomyRules::LevelBoundFront(_topLevel, playerMax);
 
     _progress = std::clamp(float(_frontLevel) / float(maxLevel), 0.0f, 1.0f);
 }
@@ -137,15 +153,30 @@ bool LaunchCurve::AllowsListing(ItemTemplate const& proto) const
 {
     if (!_enabled)
         return true;
+    // Nothing before the first survey answers (a few seconds after start-up): the front is not known yet.
+    if (!_surveyed)
+        return false;
 
     CoaEconomyRules::LaunchCaps caps;
-    caps.front = _frontLevel;
-    caps.top = _topLevel;
+    caps.front = _levelFront;
+    caps.top = _levelTop;
     caps.levelMargin = _levelMargin;
     caps.rareFromLevel = _rareFromLevel;
     caps.epicFromLevel = _epicFromLevel;
     caps.allowLegendary = _allowLegendary;
-    return CoaEconomyRules::LaunchAllows(caps, proto.RequiredLevel, proto.ItemLevel, proto.Quality);
+    bool const gear = proto.Class == ITEM_CLASS_WEAPON || proto.Class == ITEM_CLASS_ARMOR;
+    return CoaEconomyRules::LaunchAllows(caps, proto.RequiredLevel, proto.ItemLevel, proto.Quality) &&
+           CoaEconomyRules::LaunchAllowsGoods(caps, gear, proto.ItemLevel, proto.RequiredSkillRank);
+}
+
+bool LaunchCurve::AllowsUnitPrice(uint64 copper) const
+{
+    if (!_enabled)
+        return true;
+    if (!_surveyed)
+        return false;
+    uint64 const cap = CoaEconomyRules::LaunchUnitPriceCap(_levelFront, _unitPriceCapGold, _unitPriceCapUntilLevel);
+    return !cap || copper <= cap;
 }
 
 float LaunchCurve::StockFactor() const
@@ -178,8 +209,8 @@ namespace
 
 void AddSC_coa_economy_launch()
 {
-    // Off by default; read at start-up (restart to change it). The settings below it are read again on reload.
-    if (!CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.LaunchCurve.Enable", false, false))
+    // On by default; read at start-up (restart to change it). The settings below it are read again on reload.
+    if (!CoaEconomy::Conf::Get<bool>("AiPlayerbot.CoaEconomy.LaunchCurve.Enable", true, false))
         return;
 
     sCoaLaunchCurve->LoadSettings();

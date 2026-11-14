@@ -33,6 +33,7 @@
  */
 
 #include "CoaWorldGuilds.h"
+#include "CoaWorldGuildAsk.h"
 #include "CoaWorldGuildRules.h"
 #include "CoaWorldAddonRules.h"
 #include "CoaWorldState.h"
@@ -115,12 +116,13 @@ namespace
         time_t at;
         std::string situation = {};  // IA MIND's bank first (BotLine), text if it has nothing
         std::string player = {};
+        std::vector<ObjectGuid> standIns = {};  // guildmates who say the line instead when the speaker's is refused
     };
 
     // From map threads: what happened, to be told by the world thread.
     struct GuildEvent
     {
-        enum Kind : uint8 { LEVEL, LOOT, LOGIN, ORDER, HUMAN_LEVEL, GREET } kind;
+        enum Kind : uint8 { LEVEL, LOOT, LOGIN, ORDER, HUMAN_LEVEL, GREET, BYE } kind;
         ObjectGuid guid;
         uint32 value;  // level, or item entry
     };
@@ -524,6 +526,10 @@ namespace
                         if (IsHuman(player))
                             Greet(player, now, false);
                         break;
+                    case GuildEvent::BYE:
+                        if (IsHuman(player))
+                            Bye(player, now);
+                        break;
                     case GuildEvent::ORDER:
                         if (IsHuman(player))
                             Order(player, e.value, 0, now);
@@ -548,25 +554,48 @@ namespace
                     continue;
                 }
                 Player* speaker = ObjectAccessor::FindPlayer(s.speaker);
-                if (!speaker || !speaker->IsInWorld() || speaker->GetGuildId() != s.guildId)
+                bool const present = speaker && speaker->IsInWorld() && speaker->GetGuildId() == s.guildId;
+                CoaWorld::Slots const slots = { { "player", s.player } };
+                if (present && !s.situation.empty() && BotLine(speaker, s.situation.c_str(), slots))
                     continue;
-                if (!s.situation.empty() && BotLine(speaker, s.situation.c_str(), { { "player", s.player } }))
+                // The bank may refuse a bot (its soul's sociability, a pace): a guildmate says it instead.
+                bool said = false;
+                if (!s.situation.empty())
+                    for (ObjectGuid const& guid : s.standIns)
+                    {
+                        Player* mate = ObjectAccessor::FindPlayer(guid);
+                        if (mate && mate->IsInWorld() && mate->GetGuildId() == s.guildId &&
+                            BotLine(mate, s.situation.c_str(), slots))
+                        {
+                            said = true;
+                            break;
+                        }
+                    }
+                if (said || !present)
                     continue;
-                if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(speaker); botAI && CoaWorld::BotChatOn())
+                if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(speaker); botAI && !s.text.empty() && CoaWorld::BotChatOn())
                     botAI->SayToGuild(s.text);
             }
             _speeches.swap(later);
         }
 
         // A real player of a guild with bots logs in: a guildmate says hello, and now and then sends a gift.
-        // Guildmates answer a real player's hello in guild chat (1 to 3, not again within 10 minutes), or greet it at
-        // login (1 or 2; 0 or 1 more when CoaLive already has one say it). Each after a human delay, never all at once.
+        // Guildmates answer a real player's hello in guild chat (2 or 3 of those online, 3 to 10 seconds later, at
+        // least 2 seconds apart, with different lines; again a minute after), or greet it at login (1 or 2; 0 or 1 more
+        // when CoaLive already has one say it). The login greeting has no hold on the answer to a hello: a new login
+        // starts that clock over.
         void Greet(Player* player, time_t now, bool login)
         {
-            time_t& last = _greeted[player->GetGUID().GetCounter()];
-            if (!login && last && now - last < 10 * MINUTE)
-                return;
-            last = now;
+            uint32 const lowGuid = player->GetGUID().GetCounter();
+            if (login)
+                _greeted.erase(lowGuid);
+            else
+            {
+                time_t& last = _greeted[lowGuid];
+                if (!CoaWorldGuildRules::GreetReplyDue(last, now))
+                    return;
+                last = now;
+            }
             std::vector<Player*> mates;
             for (auto const& [guid, bot] : RandomBots())
                 if (bot && bot->IsInWorld() && bot->GetGuildId() == player->GetGuildId())
@@ -574,24 +603,61 @@ namespace
             if (mates.empty())
                 return;
             std::shuffle(mates.begin(), mates.end(), std::mt19937(urand(0, 0x7FFFFFFF)));
-            uint32 const count = login ? (settings.coaLive ? urand(0, 1) : urand(1, 2)) : urand(1, 3);
+            size_t const count = login ? (settings.coaLive ? urand(0, 1) : urand(1, 2))
+                                       : CoaWorldGuildRules::AnswerCount(mates.size(), urand(0, 1));
             bool const fr = BotsFrench();
             static char const* const replyEn[] = { "hey {}", "hi {}!", "o/", "yo {}", "hey hey", "hello {}" };
             static char const* const replyFr[] = { "salut {}", "coucou {}", "yo", "slt", "bonjour {} !", "o/" };
             static char const* const welcomeEn[] = { "hey {}", "wb {}", "re", "o/ {}" };
             static char const* const welcomeFr[] = { "salut {}", "re", "wb {}", "coucou {} !" };
             std::vector<time_t> delays;
-            for (uint32 i = 0; i < count && i < mates.size(); ++i)
-                delays.push_back(now + urand(2, 20));
-            std::sort(delays.begin(), delays.end());
+            for (size_t i = 0; i < count && i < mates.size(); ++i)
+                delays.push_back(now + (login ? urand(2, 20) : urand(3, 10)));
+            delays = CoaWorldGuildRules::AnswerTimes(delays);
+            char const* const* pool = login ? (fr ? welcomeFr : welcomeEn) : (fr ? replyFr : replyEn);
+            size_t const size = login ? 4 : 6;
+            std::vector<size_t> lines(size);
+            for (size_t i = 0; i < size; ++i)
+                lines[i] = i;
+            std::shuffle(lines.begin(), lines.end(), std::mt19937(urand(0, 0x7FFFFFFF)));  // two mates, two lines
             for (size_t i = 0; i < delays.size(); ++i)
             {
-                char const* const* pool = login ? (fr ? welcomeFr : welcomeEn) : (fr ? replyFr : replyEn);
-                size_t const size = login ? 4 : 6;
-                std::string text = Acore::StringFormat(pool[urand(0, size - 1)], player->GetName());
-                Speech speech{ mates[i]->GetGUID(), mates[i]->GetGuildId(), text, delays[i] + time_t(i) };
+                std::string text = Acore::StringFormat(pool[lines[i % size]], player->GetName());
+                Speech speech{ mates[i]->GetGUID(), mates[i]->GetGuildId(), text, delays[i] };
                 speech.situation = login ? "guild_welcome" : "guild_greet_reply";
                 speech.player = player->GetName();
+                if (!login)
+                    for (size_t m : CoaWorldGuildRules::StandIns(i, delays.size(), mates.size()))
+                        speech.standIns.push_back(mates[m]->GetGUID());
+                _speeches.push_back(std::move(speech));
+            }
+        }
+
+        // A real player says goodbye in guild chat ("gn", "bye", "cya", "bonne nuit"): 2 or 3 guildmates online answer
+        // 3 to 10 seconds later, at least 2 seconds apart, again a minute after. Lines from IA MIND's bank only
+        // (guild_bye_reply): without one, nothing is said.
+        void Bye(Player* player, time_t now)
+        {
+            time_t& last = _byed[player->GetGUID().GetCounter()];
+            if (!CoaWorldGuildRules::GreetReplyDue(last, now))
+                return;
+            last = now;
+            std::vector<Player*> mates;
+            for (auto const& [guid, bot] : RandomBots())
+                if (bot && bot->IsInWorld() && bot->GetGuildId() == player->GetGuildId())
+                    mates.push_back(bot);
+            std::shuffle(mates.begin(), mates.end(), std::mt19937(urand(0, 0x7FFFFFFF)));
+            std::vector<time_t> delays;
+            for (size_t i = 0, count = CoaWorldGuildRules::AnswerCount(mates.size(), urand(0, 1)); i < count; ++i)
+                delays.push_back(now + urand(3, 10));
+            delays = CoaWorldGuildRules::AnswerTimes(delays);
+            for (size_t i = 0; i < delays.size(); ++i)
+            {
+                Speech speech{ mates[i]->GetGUID(), mates[i]->GetGuildId(), std::string(), delays[i] };
+                speech.situation = "guild_bye_reply";
+                speech.player = player->GetName();
+                for (size_t m : CoaWorldGuildRules::StandIns(i, delays.size(), mates.size()))
+                    speech.standIns.push_back(mates[m]->GetGUID());
                 _speeches.push_back(std::move(speech));
             }
         }
@@ -1101,18 +1167,15 @@ namespace
             }
         }
 
-        // A member of a bot guild that is not full calls for members in General.
+        // An officer of a bot guild that may invite calls for members in General ("/w me": the whisper is heard by
+        // CoaWorldGuildAsk). AiPlayerbot.RandomBotGuildSizeMax is only the bots' own fill: a guild full of bots still
+        // takes real players, up to the game's limit.
         void Recruit()
         {
             std::vector<Player*> callers;
             for (auto const& [guid, bot] : RandomBots())
-            {
-                if (!bot || !bot->IsInWorld() || !bot->GetGuildId() || bot->IsInCombat() || !IsRandomBot(bot))
-                    continue;
-                Guild* guild = sGuildMgr->GetGuildById(bot->GetGuildId());
-                if (guild && guild->GetMemberSize() < sPlayerbotAIConfig.randomBotGuildSizeMax)
+                if (bot && IsRandomBot(bot) && CoaWorldGuildAsk::InvitingGuild(bot))
                     callers.push_back(bot);
-            }
             if (callers.empty())
                 return;
 
@@ -1130,8 +1193,14 @@ namespace
                 "guilde sympa <{}> recrute, on aide pour les qu\u00eates et l'artisanat",
                 "<{}> recrute ! raids plus tard, donjons maintenant. /w pour une invit",
             };
-            if (BotLine(bot, "guild_recruit", { { "guild", guild->GetName() } }) || !CoaWorld::BotChatOn())
+            if (BotLine(bot, "guild_recruit", { { "guild", guild->GetName() } }))
+            {
+                CoaWorldGuildAsk::RecruitCall(bot);
                 return;
+            }
+            if (!CoaWorld::BotChatOn())
+                return;
+            CoaWorldGuildAsk::RecruitCall(bot);
             if (PlayerbotAI* botAI = GET_PLAYERBOT_AI(bot))
                 botAI->SayToChannel(Acore::StringFormat(BotsFrench() ? Pick(callsFr) : Pick(calls), guild->GetName()), GENERAL);
         }
@@ -1142,7 +1211,8 @@ namespace
         std::unordered_map<uint32, time_t> _lastMotd;
         std::unordered_map<uint32, time_t> _lastGift;
         std::unordered_map<uint32, std::pair<uint32, uint32>> _orders;  // player -> (day, orders that day)
-        std::unordered_map<uint32, time_t> _greeted;  // real player -> last greeting by the guild
+        std::unordered_map<uint32, time_t> _greeted;  // real player -> last answer to its hello
+        std::unordered_map<uint32, time_t> _byed;     // real player -> last answer to its goodbye
         uint32 _timer = 0;
         uint32 _slow = 0;
         uint32 _recruit = 0;
@@ -1470,6 +1540,11 @@ public:
         if (settings.greetings && CoaWorldGuildRules::IsGreeting(msg))
         {
             Push({ GuildEvent::GREET, player->GetGUID(), 0 });
+            return true;
+        }
+        if (settings.greetings && CoaWorldGuildRules::IsGoodbye(msg))
+        {
+            Push({ GuildEvent::BYE, player->GetGUID(), 0 });
             return true;
         }
         if (!settings.orders)

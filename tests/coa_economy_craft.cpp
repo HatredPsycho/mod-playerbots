@@ -92,5 +92,84 @@ int main()
     assert(AuctionPause(0, 5000, 300, 30 * 86400) == 0);
     assert(AuctionPause(5000, 1000, 300, 30 * 86400) == 0);
     assert(AuctionPause(1, 1 + 60 * 86400, 300, 30 * 86400) == 30 * 86400);
+
+    // House-wide price scale: kept within 50-150, exact at 100, no overflow on large prices.
+    assert(ClampPriceScale(10) == 50 && ClampPriceScale(100) == 100 && ClampPriceScale(400) == 150);
+    assert(ScalePrice(12345, 100) == 12345 && ScalePrice(1000, 50) == 500 && ScalePrice(1000, 150) == 1500);
+    assert(ScalePrice(199, 50) == 99 && ScalePrice(UINT64_MAX / 2, 150) > UINT64_MAX / 2);
+    // Scaled down to half, a value still meets the vendor floor (FairPrice runs after the scale).
+    assert(FairPrice(ScalePrice(100, 50), 0, 80, 0) == 100);
+
+    // Bots' starting gold: unchanged at 100, none at 0, never above 100 %.
+    assert(ScaleBotGold(500000, 100) == 500000 && ScaleBotGold(500000, 0) == 0 && ScaleBotGold(500000, 20) == 100000);
+    assert(ScaleBotGold(500000, 400) == 500000 && ScaleBotGold(4000000000u, 50) == 2000000000u);
+
+    // A rebuilt bot: at 100 % the roll replaces its gold; below, it keeps what it earned.
+    assert(RebuiltBotGold(9000000, 500000, 100) == 500000 && RebuiltBotGold(0, 500000, 100) == 500000);
+    assert(RebuiltBotGold(9000000, 500000, 0) == 9000000 && RebuiltBotGold(0, 500000, 0) == 0);
+    assert(RebuiltBotGold(50000, 500000, 20) == 100000 && RebuiltBotGold(300000, 500000, 20) == 300000);
+    {
+        // The 3.0.1 default: about 100 gold in all by level 60, 255 by 80.
+        auto const table = ParseLevelGold("10:5000,15:10000,20:20000,25:30000,30:50000,35:70000,40:100000,45:120000,"
+                                          "50:150000,55:200000,60:250000,65:300000,70:350000,75:400000,80:500000");
+        uint64_t by60 = 0, by80 = 0;
+        for (uint32_t l = 1; l < 80; ++l)
+        {
+            by80 += LevelGoldFor(table, l, l + 1);
+            if (l < 60)
+                by60 += LevelGoldFor(table, l, l + 1);
+        }
+        assert(table.size() == 15 && by60 == 1005000 && by80 == 2555000);
+    }
+
+    // Bots' level gold: parsed, bad entries skipped; paid on a one-level step only.
+    {
+        auto const table = ParseLevelGold("10:10000, 20:50000,x:5,1:9,30:abc,40:300000");
+        assert(table.size() == 3 && table.at(10) == 10000 && table.at(20) == 50000 && table.at(40) == 300000);
+        assert(LevelGoldFor(table, 9, 10) == 10000 && LevelGoldFor(table, 10, 11) == 0);
+        assert(LevelGoldFor(table, 1, 10) == 0);   // set at level 10 at once: nothing
+        assert(ParseLevelGold("").empty());
+    }
+
+    // Engineering upgrade kits (CoA data): "level 1, item level 4" products made of Outland and Northrend bars are of
+    // a later expansion through their reagent; a Copper Bar recipe stays of the era.
+    {
+        auto later = [](std::uint32_t id, std::uint32_t req, std::uint32_t ilvl) { return IsLaterExpansion(id, req, ilvl, false); };
+        bool const khoriumKit = later(135127, 1, 4), felIronKit = later(135130, 1, 4), saroniteKit = later(135131, 1, 4);
+        assert(!khoriumKit && !felIronKit && !saroniteKit);                       // the products alone pass
+        assert(RecipeIsLaterExpansion(khoriumKit, {later(23449, 58, 70)}));      // 9 Khorium Bar (spell 94381)
+        assert(RecipeIsLaterExpansion(felIronKit, {later(23445, 58, 60)}));      // 5 Fel Iron Bar (spell 94387)
+        assert(RecipeIsLaterExpansion(saroniteKit, {later(36913, 58, 80)}));     // 9 Saronite Bar (spell 94389)
+        assert(!RecipeIsLaterExpansion(false, {later(2840, 1, 4)}));             // Copper Bar
+        assert(!RecipeIsLaterExpansion(false, {}));
+        assert(OnlyFromLaterRecipes({true, true}) && !OnlyFromLaterRecipes({true, false}) && !OnlyFromLaterRecipes({}));
+    }
+
+    // Reagents paid at delivery: only when on, short of gold and covered by the price.
+    assert(MaterialsOnDelivery(true, 5000, 1000, 20000) == 5000);
+    assert(MaterialsOnDelivery(false, 5000, 1000, 20000) == 0);
+    assert(MaterialsOnDelivery(true, 5000, 5000, 20000) == 0);   // it has the gold: paid now
+    assert(MaterialsOnDelivery(true, 20000, 0, 20000) == 0);     // the price does not cover them
+    assert(MaterialsOnDelivery(true, 0, 0, 20000) == 0);
+
+    // Rare recipes: the same answer for the same bot and recipe, never at 0 %, always at 100 %, near the percent.
+    assert(RareRecipeDrawn(42, 16729, 15) == RareRecipeDrawn(42, 16729, 15));
+    assert(!RareRecipeDrawn(42, 16729, 0) && RareRecipeDrawn(42, 16729, 100));
+    {
+        uint32_t drawn = 0;
+        for (uint64_t bot = 1; bot <= 2000; ++bot)
+            for (uint32_t spell = 16000; spell < 16010; ++spell)
+                drawn += RareRecipeDrawn(bot, spell, 15) ? 1 : 0;
+        assert(drawn > 2600 && drawn < 3400); // 15 % of 20000
+    }
+    assert(RareRecipeReachable(300, 300, 60, 55) && !RareRecipeReachable(299, 300, 60, 55));
+    assert(!RareRecipeReachable(300, 300, 54, 55) && !RareRecipeReachable(0, 0, 60, 0));
+    // An artisan's quote: whispered to "can you make X?" (the deal waits on it), never on the addon's request (its card
+    // shows the price; a whisper per item clicked came late, for an item never ordered).
+    assert(QuoteWhispered(false) && !QuoteWhispered(true));
+    // Never cooking (185) nor first aid (129): "[X Bot] has earned the achievement [Lunch Lady]!" in bursts.
+    assert(!RareRecipeProfession(185) && !RareRecipeProfession(129) && !RareRecipeProfession(0));
+    assert(RareRecipeProfession(164) && RareRecipeProfession(333) && RareRecipeProfession(171) &&
+           RareRecipeProfession(197) && RareRecipeProfession(165) && RareRecipeProfession(202));
     return 0;
 }

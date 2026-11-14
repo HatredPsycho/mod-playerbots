@@ -2396,9 +2396,11 @@ AiPlayerbot.CoaDungeonPriorities = 1
 #       side can repair it. Take it out again once the form is granted.
 #       10/10: tried again (the core grants the form since jealous-sound#5655): still broken on the tank
 #       bench, 12 to 53% of the fight held, Scarlet Delirium cast 80 times in 3 minutes and almost nothing else.
+#       3.1: back in play, its dungeon runs now hold up. An installation that still has 99 here keeps it
+#       left out; empty the value to let bots play it.
 # Read again by ".reload config".
-# Default: 99
-AiPlayerbot.CoaExcludedSpecializations = 99
+# Default: (empty, every specialization is played)
+AiPlayerbot.CoaExcludedSpecializations =
 
 #    AiPlayerbot.CoaOffensiveHealerSpecs
 #        Description: Healer specializations whose damage is their healing: they keep dealing damage
@@ -3245,6 +3247,53 @@ AiPlayerbot.CoaWorld.Guilds.CharterMinutes = 60
 
 AiPlayerbot.CoaWorld.Guilds.Greetings = 1
 
+#    AiPlayerbot.CoaWorld.Guilds.AnswerAsk
+#        Description: A real player without a guild who asks for one aloud or in a public channel ("LF guild",
+#                     "any guild?", "cherche une guilde"...) gets an answer: a few seconds later an officer bot of a
+#                     bot guild of the player's side (the nearest one) says a word, aloud when near, else by whisper
+#                     (phrase bank: guild_ask_reply, guild_ask_reply_w), and sends the guild invitation. One guild at
+#                     a time per player. Without a line in the bank the officer says nothing and sends no
+#                     invitation. Needs Guilds.Enable.
+#        Default:     1 - on (3.1)
+#    AiPlayerbot.CoaWorld.Guilds.AnswerAskMinutes
+#        Description: With AnswerAsk on: minutes before the same player's ask is answered again.
+#        Default:     30
+
+AiPlayerbot.CoaWorld.Guilds.AnswerAsk = 1
+AiPlayerbot.CoaWorld.Guilds.AnswerAskMinutes = 30
+
+#    AiPlayerbot.CoaWorld.Chatter.BgEnd
+#    AiPlayerbot.CoaWorld.Chatter.WorldBoss
+#    AiPlayerbot.CoaWorld.Chatter.RareSeen
+#    AiPlayerbot.CoaWorld.Chatter.Season
+#    AiPlayerbot.CoaWorld.Chatter.Night
+#    AiPlayerbot.CoaWorld.Chatter.Weather
+#    AiPlayerbot.CoaWorld.Chatter.Fishing
+#        Description: The bots remark on the world around a real player, with lines of the phrase bank only (without
+#                     a line nothing is said):
+#                     BgEnd     - a battleground ends: 2 or 3 bots of the player's side say gg (bg_end_win/loss).
+#                     WorldBoss - a real player fights a world boss: 2 or 3 bots of the zone near its level call for
+#                                 it in the zone channel (world_boss_call), once per boss and half hour.
+#                     RareSeen  - a bot near a real player sees a rare creature and says so in the zone channel
+#                                 (rare_seen), once per zone and 20 minutes.
+#                     Season    - Hallow's End, Winter Veil, Brewfest, Darkmoon Faire: a word in General
+#                                 (season_event), once per zone and hour.
+#                     Night     - midnight to six, server time: a late word in the guild chat of a real player
+#                                 (night_chat), once per guild and 45 minutes.
+#                     Weather   - rain, snow or a storm in the zone: a bot near a real player remarks on it aloud
+#                                 (weather_rain/snow/storm), once per zone and half hour.
+#                     Fishing   - a real player fishes: a bot within 20 yards says a word (fishing_idle), once per
+#                                 player and 20 minutes.
+#        Default:     1 - on (3.1)
+
+AiPlayerbot.CoaWorld.Chatter.BgEnd = 1
+AiPlayerbot.CoaWorld.Chatter.WorldBoss = 1
+AiPlayerbot.CoaWorld.Chatter.RareSeen = 1
+AiPlayerbot.CoaWorld.Chatter.Season = 1
+AiPlayerbot.CoaWorld.Chatter.Night = 1
+AiPlayerbot.CoaWorld.Chatter.Weather = 1
+AiPlayerbot.CoaWorld.Chatter.Fishing = 1
+
 #    AiPlayerbot.CoaWorld.Guilds.GearAsk
 #        Description: With Guilds.Gear: the guild's gift of gear is offered first (a whisper from the bot, and the
 #                     SquidBots Lite addon's Gifts view with Guilds.Addon); it is mailed only if the player accepts
@@ -3859,6 +3908,17 @@ AiPlayerbot.CoaSoul.Addon = 1
 
 AiPlayerbot.CoaPets.AutoBooks = 0
 
+#    AiPlayerbot.CoaAltBags.Enable
+#        Description: The SquidBots addon can ask your alts how an item compares with what they
+#                     wear (their own score and verdict), and sell or destroy their grey, white or
+#                     green bag items in one go, after a preview you can untick. Never in the list:
+#                     quest items, upgrades, items kept with "ll +", outfits, items with a use,
+#                     bags, ammo, trade goods, reagents, keys and gems.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaAltBags.Enable = 1
+
 #    AiPlayerbot.CoaLive.DataFile.Enable
 #        Description: world.json for the CoA Dashboard (Population and Health pages): bots online by
 #                     zone, what they do, surnames, server tick. Written every 10 s, and only while the
@@ -3869,6 +3929,120 @@ AiPlayerbot.CoaPets.AutoBooks = 0
 #                     0 - off
 
 AiPlayerbot.CoaLive.DataFile.Enable = 1
+
+#    AiPlayerbot.CoaLive.GroupEmotes.PerBot
+#    AiPlayerbot.CoaLive.GroupEmotes.PerGroup
+#        Description: In a group with a real player, the bots' text emotes ("Kegarink cheers.") in 10 minutes: at
+#                     most PerBot for each bot and PerGroup for the whole group. Every text emote counts: CoA Live's,
+#                     and the playerbots ones when AiPlayerbot.RandomBotEmote or EnableGreet are on.
+#                     Players found them too many in groups. Away from a real player's group nothing changes.
+#                     0: no cap (as before 3.1).
+#        Default:     1 (PerBot), 3 (PerGroup)
+
+AiPlayerbot.CoaLive.GroupEmotes.PerBot = 1
+AiPlayerbot.CoaLive.GroupEmotes.PerGroup = 3
+
+#    AiPlayerbot.CoaTankNormalDungeonOnly
+#        Description: Conquest of Azeroth tank specializations, comma separated, that bots play in normal
+#                     dungeons only: never recruited, offered or queued as tank for a heroic or mythic
+#                     dungeon or for a raid, where another tank specialization of the class is taken instead.
+#                     99 Bloodmage Eternal (3.1 dungeon tests): it holds normal dungeons (17 of 18), but takes
+#                     1.5 to 2 times the damage of the other tanks and dies in three boss hits in heroic and
+#                     mythic (2 of 4 and 1 of 4 against 3 and 2, 41 deaths against 25).
+#                     Only matters for a specialization bots play (see AiPlayerbot.CoaExcludedSpecializations).
+#                     Empty: every tank specialization goes everywhere.
+#        Default:     99
+
+AiPlayerbot.CoaTankNormalDungeonOnly = 99
+
+#    AiPlayerbot.CoaLive.ChannelQuestions.Enable
+#        Description: A real player's open question in a public channel (Ascension, Newcomers, Zone, LookingForGroup)
+#                     gets one bot's answer in that channel, 5 to 20 seconds later: "what class is the best?"
+#                     (chan_class) or any other open question (chan_question). Never two bots on one question, one
+#                     answer per player in 45 seconds, one per channel in 10 seconds. Not the guild asks (CoA World answers
+#                     them), groups, trade, nor questions about bots. Needs the lines of bank 3_0_25 or later.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.ChannelQuestions.Enable = 1
+
+#    AiPlayerbot.CoaLive.ChannelQuestions.ClassAnswers
+#        Description: How many bots answer "what class is the best?" (an opinion question): 2, a second bot gives
+#                     another class 3 to 10 seconds after the first; 1, one answer. Any other open question gets two answers too. Never more
+#                     than 2, and one when only one bot is free.
+#        Default:     2
+
+AiPlayerbot.CoaLive.ChannelQuestions.ClassAnswers = 2
+
+#    AiPlayerbot.CoaLive.GreetReplies.Enable
+#        Description: A real player's hello ("hi", "hey", "o/", "salut"...) gets two bots' hello back (one when only
+#                     one is there), by the player's name, the first 3 to 6 seconds later and the second 3 to 10
+#                     seconds after it: in /say the bots of its faction within 25 yards, in party chat the bots of its
+#                     group, in the Zone channel those of its zone, in the Ascension channel those of its faction. Not
+#                     again for that player there within a minute; a public channel answers one hello in 10 seconds.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.GreetReplies.Enable = 1
+
+#    AiPlayerbot.CoaLive.DungeonChat.Enable
+#        Description: In a dungeon (not a raid) with a real player, the bots of its group talk in party chat: two say
+#                     hello when it enters, one says a line now and then out of a fight (every 4 to 6 minutes), two
+#                     say thanks or "another one?" when it leaves after a run of 5 minutes or more. The night bank's
+#                     own dungeon hello and thanks are not said on top of them. Lines dun_enter, dun_idle, dun_end
+#                     (bank 3_0_27 or later).
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.DungeonChat.Enable = 1
+
+#    AiPlayerbot.CoaLive.PlayerReplies.Enable
+#        Description: The bots answer what a real player does next to them or in their group, two bots (one when only
+#                     one is there): an emote at them (a wave, a bow, a thank-you, a cheer, a hug: given back, with a
+#                     line), a death near them (a deadly fall has its own lines), a fine drop of the player in a group
+#                     (epic, or rare below level 60), a wipe in a dungeon, a real player joining a group of bots, a quest
+#                     shared with the group. One bot for the rest: an insult (one calm whisper in 30 minutes, then
+#                     nothing), a declined group invite, a player away 3 minutes in a group, a fine mount passing by.
+#                     Each with its own cooldown per player. Lines of bank 3_0_28 or later.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.PlayerReplies.Enable = 1
+
+#    AiPlayerbot.CoaLive.LootNeedAsk.Enable
+#        Description: In a dungeon (not a raid), a bot grouped with a real player asks in party chat before it rolls
+#                     Need on gear that is a real upgrade for it ("can i need on that? its bis for me"). It rolls
+#                     Need only on a clear yes (yes, ok, sure, oui, vas-y...) of every real player of the group;
+#                     on a no, a doubtful answer or none within 40 seconds it rolls Greed, as without the ask.
+#                     Never on an item that would be an upgrade for a real player of the group, never two bots on
+#                     one item. Needs the lines of bank 3_0_27 or later (loot_need_ask, _thanks, _ok_pass).
+#        Default:     1 - on
+#                     0 - off
+#    AiPlayerbot.CoaLive.LootNeedAsk.PerDungeon    - asks in one dungeon run, all the bots together (2)
+#    AiPlayerbot.CoaLive.LootNeedAsk.MinUpgradePct - the upgrade over the piece worn, in percent (10)
+
+AiPlayerbot.CoaLive.LootNeedAsk.Enable = 1
+AiPlayerbot.CoaLive.LootNeedAsk.PerDungeon = 2
+AiPlayerbot.CoaLive.LootNeedAsk.MinUpgradePct = 10
+
+#    AiPlayerbot.CoaLive.LootNeedAsk.TestPlayer / .TestAnswer
+#        Description: Bench tool, no effect while TestPlayer is empty (the default). The character of that name, a
+#                     bot of the bench, or "@leader" (the leader of each group), counts as a real player for these
+#                     asks only (never the bot that asks), and gives TestAnswer to each
+#                     ask through the same path as a real player's party line: yes, no, or none (no answer). Each
+#                     ask writes one line to the log: "coa loot ask: instance ... bot ... item ... answer ... vote ...".
+#        Default:     "" and none
+
+AiPlayerbot.CoaLive.LootNeedAsk.TestPlayer = ""
+AiPlayerbot.CoaLive.LootNeedAsk.TestAnswer = none
+
+#    AiPlayerbot.CoaCursedFormUpkeep
+#        Description: A Bloodmage Eternal tank (specialization 99) keeps its Cursed Form, Eternal Curse: more
+#                     Stamina and armor while it tanks. Put on again after a death or a mount.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaCursedFormUpkeep = 1
 
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel
@@ -5294,23 +5468,33 @@ AiPlayerbot.CoaEconomy.Market.MaxWeightPercent = 80
 AiPlayerbot.CoaEconomy.Market.BandMinPercent = 50
 AiPlayerbot.CoaEconomy.Market.BandMaxPercent = 300
 
-# Launch auction house of a new realm: the house bot lists what the realm's characters could really have
+# Launch auction house (every realm, a new one above all): the house bot lists what the realm's characters could really have
 # reached, and its stock and prices follow them (players' alts and bots count, GM characters once played too;
 # the house's and Dungeon Clear's service accounts do not).
 # Every RefreshMinutes the levels are read (async): front = FrontPercentile level, top = highest level reached
 # by at least TopCount characters. Nothing listed is ever removed. Settings below Enable are read again on reload.
-#    Enable                1 = on, 0 = off (default). Read at start-up (restart to change it).
+#    Enable                1 = on (default), 0 = off. Read at start-up (restart to change it). On a realm whose
+#                          front is at the level cap, it holds nothing back. Nothing is listed before the first
+#                          reading of the levels, a few seconds after start-up.
 #    RefreshMinutes        How often the levels are read (default 10).
-#    FrontPercentile       Percentile of the levels taken as the front (default 80).
+#    FrontPercentile       Percentile of the levels taken as the front (default 80). The level bounds below use the
+#                          highest level of a real player's character instead when it is higher (a player at 80
+#                          finds the whole house); the stock keeps this front.
 #    TopCount              Characters needed at a level for the top to reach it (default 3).
-#    MinPopulation         Below this many characters the realm stays at its start (default 20).
-#    LevelMargin           Items up to front + this required level (default 3).
+#    MinPopulation         Below this many characters, their highest level stands for the front and the top
+#                          (a solo realm without bots; default 20).
+#    LevelMargin           Items up to front + this required level (default 3). Goods (anything but weapons and
+#                          armour) also up to front + this + 5 item levels, and no item needs a profession rank a
+#                          character of that level cannot have (75 until level 10, 150 until 20, 225 until 35...).
 #    RareFromLevel         Rare (blue) items once the front reaches this level (default 20).
 #    EpicFromLevel         Epic items once the top reaches this level and the item's own (default 50).
 #    AllowLegendary        1 = legendary items too, under the epic rule (default 0).
 #    StartStockPercent     Share of the house's MinItems/MaxItems at the start, up to 100 % at max level (default 10).
-#    LaunchPremiumPercent  Price premium at the start, fading to none with the front's progress (default 150).
-AiPlayerbot.CoaEconomy.LaunchCurve.Enable = 0
+#    LaunchPremiumPercent  Price premium at the start, fading to none with the front's progress (default 0).
+#    UnitPriceCapGold      The most one item may cost: this x front x front gold, at least 1 gold (0.25: 1 g at
+#                          front 1, 25 g at 10, 100 g at 20, 400 g at 40). 0 = no cap (default 0.25).
+#    UnitPriceCapUntilLevel  No price cap once the front reaches this level (default 60).
+AiPlayerbot.CoaEconomy.LaunchCurve.Enable = 1
 AiPlayerbot.CoaEconomy.LaunchCurve.RefreshMinutes = 10
 AiPlayerbot.CoaEconomy.LaunchCurve.FrontPercentile = 80
 AiPlayerbot.CoaEconomy.LaunchCurve.TopCount = 3
@@ -5320,7 +5504,9 @@ AiPlayerbot.CoaEconomy.LaunchCurve.RareFromLevel = 20
 AiPlayerbot.CoaEconomy.LaunchCurve.EpicFromLevel = 50
 AiPlayerbot.CoaEconomy.LaunchCurve.AllowLegendary = 0
 AiPlayerbot.CoaEconomy.LaunchCurve.StartStockPercent = 10
-AiPlayerbot.CoaEconomy.LaunchCurve.LaunchPremiumPercent = 150
+AiPlayerbot.CoaEconomy.LaunchCurve.LaunchPremiumPercent = 0
+AiPlayerbot.CoaEconomy.LaunchCurve.UnitPriceCapGold = 0.25
+AiPlayerbot.CoaEconomy.LaunchCurve.UnitPriceCapUntilLevel = 60
 
 # New rpg random bots sell their loot and repair at vendors, as people do between two quests. When their bags
 # reach BagPercent and they hold something to sell, they pick a vendor nearby as their next NPC to visit; at any
@@ -5347,6 +5533,9 @@ AiPlayerbot.CoaEconomy.RpgSell.BagPercent = 70
 #    VisitsPerTick         Visits run per world update, to spread the cost (default 2).
 #    DurationHours         Auction duration: 12, 24 or 48 (default 24).
 #    MaxScan               Gear auctions looked at per visit for an upgrade (default 300).
+#    MaxPerItem            A bot lists an item only while its house holds fewer auctions of it (default 10; 0 = no
+#                          cap): one craft or one loot no longer fills the house (700 of one cloth seen).
+#    MaxPerUpgradeKit      The same for an upgrade kit ("Essence of Fire Upgrade Kit": 50 at a time seen; default 3).
 AiPlayerbot.CoaEconomy.BotAuctions.Enable = 1
 AiPlayerbot.CoaEconomy.BotAuctions.VisitCooldownMinutes = 45
 AiPlayerbot.CoaEconomy.BotAuctions.ListPerVisit = 3
@@ -5354,6 +5543,42 @@ AiPlayerbot.CoaEconomy.BotAuctions.MaxBudgetPercent = 30
 AiPlayerbot.CoaEconomy.BotAuctions.VisitsPerTick = 2
 AiPlayerbot.CoaEconomy.BotAuctions.DurationHours = 24
 AiPlayerbot.CoaEconomy.BotAuctions.MaxScan = 300
+AiPlayerbot.CoaEconomy.BotAuctions.MaxPerItem = 10
+AiPlayerbot.CoaEconomy.BotAuctions.MaxPerUpgradeKit = 3
+
+# Random bots' gold, in percent of their usual gold: what a bot gets when it is created (10 to 50 gold per level),
+# the floor its upkeep keeps (10 to 50 silver per level) and its pocket money on returning to town. 100 = the usual
+# gold, which a bot's periodic rebuild sets anew; below 100, a rebuilt bot keeps the gold it holds. 0 (default) = none:
+# the bots live on what they sell and earn, plus BotLevelGold. Spells, trainer recipes and repairs cost a random bot
+# nothing either way. Bots already made keep their gold. Read again on reload.
+AiPlayerbot.CoaEconomy.BotStartGoldPercent = 0
+
+# Random bots' gold on reaching some levels, in copper: "level:copper,level:copper" (e.g. "10:10000" = 1 gold at level
+# 10). Paid once, on a real level-up from play; a bot created or set at a level gets nothing for the levels it skipped.
+# Empty = nothing. The default pays 0.5 gold at 10 up to 50 gold at 80 (about 100 gold in all by 60, 255 by 80): with
+# BotStartGoldPercent = 0 the bots start poor and get a little as they rise, as a player does. Read again on reload.
+AiPlayerbot.CoaEconomy.BotLevelGold = "10:5000,15:10000,20:20000,25:30000,30:50000,35:70000,40:100000,45:120000,50:150000,55:200000,60:250000,65:300000,70:350000,75:400000,80:500000"
+
+# Bots' words about their trade, said the CoA Live way (its banks; nothing when AiPlayerbot.CoaLive.Chat.Enable is 0).
+#    AhSold.Enable              Now and then, a bot whose auction just sold says so in Trade ("sold my stack, finally";
+#                               1 = on, default).
+#    AhSold.MinutesBetween      At most one such line per server in this time (default 30).
+#    TradeWindow.Enable         A real player opens a trade window with a random bot that does not trade with them: the
+#                               bot whispers a polite word ("hi, what do you need?") instead of "I'm kind of busy now"
+#                               (1 = on, default). It still trades nothing.
+#    TradeWindow.MinutesPerPlayer  At most one such whisper per player in this time; in between, nothing (default 5).
+AiPlayerbot.CoaEconomy.Chatter.AhSold.Enable = 1
+AiPlayerbot.CoaEconomy.Chatter.AhSold.MinutesBetween = 30
+AiPlayerbot.CoaEconomy.Chatter.TradeWindow.Enable = 1
+AiPlayerbot.CoaEconomy.Chatter.TradeWindow.MinutesPerPlayer = 5
+
+# House-wide price scale, in percent: every price the bots ask and pay at the auction house (the house's seller and
+# buyer, the bots' own auctions, the artisans' crafts and quotes) is the market value times this. 100 = no change;
+# 50 = half price, 150 = half again as dear (kept between 50 and 150). Default 60: scarce gold, as on a fresh server. What the bots pay follows what they ask, so
+# buying from them to sell back never pays, and no price goes under a vendor's buying price plus a quarter. Read again
+# on reload (.reload config): new auctions and purchases follow at once, auctions already up keep their price until
+# they end (12 to 48 hours).
+AiPlayerbot.CoaEconomy.PriceScalePercent = 60
 
 # Bots' auction prices from the real CoA auction house: the market value of scans of the real house (17,121 items),
 # else the median of the scanned items of the same quality and item level (uncommon and better). Our own sales, made
@@ -5425,12 +5650,31 @@ AiPlayerbot.CoaEconomy.Artisans.Stock.Enable = 1
 AiPlayerbot.CoaEconomy.Artisans.Stock.MaxStacks = 2
 AiPlayerbot.CoaEconomy.Artisans.Stock.BuyBelowPercent = 90
 
+# Artisans' rare recipes: bots learn only what profession trainers teach, so no artisan ever made the recipes players
+# find (Lionheart Helm, Flarecore Robe...). With this on, an artisan also knows a few of the recipes of its professions
+# that a recipe item in the world teaches (dropped or sold by a vendor), up to its rank and level, and that make a
+# tradable item of its era. Each recipe is drawn once per bot, so the same artisan keeps the same recipes; it learns
+# more as its rank rises (checked when it trades or is asked for its recipes). Needs Artisans.
+#    Enable       1 = on (default), 0 = off. Read at start-up (restart to change it).
+#    Percent      Chance, in percent, that an artisan knows a given rare recipe (default 15).
+#    EpicPercent  The same for a recipe that makes an epic (default 5).
+AiPlayerbot.CoaEconomy.Artisans.LearnRareRecipes.Enable = 1
+AiPlayerbot.CoaEconomy.Artisans.LearnRareRecipes.Percent = 15
+AiPlayerbot.CoaEconomy.Artisans.LearnRareRecipes.EpicPercent = 5
+
 # Artisans in the SquidBots Lite addon (prefix SQBW): the list of the artisan bots of the player's faction and their
 # recipes, a quote without crafting (held 10 minutes), the order of a quote (crafted and mailed cash on delivery, 1 to
 # 20 crafts in one mail of 12 stacks at most) and the player's CoD mails of the last 7 days. The server checks every request; 1 request a second per
 # player, lists cached 10 s. Needs Artisans; quotes and orders also need CraftOrders.
 #    Addon  1 = on (default), 0 = off. Read at start-up (restart to change it).
 AiPlayerbot.CoaEconomy.Artisans.Addon = 1
+
+# An artisan short of gold for the reagents it lacks may still take an addon order: it buys them on credit and their
+# market cost is taken out of the cash on delivery when the player pays it (the player pays the same price). Only when
+# the price covers the reagents. Useful on a new realm where bots start with no gold; a rich artisan pays them at once,
+# as before. Needs Artisans.Addon.
+#    MaterialsOnDelivery  1 = on (default), 0 = off. Read at start-up (restart to change it).
+AiPlayerbot.CoaEconomy.Artisans.MaterialsOnDelivery = 1
 
 # Auctions on game time: the core ends an auction at a real date, so a server off for a night found every auction
 # over at start-up. With this on, the world writes a sign of life every minute (table coa_economy_clock of the
@@ -5456,12 +5700,12 @@ AiPlayerbot.CoaEconomy.DataFile.Enable = 1
 #
 # AiPlayerbot.CoaCombat.BreathGuard.Enable
 #     Description: Breath guard outside a Dungeon Clear run. A grouped bot in a dungeon, out of combat, under water
-#                  for 90 s (half its breath) is brought back up beside its group's tank. Always on inside a
-#                  Dungeon Clear run.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#                  for 90 s (half its breath) is brought back up beside its group's tank, so bots following a player
+#                  no longer drown (Blackfathom Deeps). Always on inside a Dungeon Clear run. On by default since 3.1.
+#     Default:     1 - (Enabled)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.BreathGuard.Enable = 0
+AiPlayerbot.CoaCombat.BreathGuard.Enable = 1
 
 # AiPlayerbot.CoaCombat.StuckCombat.Enable
 #     Description: Stuck combat breaker outside a Dungeon Clear run. A grouped bot in a dungeon or raid, in combat
@@ -5539,7 +5783,7 @@ AiPlayerbot.CoaCombat.LootNeedWaitSeconds = 20
 #     Description: The CoA Combat fixes to the bots' Molten Core strategy, encounter by encounter (kill orders for
 #                  Lucifron's and Sulfuron's adds, the raid's curse and magic dispels, Burning Ground, and the next
 #                  ones as they land). The stock strategy is unchanged when this is 0. On by default since 3.0
-#                  (Molten Core bench, a33: 12 and 10 deaths on the two cleared runs, 21 on average before).
+#                  (Molten Core bench: 12 and 10 deaths on the two cleared runs, 21 on average before).
 #     Default:     1 - (Enabled)
 #                  0 - (Disabled)
 
@@ -5624,3 +5868,40 @@ AiPlayerbot.CoaCombat.PlayerLed.Enable = 0
 #                  1 - (Enabled)
 
 AiPlayerbot.CoaCombat.BenchKeyOnly = 0
+
+#
+# AiPlayerbot.CoaCombat.PullGuardSight.Enable
+#     Description: In a dungeon fight, healers and damage dealers refuse a move that would end within the aggro
+#                  distance of an idle pack (AiPlayerbot.CoaBodyPullGuard). With this on, a pack counts only if it
+#                  could see the destination and the move brings the bot closer to it, so ranged bots stuck behind a
+#                  wall near another room's pack come back into line of sight and keep casting. Out of combat nothing
+#                  changes.
+#     Default:     1 - (Enabled)
+#                  0 - (Disabled: every pack within reach counts, seen or not)
+
+AiPlayerbot.CoaCombat.PullGuardSight.Enable = 1
+
+#
+# AiPlayerbot.CoaCombat.PullGuardSight.Strict
+#     Description: With PullGuardSight on, a move that does not bring the bot closer to an idle pack is let through
+#                  even when the pack would see the destination. With this on, such a move counts too: a sideways step
+#                  into a pack's sight is refused like an approach.
+#     Default:     0 - (Disabled)
+#                  1 - (Enabled)
+
+AiPlayerbot.CoaCombat.PullGuardSight.Strict = 0
+
+#
+# AiPlayerbot.CoaCombat.GearPvpSoldOnly
+#     Description: The gear bots are given holds no PvP piece a player cannot get: a piece with resilience or an
+#                  honor rank required is kept only if a vendor a player can reach (spawned, or opened by a spawned
+#                  creature's gossip), quest, loot table, cache or reward gives it, or gives a piece of the same
+#                  name it is a variant of. The Grand Marshal's and High Warlord's armor and the classic rank sets
+#                  have no reachable vendor on CoA (the Manastorm demon's random pool does not count); the High
+#                  Warlord's weapons, sold for honor, stay. Pieces given by a script are kept. The list is read from
+#                  the world database at each start-up. Applies to gear given from now on; what a bot already wears
+#                  stays until its next gear update. On by default since 3.1.
+#     Default:     0 - (Disabled)
+#                  1 - (Enabled)
+
+AiPlayerbot.CoaCombat.GearPvpSoldOnly = 1

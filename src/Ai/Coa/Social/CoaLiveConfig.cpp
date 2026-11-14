@@ -15,6 +15,8 @@
 #include "Log.h"
 
 #include <algorithm>
+#include <cstdlib>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -85,10 +87,31 @@ void PlayerbotAIConfig::LoadCoaLiveConfig()
             coaCatchUpServiceAccounts.end())
             coaCatchUpServiceAccounts.push_back(driver);
     coaSoulEnable = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSoul.Enable", true);
+    coaAltBags = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaAltBags.Enable", true);
     coaPetsAutoBooks = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaPets.AutoBooks", false);
     coaSoulAddon = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSoul.Addon", true);
     coaSoulWeights = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaSoul.Weights", "20,40,20,10,10");
     coaLiveDataFileEnable = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.DataFile.Enable", true);
+    coaLiveGroupEmotesPerBot = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.GroupEmotes.PerBot", 1);
+    coaLiveGroupEmotesPerGroup = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.GroupEmotes.PerGroup", 3);
+    coaTankNormalDungeonOnly.clear();
+    {
+        std::istringstream ids(sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaTankNormalDungeonOnly", "99"));
+        for (std::string id; std::getline(ids, id, ',');)
+            if (uint32 const specializationId = uint32(std::strtoul(id.c_str(), nullptr, 10)))
+                coaTankNormalDungeonOnly.insert(specializationId);
+    }
+    coaLiveChannelQuestions = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.ChannelQuestions.Enable", true);
+    coaLivePlayerReplies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.PlayerReplies.Enable", true);
+    coaLiveDungeonChat = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.DungeonChat.Enable", true);
+    coaLiveGreetReplies = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.GreetReplies.Enable", true);
+    coaLiveLootNeedAsk = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.LootNeedAsk.Enable", true);
+    coaLiveLootNeedAskPerDungeon = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.LootNeedAsk.PerDungeon", 2);
+    coaLiveLootNeedAskMinPct = sConfigMgr->GetOption<float>("AiPlayerbot.CoaLive.LootNeedAsk.MinUpgradePct", 10.0f);
+    coaLiveLootNeedAskTestPlayer = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaLive.LootNeedAsk.TestPlayer", "", false);
+    coaLiveLootNeedAskTestAnswer = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaLive.LootNeedAsk.TestAnswer", "none", false);
+    coaLiveChannelClassAnswers = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.ChannelQuestions.ClassAnswers", 2);
+    coaCursedFormUpkeep = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaCursedFormUpkeep", true);
     // Shared with the other CoA data files (in the .dist once).
     coaLiveDataDir = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaDataDir", "", false);
     coaLiveDataFiles = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaDataFiles", true, false);

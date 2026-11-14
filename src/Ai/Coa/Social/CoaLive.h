@@ -9,6 +9,7 @@
 
 #include "Common.h"
 #include "ObjectGuid.h"
+#include "CoaLootAskRules.h"
 
 #include <functional>
 #include <string>
@@ -16,6 +17,8 @@
 
 class Player;
 class PlayerbotAI;
+struct ItemTemplate;
+class Group;
 
 // CoA Live (3.0, AiPlayerbot.CoaLive.Enable): random bots react like people around real players, with the lines and
 // emotes of the bank of CoA IA MIND (playerbots_coa_live_*, CoaLiveRules.h). Every reaction is drawn, paced and
@@ -24,6 +27,22 @@ namespace CoaLive
 {
 // The bank, from the playerbots database (at startup and on each config load). Empties the no-repeat rings.
 void LoadBank();
+
+// A text emote of this bot now, under AiPlayerbot.CoaLive.GroupEmotes.* (a group with a real player): true, and counted,
+// when it may go. Any thread.
+bool GroupEmoteAllowed(Player* bot);
+
+// AiPlayerbot.CoaLive.PlayerReplies.Enable: a real player declined `bot`'s group invite (by its name); a real player
+// shared a quest `bot` took; a real player joined a group of bots.
+void InviteDeclined(Player* bot, std::string const& name);
+void QuestShared(Player* bot, Player* sharer);
+void MemberJoined(Group* group, ObjectGuid guid);
+
+// AiPlayerbot.CoaLive.LootNeedAsk: a bot about to roll Need on `proto` in a dungeon with a real player may ask it
+// first in party chat ("can i need on that? its bis for me"). NotAsked: vote as usual; Wait: hold the vote; Need: the
+// players said yes; Greed: a no, or no answer in time. The bot's map thread.
+CoaLootAsk::Outcome LootNeedAsk(Player* bot, ObjectGuid itemGuid, uint8 itemSlot, ItemTemplate const* proto,
+                                int32 randomProperty, uint32 seenMs);
 
 // Every bot's update (map thread): about every 5 s, a random bot looks for a real player to greet, or idles at the
 // inn or in a capital in front of one.
@@ -41,6 +60,8 @@ bool ChatOn();
 // The module's older unsolicited lines (broadcasts, RandomBotTalk): false while the living chat speaks, unless
 // AiPlayerbot.CoaLive.LegacyChat (CoaChatRules.h).
 bool LegacyChatOn();
+// The older "WTS [item] for <vendor price>" (suggest_sell): false while the living chat speaks (CoaChatRules.h).
+bool LegacySellOn();
 
 // The bot accepted a resurrection cast by "by".
 void OnResurrectAccepted(Player* bot, ObjectGuid by);
@@ -67,8 +88,10 @@ std::string SystemLine(Player* reader, std::string const& situation,
                        std::unordered_map<std::string, std::string> const& slots);
 
 // SayLine to one player: a whisper line (channel 6) of the situation goes to "to". False when "to" is not online.
+// force: no chance roll and no scope limit (the bot's cooldown kept), for a line a deal waits on (CoA Economy: the
+// artisan's "sent, COD 12g" and its thanks).
 bool SayLine(Player* bot, std::string const& situation, std::unordered_map<std::string, std::string> const& slots,
-             ObjectGuid to);
+             ObjectGuid to, bool force = false);
 
 // For CoA Economy (artisans): an announce that leads somewhere. Says the line (slots, plus %item and %price from
 // the item and the price when absent) and keeps the offer 15 minutes, as a Trade WTS: a real player who answers
@@ -77,7 +100,8 @@ bool SayOffer(Player* bot, std::string const& situation, ObjectGuid item, uint32
               std::unordered_map<std::string, std::string> const& slots);
 
 // A whisper intent another session answers (the bank's intents table holds its keywords). Called before the
-// default answer, on the world thread, with the whisper in lower case; true takes the whisper.
+// default answer, on the world thread, with the whisper in lower case; true takes the whisper. Intent "*": a deal
+// awaiting the player's answer (an artisan's quote); it sees every whisper first.
 using WhisperHandler =
     std::function<bool(Player* from, Player* to, std::string const& lowered, std::string const& intent)>;
 void RegisterWhisperHandler(std::string const& intent, WhisperHandler handler);
