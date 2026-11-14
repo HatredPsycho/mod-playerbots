@@ -13,10 +13,31 @@ local STRINGS = {
 		NOT_IN_GROUP = "Invite it to your group to see its gear.", OUT_OF_RANGE = "Come closer to see its gear.",
 		EMPTY_BAGS = "Nothing in the bags.", NO_QUESTS = "No quest.",
 		GIVE = "Give it to me", SOULBOUND = "Soulbound: cannot be traded", TRADE_RANGE = "Trade: stand next to the bot (10 yards).", EQUIP = "Equip", USE = "Use", SELL = "Sell (bot next to a vendor)", SELL_GREY = "Sell junk",
+		BULK_BTN = "Sell / destroy", BULK_JUNK = "Sell its junk (as before)", BULK_SELL = "Sell its %s items...", BULK_DESTROY = "Destroy its %s items...",
+		Q_GREY = "grey", Q_WHITE = "white", BULK_T_SELL = "%s sells these %s items:", BULK_T_DESTROY = "%s destroys these %s items (every stack of each):",
+		BULK_H_SELL = "Untick what it keeps. The bot must stand next to a vendor.", BULK_H_DESTROY = "Untick what it keeps. A destroyed item is gone for good.",
+		BULK_GO_SELL = "Sell (%d)", BULK_GO_DESTROY = "Destroy (%d)", BULK_NONE = "No %s item in its bags.", BULK_MORE = "+%d more not shown (left alone).",
+		BULK_ASKING = "Asking %s for its list...", BULK_SOLD = "%s sold %d items for %s.", BULK_DESTROYED = "%s destroyed %d items.",
+		BULK_ERR = "%s: %s.", BULK_R_changed = "its bags changed, open the list again", BULK_R_novendor = "no vendor next to it",
+		BULK_R_combat = "in combat", BULK_R_dead = "dead", BULK_R_quality = "quality too high", BULK_R_off = "off on this realm",
+		BAG_TYPES = "%d item types (stacks merged)", BULK_SEL_SELL = "Sell all selected (%d)", BULK_SEL_DESTROY = "Destroy all selected (%d)", SEL_GIVE = "Give me all selected (%d)",
+		SEL_GIVE_MAX = "Give me: 6 at most, one trade (%d selected)", SEL_GIVE_BOUND = "%d soulbound left out (cannot be traded).", SEL_GIVE_ASK = "Opening a trade with %s for %d items...",
+		Q_SEL = "selected", SEL_HINT = "Ctrl+click: select it.", SEL_CLEAR = "Clear the selection", SEL_SUMMARY = "%s: %d of %d selected can go; the others stay, their reason beside them.", SEL_THIS = "This item only:", BULK_W_quest = "quest item", BULK_W_tool = "profession tool", BULK_W_wear = "it would wear it",
+		BULK_W_use = "has a use", BULK_W_kept = "it keeps it", BULK_W_outfit = "in an outfit", BULK_W_container = "a bag", BULK_W_ammo = "ammo",
+		BULK_W_conjured = "conjured", BULK_W_noprice = "no sell price", BULK_W_notfound = "no longer in its bags", BS_TITLE = "Its bags", BS_FREE = "%d free of %d", BS_EMPTY = "Empty bag slot", BS_PUT = "Put on as a bag", BS_PUT_HERE = "Put %s here",
+		BS_NONE = "No bag in its bags to put here.", BS_DONE = "%s put on %s.", BS_ERR = "%s: %s.", BS_R_notfound = "that bag is not in its bags",
+		BS_R_notbag = "not a bag", BS_R_nospace = "no room for what the old bag holds", BS_R_combat = "in combat", BS_R_dead = "dead",
+		BS_R_off = "off on this realm", BS_HINT = "Click a bag slot to put one of its bags there.",
+		BULK_TOOMANY = "Too many unticked items for one order: untick fewer, or sell those one by one.",
+		BULK_H_SERVER = "The bot leaves out quest items, what it would wear, what it keeps and what has a use.",
 		NO_VENDOR = "Nothing sold: the bot sells only standing right next to a vendor (Summon it there, or walk it there with Follow).", LINK = "Link in chat",
-		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat. Ctrl-click: mark it for selling.",
-		SELL_MARKED = "Sell marked (%d)", CLEAR_MARKS = "Unmark all", BOUND_HINT = "Red frame: soulbound, cannot be traded.",
-		GEAR_HINT = "Right-click a piece to take it off.", TRADE_HINT = "Give it to me opens a trade with the bot: accept it.",
+		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat.",
+		GEAR_HINT = "Right-click a piece to take it off.",
+		CMP_WORN = "Worn by %s", CMP_ILVL = "Item level %s compared with what %s wears (%d)", CMP_NONE = "%s: nothing known in that slot (Gear tab, in range).",
+		CMP_LEVEL = "%s is level %d: this needs %d.", CMP_ASKING = "Asking %s...", CMP_V_equip = "Upgrade for %s: that slot is empty.",
+		CMP_V_replace = "Upgrade for %s%s", CMP_V_bad = "Worse than what %s wears%s", CMP_V_cannot = "%s cannot use this.",
+		CMP_SCORE = "Score: this one %s, worn %s", CMP_NOTFOUND = "%s: unknown item.", CMP_NOANSWER = "%s did not answer: compared from the group.", TRADE_HINT = "Give it to me opens a trade with the bot: accept it.",
+		BOUND_HINT = "Red frame: soulbound, cannot be traded.",
 		MOUNTS = "Mounts", AUTO_MOUNT = "Automatic choice", PREFERRED = "preferred",
 		PETS = "Pets", PET_CAT_loot = "Loot", PET_CAT_quest = "Quests", PET_CAT_class = "Class trainer",
 		PET_CAT_craft = "Professions", PETS_FAV = "Favourite", PETS_USE = "Use", PETS_DISMISS = "Dismiss",
@@ -76,10 +97,31 @@ local STRINGS = {
 		NOT_IN_GROUP = "Invitez-le dans votre groupe pour voir son équipement.", OUT_OF_RANGE = "Approchez-vous pour voir son équipement.",
 		EMPTY_BAGS = "Rien dans les sacs.", NO_QUESTS = "Aucune quête.",
 		GIVE = "Me le donner", SOULBOUND = "Lié : impossible à échanger", TRADE_RANGE = "Échange : placez-vous à côté du bot (10 mètres).", EQUIP = "Équiper", USE = "Utiliser", SELL = "Vendre (bot à côté d'un marchand)", SELL_GREY = "Vendre la camelote",
+		BULK_BTN = "Vendre / détruire", BULK_JUNK = "Vendre sa camelote (comme avant)", BULK_SELL = "Vendre ses objets %s...", BULK_DESTROY = "Détruire ses objets %s...",
+		Q_GREY = "gris", Q_WHITE = "blancs", BULK_T_SELL = "%s vend ces objets %s :", BULK_T_DESTROY = "%s détruit ces objets %s (toutes les piles de chacun) :",
+		BULK_H_SELL = "Décochez ce qu'il garde. Le bot doit se tenir à côté d'un marchand.", BULK_H_DESTROY = "Décochez ce qu'il garde. Un objet détruit est perdu pour de bon.",
+		BULK_GO_SELL = "Vendre (%d)", BULK_GO_DESTROY = "Détruire (%d)", BULK_NONE = "Aucun objet %s dans ses sacs.", BULK_MORE = "+%d autres non affichés (laissés tels quels).",
+		BULK_ASKING = "Demande de sa liste à %s...", BULK_SOLD = "%s a vendu %d objets pour %s.", BULK_DESTROYED = "%s a détruit %d objets.",
+		BULK_ERR = "%s : %s.", BULK_R_changed = "ses sacs ont changé, rouvrez la liste", BULK_R_novendor = "aucun marchand à côté de lui",
+		BULK_R_combat = "en combat", BULK_R_dead = "mort", BULK_R_quality = "qualité trop haute", BULK_R_off = "coupé sur ce royaume",
+		BAG_TYPES = "%d types d'objets (piles regroupées)", BULK_SEL_SELL = "Vendre tous les sélectionnés (%d)", BULK_SEL_DESTROY = "Détruire tous les sélectionnés (%d)", SEL_GIVE = "Me donner tous les sélectionnés (%d)",
+		SEL_GIVE_MAX = "Me donner : 6 au plus, un échange (%d sélectionnés)", SEL_GIVE_BOUND = "%d objets liés laissés de côté (non échangeables).", SEL_GIVE_ASK = "Échange avec %s pour %d objets...",
+		Q_SEL = "sélectionnés", SEL_HINT = "Ctrl+clic : le sélectionner.", SEL_CLEAR = "Vider la sélection", SEL_SUMMARY = "%s : %d sur %d sélectionnés peuvent partir ; les autres restent, leur raison à côté.", SEL_THIS = "Cet objet seulement :", BULK_W_quest = "objet de quête", BULK_W_tool = "outil de métier", BULK_W_wear = "il le porterait",
+		BULK_W_use = "il s'en sert", BULK_W_kept = "il le garde", BULK_W_outfit = "dans une tenue", BULK_W_container = "un sac", BULK_W_ammo = "munitions",
+		BULK_W_conjured = "invoqué", BULK_W_noprice = "sans prix de vente", BULK_W_notfound = "plus dans ses sacs", BS_TITLE = "Ses sacs", BS_FREE = "%d libres sur %d", BS_EMPTY = "Emplacement de sac vide", BS_PUT = "Mettre comme sac", BS_PUT_HERE = "Mettre %s ici",
+		BS_NONE = "Aucun sac dans ses sacs à mettre ici.", BS_DONE = "%s a mis %s.", BS_ERR = "%s : %s.", BS_R_notfound = "ce sac n'est pas dans ses sacs",
+		BS_R_notbag = "ce n'est pas un sac", BS_R_nospace = "pas de place pour ce que contient l'ancien sac", BS_R_combat = "en combat", BS_R_dead = "mort",
+		BS_R_off = "coupé sur ce royaume", BS_HINT = "Cliquez sur un emplacement de sac pour y mettre un de ses sacs.",
+		BULK_TOOMANY = "Trop d'objets décochés pour un seul ordre : décochez-en moins, ou vendez-les un par un.",
+		BULK_H_SERVER = "Le bot laisse de côté les objets de quête, ce qu'il porterait, ce qu'il garde et ce qui s'utilise.",
 		NO_VENDOR = "Rien vendu : le bot ne vend que collé à un marchand (appelez-le devant le marchand, ou amenez-le avec Suivre).", LINK = "Lien dans le chat",
-		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat. Ctrl-clic : le marquer pour la vente.",
-		SELL_MARKED = "Vendre marqués (%d)", CLEAR_MARKS = "Tout démarquer", BOUND_HINT = "Cadre rouge : lié, impossible à échanger.",
-		GEAR_HINT = "Clic droit sur une pièce pour la retirer.", TRADE_HINT = "Me le donner ouvre un échange avec le bot : acceptez-le.",
+		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat.",
+		GEAR_HINT = "Clic droit sur une pièce pour la retirer.",
+		CMP_WORN = "Porté par %s", CMP_ILVL = "Niveau d'objet %s par rapport à ce que porte %s (%d)", CMP_NONE = "%s : rien de connu à cet emplacement (onglet Équipement, à portée).",
+		CMP_LEVEL = "%s est niveau %d : il faut le niveau %d.", CMP_ASKING = "Question à %s...", CMP_V_equip = "Mieux pour %s : cet emplacement est vide.",
+		CMP_V_replace = "Mieux pour %s%s", CMP_V_bad = "Moins bien que ce que porte %s%s", CMP_V_cannot = "%s ne peut pas l'utiliser.",
+		CMP_SCORE = "Score : celui-ci %s, porté %s", CMP_NOTFOUND = "%s : objet inconnu.", CMP_NOANSWER = "%s n'a pas répondu : comparé depuis le groupe.", TRADE_HINT = "Me le donner ouvre un échange avec le bot : acceptez-le.",
+		BOUND_HINT = "Cadre rouge : lié, impossible à échanger.",
 		MOUNTS = "Montures", AUTO_MOUNT = "Choix automatique", PREFERRED = "préférée",
 		PETS = "Familiers", PET_CAT_loot = "Butin", PET_CAT_quest = "Quêtes", PET_CAT_class = "Maître de classe",
 		PET_CAT_craft = "Métiers", PETS_FAV = "Favori", PETS_USE = "Sortir", PETS_DISMISS = "Renvoyer",
@@ -169,9 +211,8 @@ local bagMode = "bags"
 local queue = {}
 local mountOffset = 0
 local spells, spellOffset = {}, 0
+-- 3.1: the Bags tab scrolls by rows of BAG_COLS (the server lists one line per item type: more than 48 happen).
 local bagOffset = 0
--- Items marked for selling, by item id: the bag list is read again after every change and its order moves.
-local marked = {}
 -- 3.0: the Mounts tab's filter: "all", "ground" or "flying" (the loot pet moved to the Pets tab).
 local mountKind = "all"
 
@@ -203,6 +244,8 @@ end
 -- Listings: "c", "quests all", "stats" come back as one whisper per line
 -- ---------------------------------------------------------------------------
 local Render
+-- 3.1: whether an item is an upgrade for the sheet's alt, by its own answer (the compare block, further down).
+local IconVerdict
 
 -- A request too soon after the same one (the server would drop its lines) waits its turn instead of being lost.
 local later = {}
@@ -495,6 +538,36 @@ local function Give(link)
 	Whisper("t " .. link)
 	giveAt = { link = link, at = GetTime() + 1.5 }
 end
+-- 3.1: the selection in one trade (6 items at most): the first "t" opens the trade, then one "t <link>" per item,
+-- 1.1 s apart, until all six are in it.
+local giveAll
+local function GiveSelected(links)
+	local unit = UnitOf(current)
+	if not unit or not CheckInteractDistance(unit, 2) then
+		Print(T("TRADE_RANGE"))
+		return
+	end
+	giveAll = { name = current, links = links, next = GetTime(), stop = GetTime() + 25, opened = TradeFrame:IsShown() }
+	Print(string.format(T("SEL_GIVE_ASK"), current, #links))
+end
+local giveAllWatch = CreateFrame("Frame")
+giveAllWatch:SetScript("OnUpdate", function()
+	local g = giveAll
+	if not g or GetTime() < g.next then return end
+	if GetTime() > g.stop or g.name ~= current then giveAll = nil return end
+	g.next = GetTime() + 1.1
+	if not TradeFrame:IsShown() then
+		-- The trade closed after it was open (accepted or cancelled): done.
+		if g.opened then giveAll = nil return end
+		if not g.asked then g.asked = true; Whisper("t " .. g.links[1]) end
+		return
+	end
+	g.opened = true
+	for _, link in ipairs(g.links) do
+		if not InTrade(link) then Whisper("t " .. link) return end
+	end
+	giveAll = nil
+end)
 local giveWatch = CreateFrame("Frame")
 giveWatch:SetScript("OnUpdate", function()
 	if giveAt and GetTime() >= giveAt.at then
@@ -547,38 +620,6 @@ sellWatch:SetScript("OnUpdate", function()
 		Print(T("NO_VENDOR"))
 	end
 end)
-
--- A whisper holds about 255 characters: the marked links go out a few at a time, one whisper every half second.
-local sellQueue, sellNextAt = {}, 0
-local sellQueueWatch = CreateFrame("Frame")
-sellQueueWatch:SetScript("OnUpdate", function()
-	if #sellQueue == 0 or GetTime() < sellNextAt then return end
-	local nextOne = table.remove(sellQueue, 1)
-	if nextOne.name ~= current then return end
-	Sell(nextOne.text, #sellQueue > 0)
-	sellNextAt = GetTime() + 0.5
-	if #sellQueue == 0 then AfterChange() end
-end)
-
-local function MarkedCount()
-	local n = 0
-	for _ in pairs(marked) do n = n + 1 end
-	return n
-end
-
-local function SellMarked(links)
-	local chunk = ""
-	for _, link in ipairs(links) do
-		if chunk ~= "" and #chunk + #link + 3 > 240 then
-			table.insert(sellQueue, { name = current, text = chunk })
-			chunk = ""
-		end
-		chunk = chunk == "" and link or (chunk .. " " .. link)
-	end
-	if chunk ~= "" then table.insert(sellQueue, { name = current, text = chunk }) end
-	marked = {}
-	Render()
-end
 
 function AfterChange()
 	-- The bags changed: ask again once the server lets the same lines through, counted from the last listing
@@ -668,6 +709,398 @@ local function Destroy(item, link)
 	if dialog then dialog.data, dialog.item = link, item end
 end
 
+-- 3.1: sell or destroy an alt's grey or white items at once, from a list where each one can be unticked first.
+-- The bot's own commands take several links in one whisper ("s <links>", "destroy <links>"): sent in short
+-- batches, 1.1 s apart.
+-- 3.1: the alt answers for itself (CoA Bots 3.1 with AiPlayerbot.CoaAltBags.Enable, HELLO's 6th field): its own
+-- verdict on an item, and the bag lists it would sell or destroy. Only the account's alts; otherwise the addon alone
+-- of the addon alone (the Gear tab's view, "s"/"destroy" with links).
+local function AltBags(name)
+	local A = SquidBotsLite_Alts
+	return name and A and A.hello and A.hello.bags and A.IsAlt and A.IsAlt(name) and A.Send and true or false
+end
+
+-- 3.1: the Bags tab's selection (Ctrl+click), by item id, for the sheet's bot only.
+local selection = { name = nil, ids = {} }
+local function Selected(id)
+	return selection.name == current and id and selection.ids[id] or false
+end
+local function SelectedCount()
+	if selection.name ~= current then return 0 end
+	local n = 0
+	for _, item in ipairs(bags) do if selection.ids[item.id] then n = n + 1 end end
+	return n
+end
+local function ToggleSelected(item)
+	if selection.name ~= current then selection.name, selection.ids = current, {} end
+	selection.ids[item.id] = not selection.ids[item.id] or nil
+end
+local Bulk, BulkSelection
+do
+	local QUALITY = { grey = "^|cff9d9d9d", white = "^|cffffffff" }
+	local COLS, PER_COL = 3, 16
+	local queue, nextAt = {}, 0
+	local pump = CreateFrame("Frame")
+	pump:SetScript("OnUpdate", function()
+		if #queue == 0 or GetTime() < nextAt then return end
+		-- To the bot the list was made for, even if another sheet opened meanwhile.
+		local q, shown = table.remove(queue, 1), current
+		current = q.name
+		Whisper(q.text)
+		current = shown
+		nextAt = GetTime() + 1.1
+	end)
+	local function Batches(word, links)
+		local line
+		for _, link in ipairs(links) do
+			if line and #line + 1 + #link > 250 then table.insert(queue, { name = current, text = line }); line = nil end
+			line = line and (line .. " " .. link) or (word .. " " .. link)
+		end
+		if line then table.insert(queue, { name = current, text = line }) end
+	end
+	local f
+	local function Count()
+		local n = 0
+		for _, row in ipairs(f.rows) do if row:IsShown() and row:GetChecked() then n = n + 1 end end
+		f.go:SetText(string.format(T(f.action == "sell" and "BULK_GO_SELL" or "BULK_GO_DESTROY"), n))
+		if n > 0 then f.go:Enable() else f.go:Disable() end
+	end
+	local function Build()
+		f = CreateFrame("Frame", "SquidBotsLiteBulk", UIParent)
+		f:SetWidth(COLS * 196 + 24)
+		f:SetHeight(PER_COL * 20 + 110)
+		f:SetPoint("CENTER")
+		f:SetFrameStrata("DIALOG")
+		f:SetBackdrop(BACKDROP)
+		f:SetBackdropColor(0, 0, 0, 0.92)
+		f:EnableMouse(true)
+		table.insert(UISpecialFrames, "SquidBotsLiteBulk")
+		f.title = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		f.title:SetPoint("TOPLEFT", 16, -16)
+		f.hint = f:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		f.hint:SetPoint("TOPLEFT", 16, -34)
+		f.more = f:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		f.more:SetPoint("BOTTOMLEFT", 16, 44)
+		f.rows = {}
+		for i = 1, COLS * PER_COL do
+			local row = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+			row:SetWidth(20)
+			row:SetHeight(20)
+			row:SetPoint("TOPLEFT", 12 + math.floor((i - 1) / PER_COL) * 196, -52 - ((i - 1) % PER_COL) * 20)
+			row.label = row:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+			row.label:SetPoint("LEFT", row, "RIGHT", 2, 0)
+			row.label:SetWidth(170)
+			row.label:SetHeight(18)
+			row.label:SetJustifyH("LEFT")
+			row:SetScript("OnClick", Count)
+			row:SetScript("OnEnter", function(self)
+				if not self.item then return end
+				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				GameTooltip:SetHyperlink(self.item.link:match("|H(item:[^|]+)|h"))
+				GameTooltip:Show()
+			end)
+			row:SetScript("OnLeave", function() GameTooltip:Hide() end)
+			f.rows[i] = row
+		end
+		f.go = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+		f.go:SetWidth(120)
+		f.go:SetHeight(22)
+		f.go:SetPoint("BOTTOMRIGHT", -140, 16)
+		f.go:SetScript("OnClick", function()
+			if f.server then
+				-- The token covers the whole preview: what is unticked or not shown is skipped.
+				local skip = {}
+				for i, item in ipairs(f.server.items) do
+					local row = f.rows[i]
+					if not (row and row:IsShown() and row:GetChecked()) then table.insert(skip, item.bag .. ":" .. item.slot) end
+				end
+				local q = f.server.quality
+				local text = f.action .. " " .. q .. " " .. f.server.token .. (#skip > 0 and (" skip " .. table.concat(skip, ",")) or "")
+				if #text > 250 then Print(T("BULK_TOOMANY")) return end
+				SquidBotsLite_Alts.Send(f.server.name, text)
+				f:Hide()
+				return
+			end
+			local links = {}
+			for _, row in ipairs(f.rows) do
+				if row:IsShown() and row:GetChecked() and row.item then
+					table.insert(links, SendableLink(row.item))
+					TakeOut(bags, row.item.orig or row.item)
+				end
+			end
+			Batches(f.action == "sell" and "s" or "destroy", links)
+			if f.selection then selection.ids = {} end
+			f:Hide()
+			AfterChange()
+		end)
+		f.cancel = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+		f.cancel:SetWidth(120)
+		f.cancel:SetHeight(22)
+		f.cancel:SetPoint("BOTTOMRIGHT", -16, 16)
+		f.cancel:SetText(CANCEL or "Cancel")
+		f.cancel:SetScript("OnClick", function() f:Hide() end)
+	end
+	local function Fill(action, word, list, server, name, fromSelection)
+		if not f then Build() end
+		f.action, f.server, f.selection = action, server, fromSelection
+		f.title:SetText(string.format(T(action == "sell" and "BULK_T_SELL" or "BULK_T_DESTROY"), name or "?", word))
+		f.hint:SetText(T(action == "sell" and "BULK_H_SELL" or "BULK_H_DESTROY") .. (server and (" " .. T("BULK_H_SERVER")) or ""))
+		for i, row in ipairs(f.rows) do
+			local item = list[i]
+			row.item = item
+			if item then
+				row.label:SetText(item.link .. (item.count and item.count > 1 and (" x" .. item.count) or "")
+					.. (item.why and (" |cffff6060(" .. T("BULK_W_" .. item.why) .. ")|r") or ""))
+				row:SetChecked(not item.why)
+				if item.why then row:Disable() else row:Enable() end
+				row:Show()
+			else
+				row:Hide()
+			end
+		end
+		f.more:SetText(#list > #f.rows and string.format(T("BULK_MORE"), #list - #f.rows) or "")
+		Count()
+		f:Show()
+	end
+	-- The alt's preview ("alt bags <q> [destroy]"): BAGS it ..., BAGS sum ... <token>, BAGS -.
+	local preview
+	local Q = { grey = 0, white = 1 }
+	local function LinkOf(id, quality, name)
+		local _, link = GetItemInfo(id)
+		if link then return link end
+		local color = ITEM_QUALITY_COLORS and ITEM_QUALITY_COLORS[quality]
+		return (color and color.hex or "|cffffffff") .. "|Hitem:" .. id .. ":0:0:0:0:0:0:0:0|h[" .. (name ~= "" and name or ("#" .. id)) .. "]|h|r"
+	end
+	local function Bulk_OnLine(name, f)
+		local kind = f[2]
+		if kind == "it" and preview and preview.name == name then
+			local id, quality = tonumber(f[5]) or 0, tonumber(f[7]) or 0
+			table.insert(preview.items, { bag = f[3], slot = f[4], id = id, count = tonumber(f[6]) or 1, quality = quality,
+				price = tonumber(f[8]) or 0, link = LinkOf(id, quality, f[9] or "") })
+		elseif kind == "sum" and preview and preview.name == name then
+			preview.token = f[5]
+		elseif kind == "done" then
+			if f[3] == "sell" then
+				Print(string.format(T("BULK_SOLD"), name, tonumber(f[4]) or 0, GetCoinTextureString and GetCoinTextureString(tonumber(f[5]) or 0) or (f[5] or "0")))
+			else
+				Print(string.format(T("BULK_DESTROYED"), name, tonumber(f[4]) or 0))
+			end
+			if name == current then AfterChange() end
+		elseif kind == "err" then
+			if preview and preview.name == name then preview = nil end
+			Print(string.format(T("BULK_ERR"), name, T("BULK_R_" .. (f[3] or "")) or f[3] or "?"))
+		elseif kind == "-" and preview and preview.name == name then
+			local p = preview
+			preview = nil
+			if not p.token then return end
+			if #p.items == 0 then Print(string.format(T("BULK_NONE"), p.word)) return end
+			Fill(p.action, p.word, p.items, p, name)
+		end
+	end
+	-- 3.1: what may not go. The alt's own answer to "bagcheck <sell|destroy> <id> ..." (BAGCHK it <id> <ok|reason>,
+	-- then BAGCHK -) when it has the command; else the client's own checks: quest items (their tooltip), the known
+	-- profession tools, what the alt said it would wear, and no sell price for a sale.
+	local TOOLS = { [2901] = 1, [5956] = 1, [7005] = 1, [6219] = 1, [10498] = 1, [20815] = 1, [39505] = 1, [40772] = 1,
+		[40892] = 1, [40893] = 1, [6218] = 1, [6339] = 1, [11130] = 1, [11145] = 1, [16207] = 1, [22461] = 1, [22462] = 1,
+		[22463] = 1, [44452] = 1, [6256] = 1, [6365] = 1, [6366] = 1, [6367] = 1, [12225] = 1, [19022] = 1, [19970] = 1,
+		[25978] = 1, [44050] = 1, [45858] = 1, [45991] = 1, [45992] = 1 }
+	local scan
+	local function IsQuestItem(link)
+		if not scan then
+			scan = CreateFrame("GameTooltip", "SquidBotsLiteBulkScan", UIParent, "GameTooltipTemplate")
+		end
+		scan:SetOwner(UIParent, "ANCHOR_NONE")
+		scan:SetHyperlink(link:match("|H(item:[^|]+)|h") or link)
+		for i = 2, math.min(scan:NumLines() or 0, 6) do
+			local fs = _G["SquidBotsLiteBulkScanTextLeft" .. i]
+			local text = fs and fs:GetText()
+			if text and (text == ITEM_BIND_QUEST or text == ITEM_STARTS_QUEST) then scan:Hide() return true end
+		end
+		scan:Hide()
+		return false
+	end
+	local function ClientWhy(action, item)
+		if TOOLS[item.id] then return "tool" end
+		if IsQuestItem(item.link) then return "quest" end
+		if IconVerdict and IconVerdict(item.link) then return "wear" end
+		if action == "sell" and select(11, GetItemInfo(item.link)) == 0 then return "noprice" end
+	end
+	local check
+	local function ShowSelection(c)
+		check = nil
+		for _, item in ipairs(c.items) do
+			local answer = c.answers and c.answers[item.id]
+			if answer then
+				item.why = answer ~= "ok" and answer or nil
+			else
+				item.why = ClientWhy(c.action, item)
+			end
+		end
+		-- Said in the chat too: a list where everything stays locked (an item the alt would wear...) is no silent no-op.
+		local free = 0
+		for _, item in ipairs(c.items) do if not item.why then free = free + 1 end end
+		if free < #c.items then Print(string.format(T("SEL_SUMMARY"), c.name, free, #c.items)) end
+		Fill(c.action, T("Q_SEL"), c.items, nil, c.name, true)
+	end
+	local function Check_OnLine(name, f)
+		if not check or check.name ~= name then return end
+		if f[2] == "it" then
+			check.answers = check.answers or {}
+			check.answers[tonumber(f[3]) or 0] = f[4]
+		elseif f[2] == "err" then
+			check.answers = nil
+		elseif f[2] == "-" then
+			ShowSelection(check)
+		end
+	end
+	-- A server without bagcheck answers with its "Usage: alt ..." whisper: kept out of the chat, and the client's
+	-- own checks at once instead of after the wait.
+	local usageHiddenAt
+	local function UsageFilter(_, _, msg, sender)
+		if not (msg and msg:find("^Usage: alt ")) then return false end
+		if check and sender == check.name then
+			check.answers = nil
+			usageHiddenAt = GetTime()
+			ShowSelection(check)
+			return true
+		end
+		-- The same whisper reaches each chat frame: hidden in all of them.
+		return usageHiddenAt and GetTime() - usageHiddenAt < 1 or false
+	end
+	if ChatFrame_AddMessageEventFilter then ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER", UsageFilter) end
+	local waitCheck = CreateFrame("Frame")
+	waitCheck:SetScript("OnUpdate", function(self)
+		if not check then self:Hide() return end
+		-- No answer in time (an older server): the client's own checks.
+		if GetTime() > check.deadline then check.answers = nil; ShowSelection(check); self:Hide() end
+	end)
+	waitCheck:Hide()
+	BulkSelection = function(action)
+		local items = {}
+		for _, item in ipairs(bags) do
+			if Selected(item.id) then table.insert(items, { link = item.link, id = item.id, count = item.count, soulbound = item.soulbound, orig = item }) end
+		end
+		if #items == 0 then return end
+		local c = { name = current, action = action, items = items }
+		if AltBags(current) then
+			local ids = {}
+			for i = 1, math.min(#items, 40) do table.insert(ids, items[i].id) end
+			check = c
+			c.deadline = GetTime() + 3
+			SquidBotsLite_Alts.Handle.BAGCHK = Check_OnLine
+			SquidBotsLite_Alts.Send(current, "bagcheck " .. action .. " " .. table.concat(ids, " "))
+			waitCheck:Show()
+			return
+		end
+		ShowSelection(c)
+	end
+	-- action: "sell" or "destroy"; quality: "grey" or "white".
+	Bulk = function(action, quality)
+		local word = T(quality == "grey" and "Q_GREY" or "Q_WHITE")
+		if AltBags(current) then
+			preview = { name = current, action = action, quality = Q[quality], word = word, items = {} }
+			Print(string.format(T("BULK_ASKING"), current))
+			-- Alts.lua loads after this file: its handler table is there by now.
+			SquidBotsLite_Alts.Handle.BAGS = Bulk_OnLine
+			SquidBotsLite_Alts.Send(current, "bags " .. Q[quality] .. (action == "destroy" and " destroy" or ""))
+			return
+		end
+		local list = {}
+		for _, item in ipairs(bags) do
+			if item.link and item.link:find(QUALITY[quality]) then table.insert(list, item) end
+		end
+		if #list == 0 then Print(string.format(T("BULK_NONE"), word)) return end
+		Fill(action, word, list, nil, current)
+	end
+end
+
+-- 3.1: an alt's four bags (CoA Bots 3.1, alt bags on): "bagslots" gives each one (BAGSLOT slot <1..4> <id|0>
+-- <size> <free> <itemString|-> bagslots, then "BAGSLOT - bagslots"); "bagequip <itemString> [<1..4>]" puts one of
+-- its bags on (BAGSLOT done <slot> <id> <req> or BAGSLOT err <reason> <req>, then "BAGSLOT - <req>").
+local BagSlots = { by = {}, ASK_EVERY = 30 }
+function BagSlots.Shown()
+	return AltBags(current) and bagMode ~= "bank"
+end
+function BagSlots.Ask(force)
+	if not AltBags(current) then return end
+	local d = BagSlots.by[current]
+	-- Asked again every ASK_EVERY seconds at most; an unanswered question (older server) after 10 s.
+	if not force and d and GetTime() - d.at < (d.asking and 10 or BagSlots.ASK_EVERY) then return end
+	BagSlots.by[current] = { at = GetTime(), asking = true, got = d and d.got or {} }
+	SquidBotsLite_Alts.Handle.BAGSLOT = BagSlots.OnLine
+	SquidBotsLite_Alts.Send(current, "bagslots")
+end
+function BagSlots.Equip(name, str, slot)
+	BagSlots.pending = BagSlots.pending or {}
+	BagSlots.pending[tonumber(str:match("item:(%d+)")) or 0] = { name = name, str = str }
+	SquidBotsLite_Alts.Handle.BAGSLOT = BagSlots.OnLine
+	SquidBotsLite_Alts.Send(name, "bagequip " .. str .. (slot and (" " .. slot) or ""))
+end
+-- A bag this client has never seen: loaded now through a hidden tooltip, so that its tooltip is ready when hovered
+-- (else "Retrieving item information"; the 3.3.5 client does not redraw it when the item arrives).
+function BagSlots.Preload(id, str)
+	if id == 0 or GetItemInfo(id) then return end
+	if not BagSlots.scan then
+		BagSlots.scan = CreateFrame("GameTooltip", "SquidBotsLiteBagScan", UIParent, "GameTooltipTemplate")
+	end
+	BagSlots.scan:SetOwner(UIParent, "ANCHOR_NONE")
+	BagSlots.scan:SetHyperlink(str or ("item:" .. id))
+	BagSlots.scan:Hide()
+end
+function BagSlots.OnLine(name, f)
+	if f[2] == "slot" then
+		local d = BagSlots.by[name]
+		local slot = tonumber(f[3] or "")
+		if not d or not slot then return end
+		d.new = d.new or {}
+		d.new[slot] = { id = tonumber(f[4]) or 0, size = tonumber(f[5]) or 0, free = tonumber(f[6]) or 0, str = f[7] ~= "-" and f[7] or nil }
+		BagSlots.Preload(d.new[slot].id, d.new[slot].str)
+	elseif f[2] == "done" or f[2] == "err" then
+		local req = tonumber(f[2] == "done" and f[5] or f[4] or "")
+		local p = BagSlots.pending and BagSlots.pending[req or 0]
+		if f[2] == "done" then
+			local bag = p and (select(2, GetItemInfo(p.str)) or p.str) or ("item " .. (f[4] or "?"))
+			Print(string.format(T("BS_DONE"), name, bag))
+		else
+			local why = T("BS_R_" .. (f[3] or "")) or f[3] or "?"
+			Print(string.format(T("BS_ERR"), name, why))
+		end
+	elseif f[2] == "-" then
+		if f[3] == "bagslots" then
+			local d = BagSlots.by[name]
+			if not d then return end
+			d.got, d.new, d.asking, d.at = d.new or d.got, nil, false, GetTime()
+		else
+			local req = tonumber(f[3] or "")
+			if BagSlots.pending and req then BagSlots.pending[req] = nil end
+			-- After a change: its four bags and its bag list again.
+			if name == current then
+				BagSlots.Ask(true)
+				Ask("bags", "c")
+			end
+		end
+		if name == current and Render then Render() end
+	end
+end
+-- A bag slot clicked: one of the alt's bags to put there.
+function BagSlots.Menu(slot)
+	local items = { { text = T("BS_TITLE"), isTitle = true, notCheckable = true } }
+	for _, item in ipairs(bags) do
+		local loc = select(9, GetItemInfo(item.link))
+		if loc == "INVTYPE_BAG" then
+			local str = item.link:match("|H(item:[^|]+)|h")
+			table.insert(items, { text = string.format(T("BS_PUT_HERE"), item.link), notCheckable = true,
+				func = function() BagSlots.Equip(current, str, slot) end })
+		end
+	end
+	if #items == 1 then
+		Print(T("BS_NONE"))
+		return
+	end
+	EasyMenu(items, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
+	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
+end
+
 local function ItemMenu(item)
 	local link = SendableLink(item)
 	if bagMode == "bank" then
@@ -679,7 +1112,7 @@ local function ItemMenu(item)
 	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 		return
 	end
-	EasyMenu({
+	local menu = {
 		{ text = item.link, isTitle = true, notCheckable = true },
 		item.soulbound and { text = T("SOULBOUND"), notCheckable = true, disabled = true }
 			or { text = T("GIVE"), notCheckable = true, func = function() Give(link); AfterChange() end },
@@ -689,7 +1122,39 @@ local function ItemMenu(item)
 		{ text = T("DEPOSIT"), notCheckable = true, func = function() Whisper("bank " .. link); TakeOut(bags, item); AfterChange() end },
 		{ text = T("DESTROY"), notCheckable = true, func = function() Destroy(item, link) end },
 		{ text = T("LINK"), notCheckable = true, func = function() InsertLink(link) end },
-	}, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
+	}
+	if AltBags(current) and select(9, GetItemInfo(item.link)) == "INVTYPE_BAG" then
+		table.insert(menu, 5, { text = T("BS_PUT"), notCheckable = true,
+			func = function() BagSlots.Equip(current, item.link:match("|H(item:[^|]+)|h"), nil) end })
+	end
+	-- 3.1: with a selection (Ctrl+click), the selection's actions come first: the item's own Sell or Destroy would
+	-- act on this one item only.
+	local n = SelectedCount()
+	if n > 0 then
+		local tradable, bound = {}, 0
+		for _, it in ipairs(bags) do
+			if Selected(it.id) then
+				if it.soulbound then bound = bound + 1 else table.insert(tradable, SendableLink(it)) end
+			end
+		end
+		local give
+		if #tradable > 6 then
+			give = { text = string.format(T("SEL_GIVE_MAX"), #tradable), notCheckable = true, disabled = true }
+		else
+			give = { text = string.format(T("SEL_GIVE"), #tradable), notCheckable = true, disabled = #tradable == 0, func = function()
+				if bound > 0 then Print(string.format(T("SEL_GIVE_BOUND"), bound)) end
+				GiveSelected(tradable)
+				selection.ids = {}
+				Render()
+			end }
+		end
+		table.insert(menu, 2, give)
+		table.insert(menu, 3, { text = string.format(T("BULK_SEL_SELL"), n), notCheckable = true, func = function() BulkSelection("sell") end })
+		table.insert(menu, 4, { text = string.format(T("BULK_SEL_DESTROY"), n), notCheckable = true, func = function() BulkSelection("destroy") end })
+		table.insert(menu, 5, { text = T("SEL_CLEAR"), notCheckable = true, func = function() selection.ids = {}; Render() end })
+		table.insert(menu, 6, { text = T("SEL_THIS"), isTitle = true, notCheckable = true })
+	end
+	EasyMenu(menu, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
 	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 end
 
@@ -715,6 +1180,39 @@ local function ItemButton(parent, size)
 	b:RegisterForClicks("LeftButtonUp", "RightButtonUp")
 	b:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	return b
+end
+
+-- 3.1: a small green arrow in the corner of an item that is an upgrade for the sheet's alt.
+local function UpMark(b, on)
+	if not on then
+		if b.sqbUp then b.sqbUp:Hide() end
+		return
+	end
+	if not b.sqbUp then
+		b.sqbUp = b:CreateTexture(nil, "OVERLAY")
+		b.sqbUp:SetTexture("Interface\\Buttons\\UI-MicroStream-Green")
+		-- The texture points down: turned upside down.
+		b.sqbUp:SetTexCoord(0, 1, 1, 0)
+		b.sqbUp:SetWidth(16)
+		b.sqbUp:SetHeight(16)
+		b.sqbUp:SetPoint("TOPLEFT", -2, 2)
+	end
+	b.sqbUp:Show()
+end
+
+-- 3.1: a gold frame on a selected item (Ctrl+click in the Bags tab).
+local function SelMark(b, on)
+	if not on then
+		if b.sqbSel then b.sqbSel:Hide() end
+		return
+	end
+	if not b.sqbSel then
+		b.sqbSel = b:CreateTexture(nil, "OVERLAY")
+		b.sqbSel:SetTexture("Interface\\Buttons\\CheckButtonHilight")
+		b.sqbSel:SetBlendMode("ADD")
+		b.sqbSel:SetAllPoints()
+	end
+	b.sqbSel:Show()
 end
 
 -- Green and better get their colour on the border; white, grey and an empty slot stay black.
@@ -821,22 +1319,87 @@ local function BuildBags(page)
 			if edge[4] then t:SetHeight(edge[4]) end
 			table.insert(b.bound, t)
 		end
-		b.mark = b:CreateTexture(nil, "OVERLAY")
-		b.mark:SetTexture("Interface\\Buttons\\UI-CheckBox-Check")
-		b.mark:SetWidth(22)
-		b.mark:SetHeight(22)
-		b.mark:SetPoint("TOPRIGHT", 4, 4)
 		b:SetScript("OnClick", function(self)
 			if CursorHasItem() then DropOnBags() return end
 			if not self.item then return end
-			if IsShiftKeyDown() then InsertLink(SendableLink(self.item))
-			elseif IsControlKeyDown() and bagMode == "bags" then
-				marked[self.item.id] = not marked[self.item.id] and SendableLink(self.item) or nil
+			if IsControlKeyDown() and bagMode ~= "bank" then
+				ToggleSelected(self.item)
 				Render()
-			else ItemMenu(self.item) end
+			elseif IsShiftKeyDown() then InsertLink(SendableLink(self.item)) else ItemMenu(self.item) end
 		end)
 		b:SetScript("OnReceiveDrag", DropOnBags)
+		-- 3.1: a small tick box in the corner, the same as Ctrl+click.
+		b.box = CreateFrame("CheckButton", nil, b, "UICheckButtonTemplate")
+		b.box:SetWidth(16)
+		b.box:SetHeight(16)
+		b.box:SetPoint("BOTTOMLEFT", -3, -3)
+		b.box:SetScript("OnClick", function(self)
+			local parent = self:GetParent()
+			if parent.item and bagMode ~= "bank" then ToggleSelected(parent.item) end
+			Render()
+		end)
+		b.box:SetScript("OnLeave", function(self)
+			if not self:GetParent():IsMouseOver() and SelectedCount() == 0 then self:Hide() end
+		end)
+		b.box:Hide()
+		b:HookScript("OnEnter", function(self) if self.item and bagMode ~= "bank" then self.box:Show() end end)
+		b:HookScript("OnLeave", function(self)
+			if not self.box:IsMouseOver() and SelectedCount() == 0 then self.box:Hide() end
+		end)
+		b:EnableMouseWheel(true)
+		b:SetScript("OnMouseWheel", function(_, delta) page.Scroll(-delta * BAG_COLS) end)
 		page.buttons[i] = b
+	end
+	-- 3.1: scrolling, one row (wheel) or one page (arrows) at a time; the arrows between the grid and its bags.
+	function page.Scroll(by)
+		local list = bagMode == "bank" and bank or bags
+		local last = math.max(0, math.ceil(#list / BAG_COLS) * BAG_COLS - BAG_COLS * BAG_ROWS)
+		bagOffset = math.max(0, math.min(last, bagOffset + by))
+		Render()
+	end
+	page.up = CreateFrame("Button", nil, page, "UIPanelScrollUpButtonTemplate")
+	page.up:SetPoint("TOPLEFT", 14 + BAG_COLS * 46 - 2, 0)
+	page.up:SetScript("OnClick", function() page.Scroll(-BAG_COLS * BAG_ROWS) end)
+	page.down = CreateFrame("Button", nil, page, "UIPanelScrollDownButtonTemplate")
+	page.down:SetPoint("TOPLEFT", 14 + BAG_COLS * 46 - 2, -(BAG_ROWS * 46 - 16))
+	page.down:SetScript("OnClick", function() page.Scroll(BAG_COLS * BAG_ROWS) end)
+	page.types = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+	page.types:SetPoint("TOPLEFT", 14 + BAG_COLS * 46 + 22, -246)
+	page.types:SetWidth(100)
+	page.types:SetJustifyH("LEFT")
+	-- 3.1: its four bags, in a column right of the grid.
+	page.slotsTitle = page:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	page.slotsTitle:SetPoint("TOPLEFT", 14 + BAG_COLS * 46 + 22, 0)
+	page.slots = {}
+	for i = 1, 4 do
+		local b = ItemButton(page, 36)
+		b:SetPoint("TOPLEFT", 14 + BAG_COLS * 46 + 22, -16 - (i - 1) * 56)
+		b.slot = i
+		b.free = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
+		b.free:SetPoint("TOPLEFT", b, "BOTTOMLEFT", -4, -2)
+		b:SetScript("OnEnter", function(self)
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			if self.bag and self.bag.str then
+				-- Still unknown to this client: drawn once more half a second later, if still hovered.
+				if not GetItemInfo(self.bag.id) and not self.redrawAt then
+					self.redrawAt = GetTime() + 0.5
+					self:SetScript("OnUpdate", function(me)
+						if GetTime() < me.redrawAt then return end
+						me:SetScript("OnUpdate", nil)
+						if GameTooltip:IsOwned(me) then me:GetScript("OnEnter")(me) end
+						me.redrawAt = nil
+					end)
+				end
+				GameTooltip:SetHyperlink(self.bag.str)
+				GameTooltip:AddLine(string.format(T("BS_FREE"), self.bag.free, self.bag.size), 0.6, 0.8, 1)
+			else
+				GameTooltip:SetText(T("BS_EMPTY"))
+			end
+			GameTooltip:AddLine(T("BS_HINT"), 0.6, 0.6, 0.6, true)
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnClick", function(self) BagSlots.Menu(self.slot) end)
+		page.slots[i] = b
 	end
 	page.note = page:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
 	page.note:SetPoint("TOP", 0, -120)
@@ -857,55 +1420,38 @@ local function BuildBags(page)
 	page.grey:SetHeight(22)
 	page.grey:SetPoint("LEFT", page.trade, "RIGHT", 8, 0)
 	page.grey:SetScript("OnClick", function()
-		Sell("junk", true)
-		-- The grey items leave the list at once.
-		for i = #bags, 1, -1 do
-			if bags[i].link:find("^|cff9d9d9d") then table.remove(bags, i) end
-		end
-		if Render then Render() end
-		AfterChange()
+		local grey, white = T("Q_GREY"), T("Q_WHITE")
+		EasyMenu({
+			{ text = T("BULK_JUNK"), notCheckable = true, func = function()
+				Sell("junk", true)
+				-- The grey items leave the list at once.
+				for i = #bags, 1, -1 do
+					if bags[i].link:find("^|cff9d9d9d") then table.remove(bags, i) end
+				end
+				if Render then Render() end
+				AfterChange()
+			end },
+			{ text = string.format(T("BULK_SELL"), grey), notCheckable = true, func = function() Bulk("sell", "grey") end },
+			{ text = string.format(T("BULK_SELL"), white), notCheckable = true, func = function() Bulk("sell", "white") end },
+			{ text = string.format(T("BULK_DESTROY"), grey), notCheckable = true, func = function() Bulk("destroy", "grey") end },
+			{ text = string.format(T("BULK_DESTROY"), white), notCheckable = true, func = function() Bulk("destroy", "white") end },
+			{ text = string.format(T("BULK_SEL_SELL"), SelectedCount()), notCheckable = true, disabled = SelectedCount() == 0,
+				func = function() BulkSelection("sell") end },
+			{ text = string.format(T("BULK_SEL_DESTROY"), SelectedCount()), notCheckable = true, disabled = SelectedCount() == 0,
+				func = function() BulkSelection("destroy") end },
+		}, menuFrame, "cursor", 0, 0, "MENU", MENU_HIDE_DELAY)
+		if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 	end)
 	page.bank = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.bank:SetWidth(110)
 	page.bank:SetHeight(22)
 	page.bank:SetPoint("LEFT", page.grey, "RIGHT", 8, 0)
-	page.sellMarked = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-	page.sellMarked:SetWidth(160)
-	page.sellMarked:SetHeight(22)
-	page.sellMarked:SetPoint("TOPLEFT", page.trade, "BOTTOMLEFT", 0, -4)
-	page.sellMarked:SetScript("OnClick", function()
-		local links = {}
-		for _, link in pairs(marked) do table.insert(links, link) end
-		if #links > 0 then SellMarked(links) end
-	end)
-	page.clearMarks = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
-	page.clearMarks:SetWidth(130)
-	page.clearMarks:SetHeight(22)
-	page.clearMarks:SetPoint("LEFT", page.sellMarked, "RIGHT", 8, 0)
-	page.clearMarks:SetScript("OnClick", function() marked = {}; Render() end)
 	page.bank:SetScript("OnClick", function()
 		bagMode = bagMode == "bank" and "bags" or "bank"
 		bagOffset = 0
 		Ask(bagMode, bagMode == "bank" and "bank" or "c")
 		Render()
 	end)
-	local perPage = BAG_COLS * BAG_ROWS
-	local function Turn(delta)
-		local list = bagMode == "bank" and bank or bags
-		local last = math.max(0, math.ceil(#list / perPage) - 1) * perPage
-		bagOffset = math.max(0, math.min(last, bagOffset + delta * perPage))
-		Render()
-	end
-	page.up = CreateFrame("Button", nil, page, "UIPanelScrollUpButtonTemplate")
-	page.up:SetPoint("TOPRIGHT", -10, -2)
-	page.up:SetScript("OnClick", function() Turn(-1) end)
-	page.down = CreateFrame("Button", nil, page, "UIPanelScrollDownButtonTemplate")
-	page.down:SetPoint("TOPRIGHT", -10, -(BAG_ROWS * 46) + 22)
-	page.down:SetScript("OnClick", function() Turn(1) end)
-	page.pageText = page:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
-	page.pageText:SetPoint("TOPRIGHT", -6, -(BAG_ROWS * 23) + 4)
-	page:EnableMouseWheel(true)
-	page:SetScript("OnMouseWheel", function(_, delta) Turn(-delta) end)
 	page:EnableMouse(true)
 	page:SetScript("OnReceiveDrag", DropOnBags)
 	page:SetScript("OnMouseUp", function() if CursorHasItem() then DropOnBags() end end)
@@ -1726,20 +2272,41 @@ end
 local function RenderBags(page)
 	local list = bagMode == "bank" and bank or bags
 	page.note:SetText(#list == 0 and capture == nil and T("EMPTY_BAGS") or "")
-	page.hint:SetText(T("ITEM_HINT") .. " " .. T("BOUND_HINT") .. " " .. T("DROP_HINT"))
+	page.hint:SetText(T("ITEM_HINT") .. " " .. T("SEL_HINT") .. " " .. T("BOUND_HINT") .. " " .. T("DROP_HINT"))
 	page.trade:SetText(T("TRADE"))
 	page.bank:SetText(bagMode == "bank" and T("BAGS_BTN") or T("BANK"))
-	page.grey:SetText(T("SELL_GREY"))
-	local markCount = MarkedCount()
-	page.sellMarked:SetText(string.format(T("SELL_MARKED"), markCount))
-	page.clearMarks:SetText(T("CLEAR_MARKS"))
-	if bagMode == "bags" and markCount > 0 then page.sellMarked:Show(); page.clearMarks:Show()
-	else page.sellMarked:Hide(); page.clearMarks:Hide() end
+	page.grey:SetText(T("BULK_BTN"))
+	local shown = BagSlots.Shown()
+	if shown then BagSlots.Ask() end
+	local d = shown and BagSlots.by[current]
+	-- Nothing shown before the first answer (a server without the command never answers).
+	shown = shown and d and d.got and next(d.got) ~= nil
+	page.slotsTitle:SetText(shown and T("BS_TITLE") or "")
+	for i, b in ipairs(page.slots) do
+		local bag = d and d.got and d.got[i]
+		b.bag = bag
+		if shown then
+			if bag and bag.id ~= 0 then
+				b.icon:SetTexture((GetItemIcon and GetItemIcon(bag.id)) or select(10, GetItemInfo(bag.id)) or "Interface\\Icons\\INV_Misc_Bag_08")
+				b.free:SetText(string.format("%d/%d", bag.free, bag.size))
+				SetQuality(b, select(3, GetItemInfo(bag.id)))
+			else
+				b.icon:SetTexture("Interface\\PaperDoll\\UI-PaperDoll-Slot-Bag")
+				b.free:SetText("")
+				SetQuality(b, nil)
+			end
+			b:Show()
+		else
+			b.free:SetText("")
+			b:Hide()
+		end
+	end
 	local perPage = BAG_COLS * BAG_ROWS
-	local pageCount = math.max(1, math.ceil(#list / perPage))
-	bagOffset = math.min(bagOffset, (pageCount - 1) * perPage)
-	page.pageText:SetText(pageCount > 1 and string.format("%d/%d", bagOffset / perPage + 1, pageCount) or "")
-	if pageCount > 1 then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
+	bagOffset = math.max(0, math.min(bagOffset, math.max(0, math.ceil(#list / BAG_COLS) * BAG_COLS - perPage)))
+	if bagOffset > 0 then page.up:Enable() else page.up:Disable() end
+	if bagOffset + perPage < #list then page.down:Enable() else page.down:Disable() end
+	if #list > perPage then page.up:Show(); page.down:Show() else page.up:Hide(); page.down:Hide() end
+	page.types:SetText(#list > 0 and string.format(T("BAG_TYPES"), #list) or "")
 	for i, b in ipairs(page.buttons) do
 		local item = list[bagOffset + i]
 		b.item = item
@@ -1748,10 +2315,16 @@ local function RenderBags(page)
 			b.icon:Show()
 			SetQuality(b, select(3, GetItemInfo(item.id)))
 			b.count:SetText(item.count > 1 and item.count or "")
-			if bagMode == "bags" and marked[item.id] then b.mark:Show() else b.mark:Hide() end
+			UpMark(b, bagMode ~= "bank" and IconVerdict and IconVerdict(item.link))
+			SelMark(b, bagMode ~= "bank" and Selected(item.id))
+			b.box:SetChecked(Selected(item.id))
+			if bagMode ~= "bank" and SelectedCount() > 0 then b.box:Show() else b.box:Hide() end
 			for _, t in ipairs(b.bound) do if item.soulbound then t:Show() else t:Hide() end end
 			b:Show()
 		else
+			UpMark(b, false)
+			SelMark(b, false)
+			b.box:Hide()
 			b:Hide()
 		end
 	end
@@ -1831,6 +2404,7 @@ Render = function()
 		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Render(pages.talents) end
 	elseif tab == "strats" then RenderStrats(pages.strats)
 	else RenderInfo(pages.info) end
+	if SquidBotsLite_MarkContainers then SquidBotsLite_MarkContainers() end
 end
 
 local function Load()
@@ -1862,6 +2436,8 @@ end
 
 local function Build()
 	sheet = CreateFrame("Frame", "SquidBotsLiteSheet", UIParent)
+	-- 3.1: the arrows on the player's own bags go with the sheet.
+	sheet:SetScript("OnHide", function() if SquidBotsLite_MarkContainers then SquidBotsLite_MarkContainers() end end)
 	-- 3.0: 520 wide (was 470): seven tabs.
 	sheet:SetWidth(520)
 	sheet:SetHeight(540)
@@ -2137,13 +2713,13 @@ function SquidBotsLite_OpenSheet(name, tabKey, ro)
 	if not sheet then Build() end
 	if current ~= name then
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
-		spells, spellOffset, bagOffset, marked = {}, 0, 0, {}
+		spells, spellOffset, bagOffset = {}, 0, 0
 		if pages.mounts and pages.mounts.search then pages.mounts.search:SetText(""); pages.mounts.search:ClearFocus() end
 		SquidBotsLite_Pets.Reset()
 		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Reset() end
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
-		bagMode = "bags"
+		bagMode, bagOffset = "bags", 0
 		if sheet then sheet.gold = nil end
 	end
 	current = name
@@ -2164,6 +2740,329 @@ function SquidBotsLite_OpenSheet(name, tabKey, ro)
 	if not sheet.gold then Ask("stats", "stats") end
 	local info = SquidBotsLiteDB.altInfo and SquidBotsLiteDB.altInfo[name]
 	if not (info and info.spec) and SquidBotsLite_AskSpecs then SquidBotsLite_AskSpecs(name) end
+end
+
+-- 3.1: an item's tooltip, while a bot's sheet is open, also shows what the bot wears in that slot (a tooltip
+-- beside it, like the game's own compare) and the item level difference. The bot must be in the group: its gear
+-- is read like the Gear tab's.
+do
+	local SLOTS = { INVTYPE_HEAD = { 1 }, INVTYPE_NECK = { 2 }, INVTYPE_SHOULDER = { 3 }, INVTYPE_BODY = { 4 },
+		INVTYPE_CHEST = { 5 }, INVTYPE_ROBE = { 5 }, INVTYPE_WAIST = { 6 }, INVTYPE_LEGS = { 7 }, INVTYPE_FEET = { 8 },
+		INVTYPE_WRIST = { 9 }, INVTYPE_HAND = { 10 }, INVTYPE_FINGER = { 11, 12 }, INVTYPE_TRINKET = { 13, 14 },
+		INVTYPE_CLOAK = { 15 }, INVTYPE_WEAPON = { 16, 17 }, INVTYPE_SHIELD = { 17 }, INVTYPE_2HWEAPON = { 16 },
+		INVTYPE_WEAPONMAINHAND = { 16 }, INVTYPE_WEAPONOFFHAND = { 17 }, INVTYPE_HOLDABLE = { 17 },
+		INVTYPE_RANGED = { 18 }, INVTYPE_THROWN = { 18 }, INVTYPE_RANGEDRIGHT = { 18 }, INVTYPE_RELIC = { 18 },
+		INVTYPE_TABARD = { 19 } }
+	local tips = {}
+	local function HideTips() for _, t in ipairs(tips) do t:Hide() end end
+	-- Beside the outermost tooltip already shown, on the side with room (bags sit at the screen's right).
+	local function Place(t, owner)
+		local shown = { owner }
+		local others = { ShoppingTooltip1 or false, ShoppingTooltip2 or false, tips[1] or false, tips[2] or false }
+		for _, o in ipairs(others) do
+			if o and o ~= t and o:IsShown() and o:GetLeft() then table.insert(shown, o) end
+		end
+		local left, right = owner, owner
+		for _, o in ipairs(shown) do
+			if (o:GetLeft() or 0) < (left:GetLeft() or 0) then left = o end
+			if (o:GetRight() or 0) > (right:GetRight() or 0) then right = o end
+		end
+		t:ClearAllPoints()
+		-- Like the game's own comparison: beside the tooltips, on the side away from the bot's sheet, if it fits.
+		local roomRight = (right:GetRight() or 0) + (t:GetWidth() or 0) <= (UIParent:GetRight() or 0)
+		local roomLeft = (left:GetLeft() or 0) - (t:GetWidth() or 0) >= 0
+		local away = "right"
+		local sx, ox = sheet and sheet:IsShown() and sheet:GetCenter(), owner:GetCenter()
+		if sx and ox and sx > ox then away = "left" end
+		if (away == "right" and roomRight) or (away == "left" and not roomLeft and roomRight) then
+			t:SetPoint("TOPLEFT", right, "TOPRIGHT", 0, -10)
+		else
+			t:SetPoint("TOPRIGHT", left, "TOPLEFT", 0, -10)
+		end
+	end
+	-- The alt's answer to "alt cmp <itemString>": CMP item <id> ..., CMP worn (one per slot), or CMP err; then CMP -.
+	-- An answer goes to the question about its item id, never simply to the oldest one: a single lost or doubled
+	-- answer then shifted every later one onto the wrong item (gloves shown with a robe, "Asking..." for ever).
+	-- Only the hovered item's slots are kept. No answer within WAIT seconds: the addon's own comparison, and a late
+	-- answer still shows if the tooltip is on that item. Kept a minute per alt and item.
+	local WAIT, RETRY = 2, 5
+	local cache, waiting, receiving = {}, {}, {}
+	local function Worn(tooltip, n, str, name)
+		if not tips[n] then
+			tips[n] = CreateFrame("GameTooltip", "SquidBotsLiteCompare" .. n, UIParent, "GameTooltipTemplate")
+			tips[n]:SetFrameStrata("TOOLTIP")
+		end
+		local t = tips[n]
+		t:SetOwner(tooltip, "ANCHOR_NONE")
+		t:SetHyperlink(str)
+		t:AddLine(string.format(T("CMP_WORN"), name), 0.4, 0.8, 1)
+		t:Show()
+		Place(t, tooltip)
+	end
+	-- The item the tooltip shows now, if it is for this alt's sheet: its item string.
+	local function Shown(name)
+		if name ~= current or not GameTooltip:IsShown() then return end
+		local _, link = GameTooltip:GetItem()
+		return link and (link:match("|H(item:[^|]+)|h") or link)
+	end
+	local function Redraw(name, key)
+		local str = Shown(name)
+		if not str or name .. "|" .. str ~= key then return end
+		local owner = GameTooltip:GetOwner()
+		local enter = owner and owner.GetScript and owner:GetScript("OnEnter")
+		if enter then enter(owner) end
+	end
+	-- A question past WAIT: the tooltip again, now with the addon's own comparison.
+	local timer = CreateFrame("Frame")
+	timer:Hide()
+	local OnCmp
+	-- One question to the alt (none if the same one is already open).
+	local function Question(name, key, str, slots)
+		local queue = waiting[name] or {}
+		waiting[name] = queue
+		for i = #queue, 1, -1 do
+			if queue[i].key == key then
+				if GetTime() - queue[i].sent > RETRY then table.remove(queue, i) else return queue[i] end
+			end
+		end
+		local w = { key = key, id = tonumber(str:match("item:(%d+)")), slots = slots, sent = GetTime(), worn = {} }
+		table.insert(queue, w)
+		SquidBotsLite_Alts.Handle.CMP = OnCmp
+		SquidBotsLite_Alts.Send(name, "cmp " .. str)
+		timer:Show()
+		return w
+	end
+	-- 3.1: the icons' questions wait here and go ICON_FLIGHT at a time per alt (the server keeps 16 per bot).
+	local ICON_FLIGHT = 4
+	local wants = {}
+	local function InFlight(name)
+		local n = 0
+		for _, w in ipairs(waiting[name] or {}) do if not w.late then n = n + 1 end end
+		return n
+	end
+	timer:SetScript("OnUpdate", function(self)
+		local now, open = GetTime(), false
+		for name, queue in pairs(waiting) do
+			for _, w in ipairs(queue) do
+				if not w.late then
+					if now - w.sent >= WAIT then
+						w.late = true
+						Redraw(name, w.key)
+					else
+						open = true
+					end
+				end
+			end
+		end
+		for name, list in pairs(wants) do
+			while #list > 0 and InFlight(name) < ICON_FLIGHT do
+				local q = table.remove(list, 1)
+				Question(name, q.key, q.str, q.slots)
+			end
+			if #list > 0 then open = true else wants[name] = nil end
+		end
+		if not open then self:Hide() end
+	end)
+	IconVerdict = function(link)
+		if not (current and link and AltBags(current)) then return false end
+		local _, _, _, _, _, _, _, _, loc = GetItemInfo(link)
+		local slots = loc and SLOTS[loc]
+		if not slots then return false end
+		local str = link:match("|H(item:[^|]+)|h") or link
+		local key = current .. "|" .. str
+		local c = cache[key]
+		-- A stale answer still shows while it is asked again; nothing is guessed without an answer.
+		local stale = not c or GetTime() - c.at > (c.busy and RETRY or 60)
+		if stale then
+			local list = wants[current] or {}
+			wants[current] = list
+			local queued = false
+			for _, q in ipairs(list) do if q.key == key then queued = true end end
+			for _, w in ipairs(waiting[current] or {}) do if w.key == key and not w.late then queued = true end end
+			if not queued then table.insert(list, { key = key, str = str, slots = slots }) end
+			timer:Show()
+		end
+		return c and not c.busy and not c.err and (c.usage == "equip" or c.usage == "replace") or false
+	end
+	-- true: the tooltip has the alt's answer, or "Asking" for WAIT seconds at most; false: no answer in time.
+	local function Asked(tooltip, link, slots)
+		local str = link:match("|H(item:[^|]+)|h") or link
+		local key = current .. "|" .. str
+		local c = cache[key]
+		if c and c.busy and GetTime() - c.at <= RETRY then return false end
+		if not c or GetTime() - c.at > (c.busy and RETRY or 60) then
+			local w = Question(current, key, str, slots)
+			if GetTime() - w.sent >= WAIT then return false end
+			tooltip:AddLine(string.format(T("CMP_ASKING"), current), 0.6, 0.6, 0.6)
+			tooltip:Show()
+			return true
+		end
+		if c.err then
+			if c.err ~= "notgear" then tooltip:AddLine(string.format(T("CMP_NOTFOUND"), current), 0.6, 0.6, 0.6) end
+			tooltip:Show()
+			return true
+		end
+		-- One plain line: the verdict, and how much better or worse than the weaker worn piece in %.
+		local base
+		for _, w in ipairs(c.worn) do
+			if w.id ~= 0 and w.score and w.score > 0 and (not base or w.score < base) then base = w.score end
+		end
+		local pct = ""
+		if base and c.score and c.score > 0 then
+			local d = math.floor((c.score - base) / base * 100 + 0.5)
+			pct = string.format(" (%s%d%%)", d > 0 and "+" or "", d)
+		end
+		local v = c.usage and c.usage ~= "other" and T("CMP_V_" .. c.usage)
+		if v then
+			local good, cannot = c.usage == "equip" or c.usage == "replace", c.usage == "cannot"
+			local r, g, b = 1, 0.35, 0.35
+			if good then r, g, b = 0.25, 1, 0.25 elseif cannot then r, g, b = 0.6, 0.6, 0.6 end
+			tooltip:AddLine(string.format(v, current, pct), r, g, b)
+		end
+		local n = 0
+		for _, w in ipairs(c.worn) do
+			if w.str and w.str ~= "-" and w.id ~= 0 then
+				n = n + 1
+				Worn(tooltip, n, w.str, current)
+				-- The raw scores only while Shift is held.
+				if IsShiftKeyDown() and c.score then
+					tooltip:AddLine(string.format(T("CMP_SCORE"), string.format("%.1f", c.score), string.format("%.1f", w.score or 0)), 0.6, 0.6, 0.6)
+				end
+			end
+		end
+		tooltip:Show()
+		return true
+	end
+
+	local function ById(queue, id)
+		if not id then return end
+		for _, w in ipairs(queue) do
+			if w.id == id then return w end
+		end
+	end
+	-- 3.1 servers end every worn, err and "-" line with the asked item id; older ones do not.
+	OnCmp = function(name, f)
+		local queue = waiting[name]
+		if not queue then return end
+		if f[2] == "item" then
+			local w = ById(queue, tonumber(f[3] or ""))
+			receiving[name] = w
+			if w then w.usage, w.score, w.worn, w.err = f[6], tonumber(f[7] or ""), {}, nil end
+		elseif f[2] == "worn" then
+			local w, slot = ById(queue, tonumber(f[7] or "")) or receiving[name], tonumber(f[3] or "")
+			if not w or not slot then return end
+			for _, s in ipairs(w.slots or {}) do
+				if s == slot then
+					table.insert(w.worn, { slot = slot, id = tonumber(f[4]) or 0, score = tonumber(f[5] or ""), str = f[6] })
+					break
+				end
+			end
+		elseif f[2] == "err" then
+			local w = ById(queue, tonumber(f[4] or ""))
+			if w then
+				w.err, receiving[name] = f[3] or "?", w
+			elseif not f[4] and queue[1] then
+				-- An older server's error names no item: kept only when one question is open, else left out
+				-- (the questions still open get their own answers, or the addon's own comparison after WAIT).
+				if #queue == 1 then
+					queue[1].err, receiving[name] = f[3] or "?", queue[1]
+				else
+					receiving[name] = nil
+				end
+			end
+		elseif f[2] == "-" then
+			local w = ById(queue, tonumber(f[3] or "")) or receiving[name]
+			receiving[name] = nil
+			if not w then return end
+			for i, x in ipairs(queue) do
+				if x == w then table.remove(queue, i) break end
+			end
+			if w.err == "busy" then
+				-- Too many questions at once: the addon's own comparison for a few seconds, then asked again.
+				cache[w.key] = { at = GetTime(), busy = true }
+			else
+				cache[w.key] = { at = GetTime(), usage = w.usage, score = w.score, worn = w.worn, err = w.err }
+			end
+			-- The item still under the mouse: its tooltip again, now with the answer.
+			Redraw(name, w.key)
+			if name == current then SquidBotsLite_IconsChanged() end
+		end
+	end
+
+	local function OnItem(tooltip)
+		HideTips()
+		if not (sheet and sheet:IsShown() and current) then return end
+		local _, link = tooltip:GetItem()
+		if not link then return end
+		local _, _, _, ilvl, need, _, _, _, loc = GetItemInfo(link)
+		local slots = loc and SLOTS[loc]
+		local late = false
+		if slots and AltBags(current) then
+			if Asked(tooltip, link, slots) then return end
+			late = true
+			tooltip:AddLine(string.format(T("CMP_NOANSWER"), current), 0.6, 0.6, 0.6)
+		end
+		local unit = UnitOf(current)
+		if not slots or not unit then
+			if late then tooltip:Show() end
+			return
+		end
+		local level = UnitLevel(unit) or 0
+		if need and level > 0 and need > level then
+			tooltip:AddLine(string.format(T("CMP_LEVEL"), current, level, need), 1, 0.3, 0.3)
+		end
+		local n, known = 0, false
+		for _, slot in ipairs(slots) do
+			local worn = GetInventoryItemLink(unit, slot)
+			if worn then
+				known = true
+				-- Hovering the bot's own piece (Gear tab): nothing to compare with.
+				if worn == link then HideTips(); tooltip:Show(); return end
+				n = n + 1
+				if not tips[n] then
+					tips[n] = CreateFrame("GameTooltip", "SquidBotsLiteCompare" .. n, UIParent, "GameTooltipTemplate")
+					tips[n]:SetFrameStrata("TOOLTIP")
+				end
+				local t = tips[n]
+				t:SetOwner(tooltip, "ANCHOR_NONE")
+				t:SetHyperlink(worn)
+				t:AddLine(string.format(T("CMP_WORN"), current), 0.4, 0.8, 1)
+				t:Show()
+				Place(t, tooltip)
+				local wl = select(4, GetItemInfo(worn))
+				if ilvl and wl then
+					local d = ilvl - wl
+					local diff = d > 0 and ("|cff40ff40+" .. d .. "|r") or d < 0 and ("|cffff6060" .. d .. "|r") or "="
+					tooltip:AddLine(string.format(T("CMP_ILVL"), diff, current, wl), 0.4, 0.8, 1)
+				end
+			end
+		end
+		if not known then tooltip:AddLine(string.format(T("CMP_NONE"), current), 0.6, 0.6, 0.6) end
+		tooltip:Show()
+	end
+	-- 3.1: the player's own bags (the game's bag frames) show the arrow too, while an alt's sheet is open.
+	local function MarkContainer(frame)
+		if not (frame and frame.GetID and frame:GetName()) then return end
+		local bag = frame:GetID()
+		local on = sheet and sheet:IsShown() and current
+		for i = 1, frame.size or 0 do
+			local b = _G[frame:GetName() .. "Item" .. i]
+			if b then UpMark(b, on and IconVerdict(GetContainerItemLink(bag, b:GetID())) or false) end
+		end
+	end
+	if ContainerFrame_Update then hooksecurefunc("ContainerFrame_Update", MarkContainer) end
+	function SquidBotsLite_MarkContainers()
+		for i = 1, NUM_CONTAINER_FRAMES or 0 do
+			local frame = _G["ContainerFrame" .. i]
+			if frame and frame:IsShown() then MarkContainer(frame) end
+		end
+	end
+	function SquidBotsLite_IconsChanged()
+		if sheet and sheet:IsShown() and tab == "bags" then Render() else SquidBotsLite_MarkContainers() end
+	end
+	GameTooltip:HookScript("OnTooltipSetItem", OnItem)
+	GameTooltip:HookScript("OnHide", HideTips)
+	GameTooltip:HookScript("OnTooltipCleared", HideTips)
 end
 
 -- The sheet's bot, and whether its sheet is read only (TalentTree.lua).
