@@ -2943,6 +2943,17 @@ AiPlayerbot.CoaWorld.Recovery.Hearth = 1
 
 AiPlayerbot.CoaWorld.Recovery.QuarantineMinutes = 30
 
+#    AiPlayerbot.CoaWorld.Recovery.SharedQuarantineMinutes
+#    AiPlayerbot.CoaWorld.Recovery.SharedQuarantineBots
+#        Description: When SharedQuarantineBots different bots die over and over on the same quest within an hour
+#                     (DeathsLimit deaths in DeathsWindowMinutes, one spot), the quest is set aside for every bot for
+#                     SharedQuarantineMinutes, not only for those bots (seen: Darkcloud Pinnacle, the Grimtotem camp).
+#                     0 minutes: off.
+#        Default:     240 minutes (at most 2880), 2 bots (2 to 20)
+
+AiPlayerbot.CoaWorld.Recovery.SharedQuarantineMinutes = 240
+AiPlayerbot.CoaWorld.Recovery.SharedQuarantineBots = 2
+
 #    AiPlayerbot.CoaWorld.Recovery.NoProgressSeconds
 #        Description: Seconds a travelling bot may walk without getting nearer its destination before it picks
 #                     another (back and forth; 30 to 1800, 0 never). Nothing while Recovery.Enable is 0.
@@ -4035,6 +4046,26 @@ AiPlayerbot.CoaLive.LootNeedAsk.MinUpgradePct = 10
 
 AiPlayerbot.CoaLive.LootNeedAsk.TestPlayer = ""
 AiPlayerbot.CoaLive.LootNeedAsk.TestAnswer = none
+
+#    AiPlayerbot.CoaLive.HealRequest.Enable
+#        Description: A real player asks for a heal in party or raid chat ("heal me", "heal plz", "need heal",
+#                     "soigne-moi", "besoin de soin"), or whispers it to a bot: a healer bot of its group, in range and
+#                     line of sight, not casting nor moving, casts a heal on it at once (a fast direct heal first).
+#                     One heal per player in 15 seconds, none at full health. No chat line.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.HealRequest.Enable = 1
+
+#    AiPlayerbot.CoaKeySpells.Enable
+#        Description: The SquidBots addon's key spells bar, for any bot of the player's group: the bot's spells with
+#                     a cooldown of 30 seconds or more and their cooldown left ("keyspells"), and the spells whose
+#                     cooldown the player keeps ("keepcd"): the bot never casts them by itself, only on the player's
+#                     "cast" whisper, until it logs out. Off: the addon is told so.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaKeySpells.Enable = 1
 
 #    AiPlayerbot.CoaCursedFormUpkeep
 #        Description: A Bloodmage Eternal tank (specialization 99) keeps its Cursed Form, Eternal Curse: more
@@ -5905,3 +5936,25 @@ AiPlayerbot.CoaCombat.PullGuardSight.Strict = 0
 #                  1 - (Enabled)
 
 AiPlayerbot.CoaCombat.GearPvpSoldOnly = 1
+
+#
+# AiPlayerbot.CoaCombat.LustBossOnly
+#     Description: In a group, a bot keeps its group burst for a boss: a shaman's Bloodlust or Heroism, or a CoA class
+#                  burst (Frenzy, Champion's Presence, Tempest's Call, Primal Awakening, War Cry...). It casts it at
+#                  the pull (the boss above 90 % health) or once the boss falls under LustBossHealthPct, never on
+#                  trash. Raids and
+#                  dungeons that already time them for their bosses (Karazhan, SSC, Tempest Keep, Zul'Aman, Hyjal,
+#                  Black Temple, Sethekk Halls) keep their own timing; Baron Geddon gets it under 10 %. Alone, the
+#                  bot keeps the usual behavior. Off, CoA classes never cast their burst.
+#     Default:     0 - (Disabled)
+#                  1 - (Enabled)
+
+AiPlayerbot.CoaCombat.LustBossOnly = 1
+
+#
+# AiPlayerbot.CoaCombat.LustBossHealthPct
+#     Description: With LustBossOnly, the boss health (%) under which a shaman that missed the pull casts them.
+#                  0 casts them at the pull only.
+#     Default:     30
+
+AiPlayerbot.CoaCombat.LustBossHealthPct = 30

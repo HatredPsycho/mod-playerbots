@@ -743,6 +743,8 @@ public:
     std::string coaLiveLootNeedAskTestPlayer;  // .TestPlayer: bench only, this character counts as a real player
     std::string coaLiveLootNeedAskTestAnswer;  // .TestAnswer: bench only, its answer (yes, no, none)
     uint32 coaLiveChannelClassAnswers;  // AiPlayerbot.CoaLive.ChannelQuestions.ClassAnswers: bots answering the class question
+    bool coaLiveHealRequest;       // AiPlayerbot.CoaLive.HealRequest.Enable: a healer bot heals a player asking for it
+    bool coaKeySpells;             // AiPlayerbot.CoaKeySpells.Enable: the addon's key spells bar (keyspells, keepcd)
     bool coaCursedFormUpkeep;      // AiPlayerbot.CoaCursedFormUpkeep: a Bloodmage Eternal tank keeps its Cursed Form
     // ---- end of CoA Live ----
 
@@ -812,6 +814,10 @@ public:
     bool coaCombatPullGuardSightStrict = false;
     // Bot gear holds no PvP piece nobody can get (Grand Marshal's, High Warlord's; CoaGearPvp, CoaGearPvpRule).
     bool coaCombatGearPvpSoldOnly = true;
+    // In a group, a bot keeps its group burst (Bloodlust, Heroism, a CoA class burst) for a boss: at the pull or under
+    // coaCombatLustBossHealthPct (CoaBossLust, CoaBossLustRule). 0 for the threshold: at the pull only.
+    bool coaCombatLustBossOnly = true;
+    uint32 coaCombatLustBossHealthPct = 30;
     // ---- end of CoA Combat ----
 
 private:

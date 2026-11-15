@@ -6,6 +6,7 @@
 
 #include "CoaLive.h"
 
+#include "CoaSafeMove.h"
 #include "AuctionHouseMgr.h"
 #include "Bag.h"
 #include "CellImpl.h"
@@ -24,6 +25,9 @@
 #include "CoaGreetReplyRules.h"
 #include "CoaDungeonChatRules.h"
 #include "CoaPlayerReplyRules.h"
+#include "CoaHealRequestRules.h"
+#include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "GroupScript.h"
 #include "CoaWorldGuildRules.h"
 #include "CoaGearScore.h"
@@ -560,7 +564,12 @@ void Play(Due isDue)
         // Chat off (AiPlayerbot.CoaLive.Chat.Enable = 0): no text, the rest of the line still happens.
         CoaChat::Parts const parts = CoaChat::PartsOf(sPlayerbotAIConfig.coaLiveChatEnable);
         if (parts.emote && p.emote && p.channel == CH_NEAR)
-            PlayEmote(bot, p.emote, emoteTarget);
+        {
+            if (parts.emoteText)
+                PlayEmote(bot, p.emote, emoteTarget);
+            else if (EmotesTextEntry const* em = sEmotesTextStore.LookupEntry(p.emote); em && em->textid)
+                bot->HandleEmoteCommand(em->textid);
+        }
 
         if (parts.text && !p.text.empty() && !p.sayChannel.empty())
             SayInNamedChannel(bot, p.sayChannel, p.text);
@@ -1011,8 +1020,9 @@ void Gather(Player* bot, PlayerbotAI* botAI)
     }
     if (!best)
         return;
+    if (!CoaSafeMove::MovePoint(bot, best->GetPositionX(), best->GetPositionY(), best->GetPositionZ()))
+        return;
     info.ChangeToRest();
-    bot->GetMotionMaster()->MovePoint(0, best->GetPositionX(), best->GetPositionY(), best->GetPositionZ());
     std::lock_guard<std::mutex> guard(liveLock);
     gatherUntil[key] = nowMs + CoaImmersion::GATHER_TRIP_MS;
     if (gatherUntil.size() > 20000)
@@ -1481,6 +1491,126 @@ void HearLootAnswer(Player* player, std::string const& msg, Player* receiver)
             CoaLootAsk::Hear(ask, player->GetGUID().GetRawValue(), answer, nowMs);
 }
 
+// AiPlayerbot.CoaLive.HealRequest.Enable: a real player's "heal me" in party or raid chat (bot empty: any healer of
+// its group), or whispered to a bot (only that one). Heard by the chat hooks (any thread), answered by a healer bot in
+// its own update (HealRequestTick), as a cast must be. Under liveLock.
+struct HealAsk
+{
+    ObjectGuid player;
+    ObjectGuid bot;
+    uint64 heardMs = 0;
+    bool claimed = false;  // a healer is trying it (the cast is outside the lock)
+};
+std::vector<HealAsk> healAsks;
+std::unordered_map<uint64, uint64> healLast;  // player -> last heal asked (ms)
+std::atomic<bool> anyHealAsk{false};
+
+void HearHealRequest(Player* player, std::string const& msg, Player* receiver)
+{
+    if (!CoaHealRequest::IsHealRequest(msg) || !player->IsAlive() ||
+        !CoaHealRequest::Wanted(player->GetHealth(), player->GetMaxHealth()))
+        return;
+    uint64 const nowMs = GameTime::GetGameTimeMS().count();
+    uint64 const key = player->GetGUID().GetRawValue();
+    std::lock_guard<std::mutex> guard(liveLock);
+    auto const last = healLast.find(key);
+    if (!CoaHealRequest::CooledDown(last == healLast.end() ? 0 : last->second, nowMs) || healAsks.size() >= 64)
+        return;
+    healLast[key] = nowMs;
+    if (healLast.size() > 20000)
+        healLast.clear();
+    healAsks.push_back({player->GetGUID(), receiver ? receiver->GetGUID() : ObjectGuid::Empty, nowMs, false});
+    anyHealAsk = true;
+}
+
+// The heal the bot casts on the player: a single-target heal it knows, castable now, in range; 0 when none.
+uint32 HealFor(Player* bot, PlayerbotAI* botAI, Player* player)
+{
+    std::vector<CoaHealRequest::HealSpell> spells;
+    for (auto const& [spellId, known] : bot->GetSpellMap())
+    {
+        if (!known || known->State == PLAYERSPELL_REMOVED || !known->Active)
+            continue;
+        SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
+        if (!info || info->IsPassive() || info->RecoveryTime > CoaHealRequest::MAX_SPELL_CD_MS ||
+            info->CategoryRecoveryTime > CoaHealRequest::MAX_SPELL_CD_MS)
+            continue;
+        bool direct = false, overTime = false, single = false;
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+        {
+            SpellEffectInfo const& effect = info->Effects[i];
+            if (effect.Effect == SPELL_EFFECT_HEAL)
+                direct = true;
+            else if (effect.Effect == SPELL_EFFECT_APPLY_AURA && effect.ApplyAuraName == SPELL_AURA_PERIODIC_HEAL)
+                overTime = true;
+            else
+                continue;
+            uint32 const target = effect.TargetA.GetTarget();
+            if (target == TARGET_UNIT_TARGET_ALLY || target == TARGET_UNIT_TARGET_PARTY ||
+                target == TARGET_UNIT_TARGET_RAID || target == TARGET_UNIT_TARGET_ANY)
+                single = true;
+        }
+        if (!(direct || overTime) || !single || !bot->IsWithinDistInMap(player, info->GetMaxRange(true, bot)) ||
+            !botAI->CanCastSpell(spellId, player))
+            continue;
+        spells.push_back({spellId, info->CalcCastTime(bot), info->SpellLevel, direct});
+    }
+    return CoaHealRequest::PickHeal(spells);
+}
+
+// A healer bot's update: a fresh "heal me" of a player of its group (or whispered to it), healed at once. Never while
+// it casts or channels (a big heal on the tank), never while it moves (out of a ground zone), in line of sight only.
+void HealRequestTick(Player* bot, PlayerbotAI* botAI)
+{
+    if (!Enabled() || !sPlayerbotAIConfig.coaLiveHealRequest || !bot->IsAlive() || !PlayerbotAI::IsHeal(bot) ||
+        bot->IsNonMeleeSpellCast(false) || bot->isMoving() || bot->IsMounted() || bot->IsInFlight())
+        return;
+    uint64 const nowMs = GameTime::GetGameTimeMS().count();
+    ObjectGuid asker;
+    {
+        std::lock_guard<std::mutex> guard(liveLock);
+        healAsks.erase(std::remove_if(healAsks.begin(), healAsks.end(),
+                                      [nowMs](HealAsk const& ask)
+                                      { return !CoaHealRequest::Fresh(ask.heardMs, nowMs); }),
+                       healAsks.end());
+        if (healAsks.empty())
+            anyHealAsk = false;
+        Group* group = bot->GetGroup();
+        for (HealAsk& ask : healAsks)
+        {
+            if (ask.claimed || (ask.bot ? ask.bot != bot->GetGUID() : !(group && group->IsMember(ask.player))))
+                continue;
+            ask.claimed = true;
+            asker = ask.player;
+            break;
+        }
+    }
+    if (!asker)
+        return;
+    bool healed = false;
+    Player* player = ObjectAccessor::FindPlayer(asker);
+    if (player && player->IsInWorld() && player->IsAlive() && bot->IsInMap(player) &&
+        CoaHealRequest::Wanted(player->GetHealth(), player->GetMaxHealth()) && bot->IsWithinLOSInMap(player))
+        if (uint32 const spellId = HealFor(bot, botAI, player))
+        {
+            healed = botAI->CastSpell(spellId, player);
+            if (healed)
+                LOG_INFO("playerbots", "coa heal request: bot {} player {} spell {}", bot->GetName(), player->GetName(),
+                         spellId);
+        }
+    std::lock_guard<std::mutex> guard(liveLock);
+    for (auto it = healAsks.begin(); it != healAsks.end(); ++it)
+        if (it->player == asker && it->claimed)
+        {
+            // Healed, or a whisper to this bot it cannot answer: done. Else another healer of the group may try.
+            if (healed || it->bot)
+                healAsks.erase(it);
+            else
+                it->claimed = false;
+            break;
+        }
+}
+
 // AiPlayerbot.CoaLive.GreetReplies.Enable: a real player's hello in /say or in the Zone channel, heard by the chat
 // hooks (any thread) and answered by the world thread (CoaGreetReplyRules.h). Under liveLock.
 // Where a hello was said: /say, party chat, or a public channel (its id and name).
@@ -1731,7 +1861,15 @@ std::unordered_map<std::string, uint64> replyLast;  // "<kind><player or group>"
 std::unordered_map<uint64, uint64> fallAt;          // real player -> a deadly fall (game ms), under liveLock
 std::unordered_map<uint64, uint64> afkSince;        // real player -> away since (s), 0 once answered; world thread
 
-bool PlayerRepliesOn() { return Enabled() && sPlayerbotAIConfig.coaLivePlayerReplies; }
+bool ChatFeature(bool featureOn)
+{
+    return CoaChat::ChatFeatureOn(Enabled(), sPlayerbotAIConfig.coaLiveChatEnable, featureOn);
+}
+bool PlayerRepliesOn() { return ChatFeature(sPlayerbotAIConfig.coaLivePlayerReplies); }
+bool GreetRepliesOn() { return ChatFeature(sPlayerbotAIConfig.coaLiveGreetReplies); }
+bool ChannelQuestionsOn() { return ChatFeature(sPlayerbotAIConfig.coaLiveChannelQuestions); }
+bool DungeonChatOn() { return ChatFeature(sPlayerbotAIConfig.coaLiveDungeonChat); }
+bool LootNeedAskOn() { return ChatFeature(sPlayerbotAIConfig.coaLiveLootNeedAsk); }
 
 // true, and the time kept, when `key` has cooled down.
 bool ReplyAllowed(std::string const& key, uint32 cdS)
@@ -2402,25 +2540,19 @@ public:
         }
     }
 
-    // World thread, the bot still in the world: its goodbye is said at once, it will not be there later.
+    // Nothing is said from here: the core has already freed the player's social list (RemovePlayerSocial comes
+    // before OnPlayerLogout), and a guild line read it for every member, the one leaving too (a server crash,
+    // 14/11). The goodbye is said before the logout, by CoaLive::BeforeBotLogout.
     void OnPlayerLogout(Player* player) override
     {
-        if (player)
+        if (!player)
+            return;
         {
             std::lock_guard<std::mutex> guard(liveLock);
             fishingUntil.erase(player->GetGUID().GetRawValue());  // a bot gone is no longer at the water
         }
-        if (player)
-            tradeJoined.erase(player->GetGUID().GetRawValue());
-            worldJoined.erase(player->GetGUID().GetRawValue());  // its channels are left with it: join again next time
-        if (!Enabled() || !player || !player->GetGuildId() || !IsRandom(player) ||
-            !RealOnlineInGuild(player->GetGuildId(), nullptr))
-            return;
-        ReactOptions opt;
-        opt.now = true;
-        ObjectGuid const guid = player->GetGUID();
-        if (React(player, "guild_logout", nullptr, "g" + std::to_string(player->GetGuildId()), opt))
-            Play([guid](Pending const& p) { return p.bot == guid && p.dueMs == 0; });
+        tradeJoined.erase(player->GetGUID().GetRawValue());
+        worldJoined.erase(player->GetGUID().GetRawValue());  // its channels are left with it: join again next time
     }
 
     // A guild member loots a rare item or better.
@@ -2477,10 +2609,10 @@ public:
             NoteTrade(player);
         // A hello in the Zone (id 3) or Ascension (id 1) channel gets a hello back (AiPlayerbot.CoaLive.GreetReplies).
         bool greeted = false;
-        if (Enabled() && sPlayerbotAIConfig.coaLiveGreetReplies && player && channel &&
+        if (GreetRepliesOn() && player && channel &&
             (channel->GetChannelId() == 3 || channel->GetChannelId() == 1) && IsRealPlayer(player))
             greeted = HearGreeting(player, msg, channel->GetChannelId(), channel->GetName());
-        if (!greeted && Enabled() && sPlayerbotAIConfig.coaLiveChannelQuestions && player && channel &&
+        if (!greeted && ChannelQuestionsOn() && player && channel &&
             IsRealPlayer(player))
             HearChannelQuestion(player, msg, channel);
         return true;
@@ -2490,7 +2622,7 @@ public:
     // bot next to it gets that bot's whisper (AiPlayerbot.CoaLive.PlayerReplies.Enable).
     bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 /*lang*/, std::string& msg) override
     {
-        if (Enabled() && sPlayerbotAIConfig.coaLiveGreetReplies && player && type == CHAT_MSG_SAY &&
+        if (GreetRepliesOn() && player && type == CHAT_MSG_SAY &&
             IsRealPlayer(player))
             HearGreeting(player, msg, GREET_SAY, std::string());
         if (PlayerRepliesOn() && player && type == CHAT_MSG_SAY && IsRealPlayer(player) &&
@@ -2546,18 +2678,23 @@ public:
     // A real player answers a bot's loot ask (AiPlayerbot.CoaLive.LootNeedAsk) in party or raid chat, or by whisper.
     bool OnPlayerCanUseChat(Player* player, uint32 /*type*/, uint32 /*lang*/, std::string& msg, Group* group) override
     {
-        if (Enabled() && sPlayerbotAIConfig.coaLiveLootNeedAsk && player && group && IsRealPlayer(player))
+        if (LootNeedAskOn() && player && group && IsRealPlayer(player))
             HearLootAnswer(player, msg, nullptr);
-        if (Enabled() && sPlayerbotAIConfig.coaLiveGreetReplies && player && group && IsRealPlayer(player))
+        if (GreetRepliesOn() && player && group && IsRealPlayer(player))
             HearGreeting(player, msg, GREET_PARTY, std::string());
+        if (Enabled() && sPlayerbotAIConfig.coaLiveHealRequest && player && group && IsRealPlayer(player))
+            HearHealRequest(player, msg, nullptr);
         return true;
     }
 
     bool OnPlayerCanUseChat(Player* player, uint32 /*type*/, uint32 /*lang*/, std::string& msg, Player* receiver) override
     {
-        if (Enabled() && sPlayerbotAIConfig.coaLiveLootNeedAsk && player && receiver && IsRealPlayer(player) &&
+        if (LootNeedAskOn() && player && receiver && IsRealPlayer(player) &&
             GET_PLAYERBOT_AI(receiver))
             HearLootAnswer(player, msg, receiver);
+        if (Enabled() && sPlayerbotAIConfig.coaLiveHealRequest && player && receiver && IsRealPlayer(player) &&
+            GET_PLAYERBOT_AI(receiver))
+            HearHealRequest(player, msg, receiver);
         return true;
     }
 
@@ -2609,7 +2746,7 @@ public:
     void OnPlayerMapChanged(Player* player) override
     {
         // AiPlayerbot.CoaLive.DungeonChat.Enable: a real player in or out of a dungeon with its group's bots.
-        if (Enabled() && sPlayerbotAIConfig.coaLiveDungeonChat && player && IsRealPlayer(player))
+        if (DungeonChatOn() && player && IsRealPlayer(player))
             DungeonChatMapChanged(player);
         if (!Enabled() || !NightOn() || !player || !IsRandom(player))
             return;
@@ -2632,7 +2769,7 @@ public:
             return;
         std::string const scope = "g" + std::to_string(group->GetGUID().GetCounter());
         // The dungeon chat has its own hello and thanks, by two bots: the night bank's are not said on top of them.
-        if (sPlayerbotAIConfig.coaLiveDungeonChat)
+        if (DungeonChatOn())
             return;
         if (inDungeon)
         {
@@ -2698,13 +2835,13 @@ public:
             RefreshPeopledZones(nowMs);
             Play([nowMs](Pending const& p) { return p.dueMs <= nowMs; });
             PlayGuildEvents();
-            if (sPlayerbotAIConfig.coaLiveChannelQuestions)
+            if (ChannelQuestionsOn())
                 AnswerChannelQuestions();
-            if (sPlayerbotAIConfig.coaLiveGreetReplies)
+            if (GreetRepliesOn())
                 AnswerGreetings();
-            if (sPlayerbotAIConfig.coaLiveDungeonChat)
+            if (DungeonChatOn())
                 DungeonChatTick(nowMs);
-            if (sPlayerbotAIConfig.coaLivePlayerReplies)
+            if (PlayerRepliesOn())
                 AfkTick(nowMs);
             ChannelTimers(nowMs);
             TradePace(nowMs);
@@ -2775,7 +2912,7 @@ CoaLootAsk::Outcome LootNeedAsk(Player* bot, ObjectGuid itemGuid, uint8 itemSlot
                                 int32 randomProperty, uint32 seenMs)
 {
     using CoaLootAsk::Outcome;
-    if (!Enabled() || !sPlayerbotAIConfig.coaLiveLootNeedAsk || !bot || !proto || !bot->IsInWorld())
+    if (!LootNeedAskOn() || !bot || !proto || !bot->IsInWorld())
         return Outcome::NotAsked;
     uint64 const roll = itemGuid.GetRawValue() * 31 + itemSlot;
     uint64 const botKey = bot->GetGUID().GetRawValue();
@@ -2910,6 +3047,8 @@ void OnBotUpdate(Player* bot, PlayerbotAI* botAI, uint32 diff)
         if (bot->GetSheath() != SheathState(wanted))
             bot->SetSheath(SheathState(wanted));
     }
+    if (anyHealAsk)
+        HealRequestTick(bot, botAI);
     if (!Enabled() && !ImmersionEnabled() && !sPlayerbotAIConfig.coaLiveCleanWorldEnable)
         return;
     // About every SCAN_MS per bot, spread over the bots, with no state: the bot's turn comes when the clock,
@@ -2930,6 +3069,20 @@ void OnBotUpdate(Player* bot, PlayerbotAI* botAI, uint32 diff)
 }
 
 bool ChatOn() { return sPlayerbotAIConfig.coaLiveChatEnable; }
+
+void BeforeBotLogout(Player* bot)
+{
+    if (!bot || !bot->GetSession() ||
+        !CoaChat::GoodbyeNow(bot->IsInWorld(), bot->GetSession()->isLogingOut(), bot->GetSession()->PlayerLogout()))
+        return;
+    if (!Enabled() || !bot->GetGuildId() || !IsRandom(bot) || !RealOnlineInGuild(bot->GetGuildId(), nullptr))
+        return;
+    ReactOptions opt;
+    opt.now = true;
+    ObjectGuid const guid = bot->GetGUID();
+    if (React(bot, "guild_logout", nullptr, "g" + std::to_string(bot->GetGuildId()), opt))
+        Play([guid](Pending const& p) { return p.bot == guid && p.dueMs == 0; });
+}
 
 bool LegacyChatOn()
 {
@@ -3119,7 +3272,7 @@ uint32 OfflineSeconds() { return SessionsEnabled() ? CoaSessions::OfflineSeconds
 
 bool SayLine(Player* bot, std::string const& situation, std::unordered_map<std::string, std::string> const& slots)
 {
-    if (!Enabled() || !bot)
+    if (!ChatFeature(true) || !bot)  // AiPlayerbot.CoaLive.Chat.Enable = 0: no line
         return false;
     ReactOptions opt;
     opt.extra.insert(slots.begin(), slots.end());
@@ -3130,7 +3283,7 @@ bool SayLine(Player* bot, std::string const& situation, std::unordered_map<std::
 bool SayLine(Player* bot, std::string const& situation, std::unordered_map<std::string, std::string> const& slots,
              ObjectGuid to, bool force)
 {
-    if (!Enabled() || !bot)
+    if (!ChatFeature(true) || !bot)  // AiPlayerbot.CoaLive.Chat.Enable = 0: no line
         return false;
     Player* subject = to ? ObjectAccessor::FindConnectedPlayer(to) : nullptr;
     if (to && !subject)
