@@ -20,4 +20,5 @@ MainTank.lua
 World.lua
 BotQuests.lua
 BotTalents.lua
+BotTalentPath.lua
 KeySpells.lua
