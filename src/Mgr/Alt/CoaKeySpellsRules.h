@@ -23,16 +23,19 @@ constexpr uint32_t MIN_CD_MS = 30000;  // a key spell: a base cooldown of 30 s o
 constexpr uint32_t MAX_LINES = 40;
 
 // A spell of the list: learned and active, not passive, a base cooldown of MIN_CD_MS or more; never a profession
-// spell, a mount, or a spell that creates an item.
-inline bool Listed(bool passive, uint32_t cdTotalMs, bool profession, bool mount, bool createsItem)
+// spell, a mount, a spell that creates an item, or a generic spell every character has (skill line category
+// GENERIC: Stuck 7355, 10 min, and Summon Friend 45927, 60 min, are the ones with a long cooldown).
+inline bool Listed(bool passive, uint32_t cdTotalMs, bool profession, bool mount, bool createsItem, bool generic)
 {
-    return !passive && cdTotalMs >= MIN_CD_MS && !profession && !mount && !createsItem;
+    return !passive && cdTotalMs >= MIN_CD_MS && !profession && !mount && !createsItem && !generic;
 }
 
-inline std::string Line(uint32_t spellId, uint32_t cdLeftMs, uint32_t cdTotalMs, bool kept)
+// cat (3.1.3, 7th field): "def", "burst", "cc" or "-" (CoaQuickAsk::Category); the addon's short bar shows the first
+// three only.
+inline std::string Line(uint32_t spellId, uint32_t cdLeftMs, uint32_t cdTotalMs, bool kept, char const* cat)
 {
     return "KSPELL\tit\t" + std::to_string(spellId) + "\t" + std::to_string(cdLeftMs) + "\t" +
-           std::to_string(cdTotalMs) + "\t" + (kept ? "1" : "0");
+           std::to_string(cdTotalMs) + "\t" + (kept ? "1" : "0") + "\t" + cat;
 }
 
 // "keepcd" arguments: "<spellId> on|off". false: not understood.

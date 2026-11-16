@@ -39,7 +39,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "3.1.2";
+static constexpr char const* COA_BOTS_VERSION = "3.1.3";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -398,6 +398,10 @@ public:
     bool OnPlayerCanUseChat(Player* player, uint32 type, uint32 lang, std::string& msg, Guild* /*guild*/) override
     {
         if (type != CHAT_MSG_GUILD || lang == LANG_ADDON)
+            return true;
+        // CoA World: an order to the guild ("need 20 [Silver Bar]") is not a command for the player's own bots (an item
+        // link would have them whisper their inventory).
+        if (CoaWorldGuildOrderHeard(msg))
             return true;
 
         PlayerbotMgr* playerbotMgr = PlayerbotsMgr::instance().GetPlayerbotMgr(player);

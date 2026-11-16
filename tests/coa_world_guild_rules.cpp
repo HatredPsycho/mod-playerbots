@@ -29,6 +29,46 @@ int main()
     // Orders a day.
     assert(MayOrder(0, 3) && MayOrder(2, 3) && !MayOrder(3, 3) && !MayOrder(0, 0));
 
+    // The count next to the link in guild chat (Silver Bar, item 2842).
+    std::string const bar = "|cffffffff|Hitem:2842:0:0:0:0:0:0:0:20|h[Silver Bar]|h|r";
+    assert(OrderedQty("can someone make 20 " + bar) == 20);
+    assert(OrderedQty("need 20x " + bar) == 20);
+    assert(OrderedQty("need x20 " + bar) == 20);
+    assert(OrderedQty("need " + bar + " x20") == 20);
+    assert(OrderedQty("need " + bar + " 20 please") == 20);
+    assert(OrderedQty("need " + bar + "x5?") == 5);
+    assert(OrderedQty("anyone have " + bar + "?") == 0);
+    assert(OrderedQty("need " + bar + " for my level 30 quest") == 0);
+    assert(OrderedQty("need " + bar + " 200") == 0);
+    assert(OrderedQty("need 0 " + bar) == 0);
+    assert(OrderedQty("level40 " + bar) == 0);
+    assert(OrderedQty("need 21 " + bar) == 0);
+    assert(OrderedItem("can someone make 20 " + bar) == 2842);
+
+    // Crafted orders: enough casts for the count, one stack at most; one cast with no count.
+    assert(PlanGuildCraft(20, 1, 20).casts == 20 && PlanGuildCraft(20, 1, 20).sent == 20);
+    assert(PlanGuildCraft(0, 1, 20).casts == 1 && PlanGuildCraft(0, 1, 20).sent == 1);
+    assert(PlanGuildCraft(5, 2, 20).casts == 3 && PlanGuildCraft(5, 2, 20).sent == 6);
+    assert(PlanGuildCraft(20, 1, 1).casts == 1 && PlanGuildCraft(20, 1, 1).sent == 1);
+    assert(PlanGuildCraft(0, 5, 20).casts == 1 && PlanGuildCraft(0, 5, 20).sent == 5);
+    // The auction house: the cheapest by unit up to the count, then one more for the rest; gold for them all.
+    {
+        std::vector<AuctionOffer> const ah = { { 5, 15380 }, { 20, 100000 }, { 1, 2000 }, { 5, 16000 }, { 0, 1 } };
+        assert((PickAuctions(ah, 20, 1000000, 12) == std::vector<std::size_t>{ 2, 0, 3, 1 })); // 11, then a stack: 31
+        assert((PickAuctions(ah, 10, 1000000, 12) == std::vector<std::size_t>{ 2, 0, 3 }));  // 1 + 5, then 5: 11
+        assert((PickAuctions(ah, 11, 1000000, 12) == std::vector<std::size_t>{ 2, 0, 3 }));  // exactly 11
+        assert((PickAuctions(ah, 0, 1000000, 12) == std::vector<std::size_t>{ 2 }));        // no count: one, the cheapest
+        assert((PickAuctions(ah, 20, 40000, 12) == std::vector<std::size_t>{ 2, 0, 3 }));   // gold ceiling for them all
+        assert(PickAuctions(ah, 20, 1000, 12).empty() && PickAuctions(ah, 20, 1000000, 0).empty());
+        assert((PickAuctions(ah, 20, 1000000, 1) == std::vector<std::size_t>{ 2 }));
+        assert((PickAuctions({ { 5, 100 }, { 5, 100 }, { 5, 100 } }, 20, 1000000, 2).size() == 2));  // one mail
+    }
+
+    // Materials without a price: one cast, as before (no twenty free items).
+    assert(PlanGuildCraft(20, 1, 20, 0).casts == 1 && PlanGuildCraft(20, 1, 20, 0).sent == 1);
+    assert(PlanGuildCraft(3, 5, 20, 0).casts == 1 && PlanGuildCraft(3, 5, 20, 0).sent == 3);
+    assert(PlanGuildCraft(0, 5, 4, 0).sent == 4 && PlanGuildCraft(20, 1, 20, 150).casts == 20);
+
     // Gear gifts: clearly better only, a gift every few days, of the player's level band.
     assert(WorthGiving(50.0f, 0.0f));
     assert(WorthGiving(130.0f, 100.0f));

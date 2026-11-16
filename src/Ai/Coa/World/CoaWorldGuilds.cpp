@@ -66,6 +66,7 @@
 #include "WorldSession.h"
 
 #include <algorithm>
+#include <cstring>
 #include <mutex>
 #include <random>
 #include <unordered_map>
@@ -125,6 +126,7 @@ namespace
         enum Kind : uint8 { LEVEL, LOOT, LOGIN, ORDER, HUMAN_LEVEL, GREET, BYE } kind;
         ObjectGuid guid;
         uint32 value;  // level, or item entry
+        uint32 qty = 0;  // an order's count, 0 for any
     };
 
     // Player settings (character_settings) that keep the guild's gifts of gear across restarts.
@@ -178,6 +180,8 @@ namespace
         uint32 const id = g_nextLogId++;
         if (!g_logReady)
             return id;
+        if (bot.size() > 32)  // the column (a longer name would lose the whole row)
+            bot.resize(32);
         PlayerbotsDatabase.EscapeString(bot);
         // Written at once: the addon asks GLIST about a second after its GORD.
         PlayerbotsDatabase.DirectExecute("INSERT INTO `coa_world_guild_log` (`id`, `guid`, `kind`, `item`, `count`, `state`, `bot`, "
@@ -532,7 +536,7 @@ namespace
                         break;
                     case GuildEvent::ORDER:
                         if (IsHuman(player))
-                            Order(player, e.value, 0, now);
+                            Order(player, e.value, e.qty, now);
                         break;
                     case GuildEvent::HUMAN_LEVEL:
                         if (IsHuman(player))
@@ -757,13 +761,13 @@ namespace
         }
 
         // An item of the bot's bags it may mail (as MailHandler: never equipped, traded, a bag, or soulbound), whatever
-        // its stack (the order splits a bigger one than asked).
-        static Item* BagItem(Player* bot, uint32 entry)
+        // a stack of at least atLeast (the order splits a bigger one than asked).
+        static Item* BagItem(Player* bot, uint32 entry, uint32 atLeast = 1)
         {
             auto fits = [&](Item* item)
             {
                 return item && item->GetEntry() == entry && !item->IsEquipped() && !item->IsInTrade() && !item->IsBag() &&
-                       item->CanBeTraded(true);
+                       item->CanBeTraded(true) && item->GetCount() >= atLeast;
             };
             for (uint8 slot = INVENTORY_SLOT_ITEM_START; slot < INVENTORY_SLOT_ITEM_END; ++slot)
                 if (Item* item = bot->GetItemByPos(INVENTORY_SLOT_BAG_0, slot); fits(item))
@@ -781,6 +785,9 @@ namespace
         {
             OrderResult result;
             result.id = LogRow(player, LOG_ORDER, entry, count, state, bot, now, cod, reason);
+            LOG_INFO("module", "CoA World: guild order by {} <{}>: item {} asked {} ({}), {} {}{}{}, sent {}, COD {}c",
+                     player->GetName(), GuildName(player), entry, _askedQty, _askedQty ? "count" : "any", state,
+                     *reason ? "reason " : "", reason, bot.empty() ? std::string() : " by " + bot, count, cod);
             result.state = state;
             result.reason = reason;
             CoaWorldState::Order(GuildName(player), entry, count, state, bot);
@@ -790,6 +797,7 @@ namespace
         // qty: at most this many (the addon's GORD), 0 for any (guild chat).
         OrderResult Order(Player* player, uint32 entry, uint32 qty, time_t now)
         {
+            _askedQty = qty;
             ItemTemplate const* proto = sObjectMgr->GetItemTemplate(entry);
             if (!proto || proto->Bonding == BIND_QUEST_ITEM)
                 return Logged(player, entry, 0, "refused", "item", "", 0, now);
@@ -811,35 +819,51 @@ namespace
             std::shuffle(mates.begin(), mates.end(), std::mt19937(urand(0, 0x7FFFFFFF)));
             CoaWorld::Slots slots = { { "player", player->GetName() }, { "item", Link(proto, player->GetLevel()) } };
 
-            // 1. From the bags: free.
-            for (Player* bot : mates)
+            if (qty)
+                qty = std::min<uint32>(qty, std::max<uint32>(1, proto->GetMaxStackSize()));
+
+            // 1. From the bags: free. First a guildmate with the whole count; one with fewer only after the crafters.
+            auto fromBags = [&](uint32 atLeast, OrderResult& shared) -> bool
             {
-                // What the core lets a player mail (MailHandler): never a bag in a bag slot or with items in it, a
-                // soulbound item or the loot being looted. A bag moved out with its contents left them dangling.
-                Item* item = BagItem(bot, entry);
-                if (!item)
-                    continue;
-                uint32 sent = item->GetCount();
-                if (qty && sent > qty)
+                for (Player* bot : mates)
                 {
-                    // Part of a stack (one Silverleaf out of twenty): the rest stays in the bot's bags.
-                    if (!MailNew(bot, player, entry, qty, 0, 0, Tr("From the guild.", "De la part de la guilde.")))
+                    // What the core lets a player mail (MailHandler): never a bag in a bag slot or with items in it, a
+                    // soulbound item or the loot being looted. A bag moved out with its contents left them dangling.
+                    Item* item = BagItem(bot, entry, atLeast);
+                    if (!item)
                         continue;
-                    item->SetCount(sent - qty);
-                    item->SetState(ITEM_CHANGED, bot);
-                    CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-                    bot->SaveInventoryAndGoldToDB(trans);
-                    CharacterDatabase.CommitTransaction(trans);
-                    sent = qty;
+                    uint32 sent = item->GetCount();
+                    if (qty && sent > qty)
+                    {
+                        // Part of a stack (one Silverleaf out of twenty): the rest stays in the bot's bags.
+                        if (!MailNew(bot, player, entry, qty, 0, 0, Tr("From the guild.", "De la part de la guilde.")))
+                            continue;
+                        item->SetCount(sent - qty);
+                        item->SetState(ITEM_CHANGED, bot);
+                        CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
+                        bot->SaveInventoryAndGoldToDB(trans);
+                        CharacterDatabase.CommitTransaction(trans);
+                        sent = qty;
+                    }
+                    else
+                        MailFromBags(bot, player, item, 0, 0);
+                    ++count.second;
+                    if (qty && sent < qty)
+                        Say(bot, Acore::StringFormat(Tr("{} I only have {} of the {}, sending them", "{} j'en ai seulement {} sur les {}, je te les envoie"),
+                                                     player->GetName(), sent, qty),
+                            now + urand(5, 15));
+                    else
+                        Answer(bot, "guild_order_share", slots, Acore::StringFormat(Tr("{} I have one, sending it", "{} j'en ai un, je te l'envoie"), player->GetName()),
+                               now + urand(5, 15));
+                    LogEvent("guild", bot->GetName(), Acore::StringFormat("sent {} to {}", proto->Name1, player->GetName()));
+                    shared = Logged(player, entry, sent, "shared", "", bot->GetName(), 0, now);
+                    return true;
                 }
-                else
-                    MailFromBags(bot, player, item, 0, 0);
-                ++count.second;
-                Answer(bot, "guild_order_share", slots, Acore::StringFormat(Tr("{} I have one, sending it", "{} j'en ai un, je te l'envoie"), player->GetName()),
-                       now + urand(5, 15));
-                LogEvent("guild", bot->GetName(), Acore::StringFormat("sent {} to {}", proto->Name1, player->GetName()));
-                return Logged(player, entry, sent, "shared", "", bot->GetName(), 0, now);
-            }
+                return false;
+            };
+            OrderResult shared;
+            if (fromBags(qty ? qty : 1, shared))
+                return shared;
 
             // 2. Crafted: cash on delivery at the materials' price.
             auto const recipes = Recipes().find(entry);
@@ -850,7 +874,7 @@ namespace
                         if (!bot->HasSpell(spellId))
                             continue;
                         SpellInfo const* info = sSpellMgr->GetSpellInfo(spellId);
-                        uint64 cost = 0;
+                        uint64 cost = 0;  // one cast
                         for (uint8 r = 0; r < MAX_SPELL_REAGENTS; ++r)
                             if (info->Reagent[r] > 0 && info->ReagentCount[r])
                                 if (ItemTemplate const* reagent = sObjectMgr->GetItemTemplate(info->Reagent[r]))
@@ -860,99 +884,153 @@ namespace
                         for (uint8 e = 0; e < MAX_SPELL_EFFECTS; ++e)
                             if (info->Effects[e].Effect == SPELL_EFFECT_CREATE_ITEM && info->Effects[e].ItemType == entry)
                                 made = uint32(std::max<int32>(1, info->Effects[e].CalcValue(bot)));
-                        uint32 const sent = std::min<uint32>(std::min<uint32>(made, proto->GetMaxStackSize()), qty ? qty : made);
+                        // As many casts as the count needs (one Silver Bar a cast: twenty casts for twenty bars).
+                        CoaWorldGuildRules::GuildCraft const plan =
+                            CoaWorldGuildRules::PlanGuildCraft(qty, made, proto->GetMaxStackSize(), cost);
+                        uint32 const sent = plan.sent;
+                        cost *= plan.casts;
                         if (!MailNew(bot, player, entry, sent, cost, 0,
                                      Tr("Made it for you, you only pay the materials.",
                                         "Fait pour toi, tu ne paies que les composants.")))
                             continue;
                         ++count.second;
                         slots["price"] = Money(cost);
-                        Answer(bot, "guild_order_craft", slots,
-                               Acore::StringFormat(Tr("{} I can make that, mats only ({}), will mail it", "{} je peux te le faire, juste les compos ({}), je te l'envoie"), player->GetName(),
-                                                   Money(cost)), now + urand(5, 15));
+                        if (qty && sent < qty)
+                            Say(bot, Acore::StringFormat(Tr("{} I can make {} of the {}, mats only ({}), will mail them",
+                                                            "{} je peux t'en faire {} sur les {}, juste les compos ({}), je te les envoie"),
+                                                         player->GetName(), sent, qty, Money(cost)),
+                                now + urand(5, 15));
+                        else
+                            Answer(bot, "guild_order_craft", slots,
+                                   Acore::StringFormat(Tr("{} I can make that, mats only ({}), will mail it", "{} je peux te le faire, juste les compos ({}), je te l'envoie"), player->GetName(),
+                                                       Money(cost)), now + urand(5, 15));
                         LogEvent("guild", bot->GetName(), Acore::StringFormat("crafts {} for {}", proto->Name1,
                                                                                player->GetName()));
                         return Logged(player, entry, sent, "crafted", "", bot->GetName(), cost, now);
                     }
 
+            // 2b. From the bags, fewer than asked: what a guildmate has.
+            if (qty > 1 && fromBags(1, shared))
+                return shared;
+
             // 3. Bought out at the auction house of the player's side.
             OrderResult bought;
-            if (Auction(player, mates, proto, slots, qty, now, bought))
+            char const* why = "noah";  // why none came: no stock, no crafter online, and at the auction house...
+            if (Auction(player, mates, proto, slots, qty, now, bought, why))
             {
                 ++count.second;
                 return bought;
             }
 
+            // The reason goes to the addon (GO / GLIST) and to the guild line when it is said.
             if (roll_chance_i(50))
-                Answer(mates.front(), "guild_order_none", slots,
-                       Acore::StringFormat(Tr("sorry {}, nobody has that right now", "d\u00e9sol\u00e9 {}, personne n'a \u00e7a pour l'instant"), player->GetName()), now + urand(8, 20));
-            return Logged(player, entry, 0, "none", "", "", 0, now);
+            {
+                std::string const ah = !std::strcmp(why, "ahprice") ? Tr("too dear at the AH", "trop cher \u00e0 l'HV")
+                                       : !std::strcmp(why, "ahgold") ? Tr("nobody has the gold for the AH", "personne n'a l'or pour l'HV")
+                                                                     : Tr("none at the AH", "rien \u00e0 l'HV");
+                Say(mates.front(),
+                    Acore::StringFormat(Tr("sorry {}, no stock, no crafter online, {}", "d\u00e9sol\u00e9 {}, pas de stock, pas d'artisan en ligne, {}"),
+                                        player->GetName(), ah),
+                    now + urand(8, 20));
+            }
+            return Logged(player, entry, 0, "none", why, "", 0, now);
         }
 
         bool Auction(Player* player, std::vector<Player*> const& mates, ItemTemplate const* proto,
-                     CoaWorld::Slots& slots, uint32 qty, time_t now, OrderResult& result)
+                     CoaWorld::Slots& slots, uint32 qty, time_t now, OrderResult& result, char const*& why)
         {
             AuctionHouseObject* house = sAuctionMgr->GetAuctionsMap(player->GetFaction());
             if (!house)
                 return false;
-            // The cheapest stack of at most qty; else the cheapest of any size (the player sees the price on delivery).
-            AuctionEntry* best = nullptr;
-            AuctionEntry* bestAny = nullptr;
+            // Auctions bought out up to the count asked (OrderAuctionMaxGold for them all), in one mail.
+            std::vector<AuctionEntry*> entries;
+            std::vector<CoaWorldGuildRules::AuctionOffer> offers;
             for (auto const& [id, auction] : house->GetAuctions())
             {
                 if (!auction || auction->item_template != proto->ItemId || !auction->buyout || auction->bidder ||
                     auction->owner == player->GetGUID())
                     continue;
-                if ((!qty || auction->itemCount <= qty) && (!best || auction->buyout < best->buyout))
-                    best = auction;
-                if (!bestAny || auction->buyout < bestAny->buyout)
-                    bestAny = auction;
+                entries.push_back(auction);
+                offers.push_back({ auction->itemCount, auction->buyout });
             }
-            if (!best)
-                best = bestAny;
-            if (!best || best->buyout > uint64(settings.orderAuctionMaxGold) * GOLD)
+            std::vector<std::size_t> const picks = CoaWorldGuildRules::PickAuctions(
+                offers, qty, uint64(settings.orderAuctionMaxGold) * GOLD, MAX_MAIL_ITEMS);
+            if (picks.empty())
+            {
+                why = offers.empty() ? "noah" : "ahprice";  // none listed, or over OrderAuctionMaxGold
                 return false;
+            }
+            uint64 total = 0;
+            for (std::size_t i : picks)
+                total += entries[i]->buyout;
             Player* buyer = nullptr;
             for (Player* bot : mates)
-                if (bot->GetMoney() >= best->buyout && bot->GetGUID() != best->owner)
+                if (bot->GetMoney() >= total &&
+                    std::none_of(picks.begin(), picks.end(), [&](std::size_t i) { return entries[i]->owner == bot->GetGUID(); }))
                 {
                     buyer = bot;
                     break;
                 }
-            Item* item = buyer ? sAuctionMgr->GetAItem(best->item_guid) : nullptr;
-            if (!item)
+            if (!buyer)
+            {
+                why = "ahgold";  // no guildmate online has the gold
                 return false;
+            }
+            std::vector<Item*> items;
+            uint32 sent = 0;
+            for (std::size_t i : picks)
+            {
+                Item* item = sAuctionMgr->GetAItem(entries[i]->item_guid);
+                if (!item)
+                    return false;
+                items.push_back(item);
+                sent += item->GetCount();
+            }
+            bool const fewer = qty && sent < qty;
 
-            // As a buyout by the bot (AuctionHouseHandler), but the item goes on to the player instead of the won mail.
-            uint32 const price = best->buyout;
+            // As buyouts by the bot (AuctionHouseHandler), but the items go on to the player instead of the won mails.
             CharacterDatabaseTransaction trans = CharacterDatabase.BeginTransaction();
-            buyer->ModifyMoney(-int32(price));
-            best->bidder = buyer->GetGUID();
-            best->bid = price;
-            sAuctionMgr->SendAuctionSalePendingMail(best, trans);
-            sAuctionMgr->SendAuctionSuccessfulMail(best, trans);
-            sScriptMgr->OnAuctionSuccessful(house, best);
-            best->DeleteFromDB(trans);
-            sAuctionMgr->RemoveAItem(best->item_guid);
-            house->RemoveAuction(best);
-            item->SetOwnerGUID(player->GetGUID());
-            item->SetState(ITEM_CHANGED);  // the new owner reaches item_instance (an auction item is saved as unchanged)
-            item->SaveToDB(trans);
-            MailDraft(proto->Name1, Tr("Got it at the auction house, you pay what I paid.",
-                                       "Trouv\u00e9 \u00e0 l'h\u00f4tel des ventes, tu paies ce que j'ai pay\u00e9."))
-                .AddItem(item)
-                .AddCOD(price)
-                .SendMailTo(trans, MailReceiver(player), MailSender(buyer), MAIL_CHECK_MASK_COPIED, 0);
+            buyer->ModifyMoney(-int32(total));
+            MailDraft draft(proto->Name1,
+                            fewer ? Acore::StringFormat(Tr("Got {} of the {} you asked at the auction house, you pay what I paid.",
+                                                           "Trouv\u00e9 {} sur les {} demand\u00e9s \u00e0 l'h\u00f4tel des ventes, tu paies ce que j'ai pay\u00e9."),
+                                                        sent, qty)
+                                  : std::string(Tr("Got it at the auction house, you pay what I paid.",
+                                                   "Trouv\u00e9 \u00e0 l'h\u00f4tel des ventes, tu paies ce que j'ai pay\u00e9.")));
+            for (std::size_t n = 0; n < picks.size(); ++n)
+            {
+                AuctionEntry* auction = entries[picks[n]];
+                Item* item = items[n];
+                auction->bidder = buyer->GetGUID();
+                auction->bid = auction->buyout;
+                sAuctionMgr->SendAuctionSalePendingMail(auction, trans);
+                sAuctionMgr->SendAuctionSuccessfulMail(auction, trans);
+                sScriptMgr->OnAuctionSuccessful(house, auction);
+                auction->DeleteFromDB(trans);
+                sAuctionMgr->RemoveAItem(auction->item_guid);
+                house->RemoveAuction(auction);
+                item->SetOwnerGUID(player->GetGUID());
+                item->SetState(ITEM_CHANGED);  // the new owner reaches item_instance (an auction item is saved as unchanged)
+                item->SaveToDB(trans);
+                draft.AddItem(item);
+            }
+            draft.AddCOD(uint32(total)).SendMailTo(trans, MailReceiver(player), MailSender(buyer), MAIL_CHECK_MASK_COPIED, 0);
             buyer->SaveInventoryAndGoldToDB(trans);
             CharacterDatabase.CommitTransaction(trans);
 
-            slots["price"] = Money(price);
-            Answer(buyer, "guild_order_ah", slots,
-                   Acore::StringFormat(Tr("{} saw one on the AH for {}, I'll grab it for you", "{} j'en ai vu un \u00e0 l'HV pour {}, je te le prends"), player->GetName(), Money(price)),
-                   now + urand(5, 15));
-            LogEvent("guild", buyer->GetName(), Acore::StringFormat("bought {} at the auction house for {}", proto->Name1,
+            slots["price"] = Money(total);
+            if (fewer)
+                Say(buyer, Acore::StringFormat(Tr("{} only found {} of the {} on the AH, {} at cost, check your mail",
+                                                  "{} j'en ai trouv\u00e9 seulement {} sur les {} \u00e0 l'HV, {} au prix co\u00fbtant, regarde ta bo\u00eete"),
+                                               player->GetName(), sent, qty, Money(total)),
+                    now + urand(5, 15));
+            else
+                Answer(buyer, "guild_order_ah", slots,
+                       Acore::StringFormat(Tr("{} saw one on the AH for {}, I'll grab it for you", "{} j'en ai vu un \u00e0 l'HV pour {}, je te le prends"), player->GetName(), Money(total)),
+                       now + urand(5, 15));
+            LogEvent("guild", buyer->GetName(), Acore::StringFormat("bought {} {} at the auction house for {}", sent, proto->Name1,
                                                                      player->GetName()));
-            result = Logged(player, proto->ItemId, item->GetCount(), "bought", "", buyer->GetName(), price, now);
+            result = Logged(player, proto->ItemId, sent, "bought", "", buyer->GetName(), total, now);
             return true;
         }
 
@@ -1211,6 +1289,7 @@ namespace
         std::unordered_map<uint32, time_t> _lastMotd;
         std::unordered_map<uint32, time_t> _lastGift;
         std::unordered_map<uint32, std::pair<uint32, uint32>> _orders;  // player -> (day, orders that day)
+        uint32 _askedQty = 0;  // the order being served (its log line)
         std::unordered_map<uint32, time_t> _greeted;  // real player -> last answer to its hello
         std::unordered_map<uint32, time_t> _byed;     // real player -> last answer to its goodbye
         uint32 _timer = 0;
@@ -1439,6 +1518,11 @@ namespace
     }
 }
 
+bool CoaWorldGuildOrderHeard(std::string const& msg)
+{
+    return settings.enabled && settings.orders && CoaWorldGuildRules::OrderedItem(msg);
+}
+
 bool CoaWorldGuildCatalogOn() { return settings.enabled && settings.orders && settings.catalog && settings.addon; }
 
 std::vector<std::string> CoaWorldGuildCatalog(Player* player, std::vector<std::string> const& args)
@@ -1550,7 +1634,7 @@ public:
         if (!settings.orders)
             return true;
         if (uint32 entry = CoaWorldGuildRules::OrderedItem(msg))
-            Push({ GuildEvent::ORDER, player->GetGUID(), entry });
+            Push({ GuildEvent::ORDER, player->GetGUID(), entry, CoaWorldGuildRules::OrderedQty(msg) });
         return true;
     }
 };

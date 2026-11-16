@@ -50,6 +50,130 @@ namespace CoaWorldGuildRules
         return 0;
     }
 
+    // Most a guild order asks for at once (as the addon's GORD).
+    constexpr std::uint32_t MaxOrderQty = 20;
+
+    // The count written next to the item link in an order ("need 20 [x]", "20x [x]", "[x] x20", "[x] 20"): 1 to
+    // MaxOrderQty, else 0 (any). A number elsewhere in the line ("[x] for my level 30 quest") is not a count.
+    inline std::uint32_t OrderedQty(std::string const& message)
+    {
+        std::size_t link = message.find("|Hitem:");
+        if (link == std::string::npos)
+            return 0;
+        // The colour code before the link belongs to it ("|cff1eff00|Hitem:...").
+        if (link >= 10 && message.compare(link - 10, 2, "|c") == 0)
+            link -= 10;
+        std::size_t const close = message.find("|h|r", link);
+        if (close == std::string::npos)
+            return 0;
+
+        auto counted = [](std::string const& digits) -> std::uint32_t
+        {
+            if (digits.empty() || digits.size() > 3)
+                return 0;
+            std::uint32_t const qty = std::uint32_t(std::strtoul(digits.c_str(), nullptr, 10));
+            return qty >= 1 && qty <= MaxOrderQty ? qty : 0;
+        };
+
+        // Before the link: "20 ", "20x ", "x20 ", the number standing as a word.
+        std::size_t i = link;
+        while (i && message[i - 1] == ' ')
+            --i;
+        if (i && (message[i - 1] == 'x' || message[i - 1] == 'X') && i >= 2 && std::isdigit((unsigned char)message[i - 2]))
+            --i;
+        std::size_t start = i;
+        while (start && std::isdigit((unsigned char)message[start - 1]))
+            --start;
+        if (start < i && (!start || message[start - 1] == ' ' || message[start - 1] == 'x' || message[start - 1] == 'X'))
+            if (std::uint32_t qty = counted(message.substr(start, i - start)))
+                return qty;
+
+        // After the link: " x20", " 20", " 20x", the number standing as a word.
+        std::size_t j = close + 4;
+        while (j < message.size() && message[j] == ' ')
+            ++j;
+        if (j < message.size() && (message[j] == 'x' || message[j] == 'X'))
+            ++j;
+        std::size_t end = j;
+        while (end < message.size() && std::isdigit((unsigned char)message[end]))
+            ++end;
+        if (end > j && (end == message.size() || !std::isalnum((unsigned char)message[end]) || message[end] == 'x' ||
+                        message[end] == 'X'))
+            return counted(message.substr(j, end - j));
+        return 0;
+    }
+
+    // How a guildmate crafts an order: casts of the recipe (made items each) to cover qty, one stack at most (one
+    // cast when the order gives no count). The guild's mail holds one stack. A recipe whose materials cost nothing
+    // (no vendor price) stays at one cast, as before counts were read: nothing free twenty times over.
+    struct GuildCraft
+    {
+        std::uint32_t casts;
+        std::uint32_t sent;
+    };
+    inline GuildCraft PlanGuildCraft(std::uint32_t qty, std::uint32_t made, std::uint32_t maxStack, std::uint64_t castCost = 1)
+    {
+        made = std::max<std::uint32_t>(1, made);
+        maxStack = std::max<std::uint32_t>(1, maxStack);
+        if (!castCost)
+            return { 1, std::min(std::min(made, maxStack), qty ? qty : made) };
+        std::uint32_t const want = qty ? std::min(qty, maxStack) : std::min(made, maxStack);
+        std::uint32_t const casts = (want + made - 1) / made;
+        return { casts, std::min(casts * made, maxStack) };
+    }
+
+    // An auction a guild order may buy out: its stack and its buyout.
+    struct AuctionOffer
+    {
+        std::uint32_t count;
+        std::uint64_t buyout;
+    };
+    // The auctions bought for an order of qty (0: any count, the one cheapest auction as before): the cheapest by
+    // unit first while they fit the count, then the cheapest one for what is still missing (never more than one stack
+    // over); at most maxCopper in all and maxAuctions auctions (one mail).
+    inline std::vector<std::size_t> PickAuctions(std::vector<AuctionOffer> const& offers, std::uint32_t qty,
+                                                 std::uint64_t maxCopper, std::size_t maxAuctions)
+    {
+        std::vector<std::size_t> picked;
+        if (!maxAuctions)
+            return picked;
+        std::vector<bool> taken(offers.size(), false);
+        std::uint64_t spent = 0;
+        std::uint32_t got = 0;
+        if (qty)
+        {
+            std::vector<std::size_t> order;
+            for (std::size_t i = 0; i < offers.size(); ++i)
+                if (offers[i].count)
+                    order.push_back(i);
+            std::stable_sort(order.begin(), order.end(), [&](std::size_t a, std::size_t b)
+                             { return offers[a].buyout * offers[b].count < offers[b].buyout * offers[a].count; });
+            for (std::size_t i : order)
+            {
+                if (got >= qty || picked.size() >= maxAuctions)
+                    break;
+                if (got + offers[i].count <= qty && spent + offers[i].buyout <= maxCopper)
+                {
+                    taken[i] = true;
+                    picked.push_back(i);
+                    spent += offers[i].buyout;
+                    got += offers[i].count;
+                }
+            }
+            if (got >= qty || picked.size() >= maxAuctions)
+                return picked;
+        }
+        // The cheapest auction left for what is missing (or the one auction of an order without a count).
+        std::size_t best = offers.size();
+        for (std::size_t i = 0; i < offers.size(); ++i)
+            if (!taken[i] && offers[i].count && spent + offers[i].buyout <= maxCopper &&
+                (best == offers.size() || offers[i].buyout < offers[best].buyout))
+                best = i;
+        if (best < offers.size())
+            picked.push_back(best);
+        return picked;
+    }
+
     // What the materials cost a guildmate who crafts for you: each reagent at its vendor price, or four times what a
     // vendor gives for it when no vendor sells it (cloth, ore, herbs). No fee between guildmates.
     inline std::uint64_t ReagentPrice(std::uint32_t buyPrice, std::uint32_t sellPrice)
