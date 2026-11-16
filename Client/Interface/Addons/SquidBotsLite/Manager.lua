@@ -1,4 +1,4 @@
--- SquidBots Lite, bot sheet (beta): the gear, bags, quests and stats of one bot of the group, for players who
+-- SquidBots Manager, bot sheet (beta): the gear, bags, quests and stats of one bot of the group, for players who
 -- keep a long-term party of alts. Everything goes through chat commands a player can whisper to their own
 -- bots ("c", "quests all", "stats", "e", "ue", "u", "s", "t", "mount", "bank", "drop", "co ?", "nc ?", "talents ?",
 -- "trainer learn", "spells abilities"); the gear is read by the client's own inspect.
@@ -625,12 +625,7 @@ function AfterChange()
 	-- The bags changed: ask again once the server lets the same lines through, counted from the last listing
 	-- (Ask queues it otherwise); a short moment first, for the bot to act on the order.
 	local name = current
-	local again = CreateFrame("Frame")
-	local wait = 0
-	again:SetScript("OnUpdate", function(self, delta)
-		wait = wait + delta
-		if wait < 0.4 then return end
-		self:SetScript("OnUpdate", nil)
+	SquidBotsLite_UI.After(0.4, function()
 		if current == name and sheet:IsShown() then
 			if tab == "bags" then Ask(bagMode, bagMode == "bank" and "bank" or "c")
 			elseif tab == "mounts" then Ask("mounts", "mount ?")
@@ -983,8 +978,13 @@ do
 		if #items == 0 then return end
 		local c = { name = current, action = action, items = items }
 		if AltBags(current) then
-			local ids = {}
-			for i = 1, math.min(#items, 40) do table.insert(ids, items[i].id) end
+			-- As many ids as one addon message holds (255 bytes): the realm drops a longer one.
+			local ids, size = {}, #("bagcheck " .. action)
+			for i = 1, math.min(#items, 40) do
+				size = size + 1 + #tostring(items[i].id)
+				if size > 240 then break end
+				table.insert(ids, items[i].id)
+			end
 			check = c
 			c.deadline = GetTime() + 3
 			SquidBotsLite_Alts.Handle.BAGCHK = Check_OnLine
@@ -1463,12 +1463,7 @@ StaticPopupDialogs.SQUIDBOTSLITE_ABANDON = {
 		Whisper("drop " .. self.data)
 		AfterChange()
 		local name = current
-		local again = CreateFrame("Frame")
-		local wait = 0
-		again:SetScript("OnUpdate", function(f, delta)
-			wait = wait + delta
-			if wait < REPEAT_DELAY then return end
-			f:SetScript("OnUpdate", nil)
+		SquidBotsLite_UI.After(REPEAT_DELAY, function()
 			if current == name and tab == "quests" then Ask("quests", "quests all") end
 		end)
 	end,
@@ -1527,7 +1522,7 @@ local function BuildInfo(page)
 		{ "STAY", function() Whisper("stay") end },
 		{ "SUMMON", function() Whisper("summon") end },
 		{ "TRADE", function() local u = current and UnitOf(current); if u then InitiateTrade(u) end end },
-		{ "LOGOUT", function() if current then SendChatMessage(".playerbots bot remove " .. current, "SAY"); sheet:Hide() end end },
+		{ "LOGOUT", function() if current then SquidBotsLite_Command(".playerbots bot remove " .. current); sheet:Hide() end end },
 		{ "TRAIN", function()
 			if not current then return end
 			if not UnitExists("target") or UnitIsPlayer("target") then Print(T("TRAIN_NEED")); return end
@@ -1666,8 +1661,8 @@ local saving, lastSent, retry, retryMsg, progress = false, nil, {}, {}, false
 
 local function Save()
 	saveQueue = {}
-	-- The spell id of the talent's first rank, not its entry: the server reads a bare number as a spell id
-	-- first (the core's link parser hands it back as is), so "learn <entry>" answered "Unknown talent".
+	-- The talent's entry, as the tree sends it: since CoA Bots 3.1.1 the server reads a bare number as an entry
+	-- first, then as a spell id, so a first rank's spell id could have matched another talent's entry.
 	local placed, ordered = {}, {}
 	local function Place(o)
 		if placed[o.id] then return end
@@ -1680,7 +1675,7 @@ local function Save()
 	end
 	for _, o in ipairs(options) do Place(o) end
 	for _, o in ipairs(ordered) do
-		for _ = 1, Pending(o) do table.insert(saveQueue, o.id) end
+		for _ = 1, Pending(o) do table.insert(saveQueue, o.entry or o.id) end
 	end
 	if #saveQueue == 0 then return end
 	Print(string.format(T("T_SAVING"), #saveQueue))
@@ -2554,11 +2549,8 @@ function PT.Send(command)
 	if SquidBotsLite_Alts and SquidBotsLite_Alts.Handle then SquidBotsLite_Alts.Handle.PET = PT.OnLine end
 	PT.askedAt = GetTime()
 	Whisper(command)
-	local name, wait, t = current, CreateFrame("Frame"), 0
-	wait:SetScript("OnUpdate", function(self, delta)
-		t = t + delta
-		if t < PT.WAIT then return end
-		self:SetScript("OnUpdate", nil)
+	local name = current
+	SquidBotsLite_UI.After(PT.WAIT, function()
 		if current == name and sheet and sheet:IsShown() and tab == "pets" then PT.Render(pages.pets) end
 	end)
 end
@@ -2710,6 +2702,11 @@ function SquidBotsLite_OpenSheet(name, tabKey, ro)
 		name = UnitName("target")
 		if not name or not UnitOf(name) then Print(T("USAGE")) return end
 	end
+	-- Orders are whispered to the bot: a player's name (a typo, someone of the group) gets none.
+	if not ro and SquidBotsLite_IsBot and not SquidBotsLite_IsBot(name) then
+		Print(string.format(T("NOT_A_MEMBER"), name))
+		return
+	end
 	if not sheet then Build() end
 	if current ~= name then
 		bags, quests, stats, mounts, bank, strats, queue = {}, {}, {}, {}, {}, { co = {}, nc = {} }, {}
@@ -2719,6 +2716,8 @@ function SquidBotsLite_OpenSheet(name, tabKey, ro)
 		if SquidBotsLite_TalentTree then SquidBotsLite_TalentTree.Reset() end
 		talents, talentSpent, talentOffset = {}, nil, 0
 		options, pending, points, choosing, saveQueue = {}, {}, nil, false, {}
+		-- A save still running for the last bot stops: its refused ranks are not sent to this one.
+		saving, lastSent, retry, retryMsg, progress = false, nil, {}, {}, false
 		bagMode, bagOffset = "bags", 0
 		if sheet then sheet.gold = nil end
 	end
@@ -2976,6 +2975,11 @@ do
 			if not w then return end
 			for i, x in ipairs(queue) do
 				if x == w then table.remove(queue, i) break end
+			end
+			-- Answers older than 5 minutes go: the cache stays small over a long session.
+			local now = GetTime()
+			for key, old in pairs(cache) do
+				if now - (old.at or 0) > 300 then cache[key] = nil end
 			end
 			if w.err == "busy" then
 				-- Too many questions at once: the addon's own comparison for a few seconds, then asked again.

@@ -1,4 +1,4 @@
--- SquidBots Lite, the alts dashboard (CoA Bots 2.8.4): the whole team in one window. On top, a band: alts logged
+-- SquidBots Manager, the alts dashboard (CoA Bots 2.8.4): the whole team in one window. On top, a band: alts logged
 -- in, alts out on a mission, the team's gold, what needs doing. Then a card per alt of the account: class, level,
 -- xp, gold, state, its mission (Recall) or Send, its professions with the next rank a trainer teaches, its alerts.
 -- Contract: release/v2.8.4/CONTRAT-ALTS-2.8.4.md, section 11. Each logged-in alt sends (prefix "SQBA"):
@@ -820,6 +820,20 @@ frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 frame:RegisterEvent("PLAYER_LOGOUT")
 frame:RegisterEvent("PLAYER_MONEY")
 frame:RegisterEvent("PLAYER_LEVEL_UP")
-frame:SetScript("OnEvent", function()
-	if SquidBotsLiteDB then D.NoteSelf() end
+-- Money comes a coin at a time (loot, vendor): the card is noted again 2 s after the last change, not each time.
+frame:SetScript("OnEvent", function(self, event)
+	if not SquidBotsLiteDB then return end
+	if event == "PLAYER_MONEY" then
+		self.noteIn = 2
+		return
+	end
+	D.NoteSelf()
+end)
+frame:SetScript("OnUpdate", function(self, elapsed)
+	if not self.noteIn then return end
+	self.noteIn = self.noteIn - elapsed
+	if self.noteIn <= 0 then
+		self.noteIn = nil
+		if SquidBotsLiteDB then D.NoteSelf() end
+	end
 end)

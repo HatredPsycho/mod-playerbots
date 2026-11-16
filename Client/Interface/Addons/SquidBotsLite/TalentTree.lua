@@ -1,4 +1,4 @@
--- SquidBots Lite 3.0: the talent tree of a bot, on the sheet's Talents tab (a Tree / List switch).
+-- SquidBots Manager 3.0: the talent tree of a bot, on the sheet's Talents tab (a Tree / List switch).
 -- The layout of the 21 CoA classes comes with the addon (TalentLayouts.lua, from CoA Spec); the bot sends its ranks
 -- on the addon channel (SQBA), asked with "talents tree" (SquidBot):
 --   TT n <treeId> <entryId> <spellId> <rank> <max> <learnable 1|0>   one per node it has data for
@@ -249,8 +249,7 @@ function TT.Node(i)
 		if ro or self.ability or not self.learnable or not name or not SquidBotsLite_QuietWhisper then return end
 		SquidBotsLite_QuietWhisper("talents learn " .. self.entry, name)
 		-- The answer changes the ranks: asked again a moment later.
-		local t, wait = 0, CreateFrame("Frame")
-		wait:SetScript("OnUpdate", function(f, d) t = t + d; if t > 1.5 then f:SetScript("OnUpdate", nil); TT.Ask() end end)
+		SquidBotsLite_UI.After(1.5, TT.Ask)
 	end)
 	v.nodes[i] = b
 	return b

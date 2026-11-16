@@ -1,4 +1,4 @@
--- SquidBots Lite, the Main Tank bar (CoA Bots 2.9.4). In a raid the player tanks the boss and leads one or two
+-- SquidBots Manager, the Main Tank bar (CoA Bots 2.9.4). In a raid the player tanks the boss and leads one or two
 -- off-tank bots: take my target (the server marks it), taunt, swap, hold a place, clear, and a tank / damage
 -- switch per bot. Opened from the Dungeon clear panel (Main Tank) or a key binding.
 -- Contract with the module (ETUDE-MAIN-TANK-2.9.4, frozen with the Builder): addon messages "SQBA" whispered to
@@ -807,6 +807,7 @@ local function BindingNames()
 	end
 end
 BindingNames()
+SquidBotsLite_MainTankBindingNames = BindingNames
 
 local frame = CreateFrame("Frame")
 for _, event in ipairs({ "PLAYER_LOGIN", "PLAYER_ENTERING_WORLD", "CHAT_MSG_ADDON", "PARTY_MEMBERS_CHANGED", "RAID_ROSTER_UPDATE",
@@ -822,7 +823,9 @@ frame:SetScript("OnEvent", function(_, event, arg1, arg2, arg3, arg4, ...)
 		-- state is asked ("tank main"), and an "on" is turned off (OnAddon).
 		mt.syncAt = GetTime() + 3
 	elseif event == "CHAT_MSG_ADDON" then
-		if arg1 == PREFIX and arg3 == "WHISPER" and arg4 and arg2 and (arg2:find("^TK\t") or arg2:find("^TS\t")) then
+		-- From the group only: anyone on the realm can whisper an addon message.
+		if arg1 == PREFIX and arg3 == "WHISPER" and arg4 and arg2 and (arg2:find("^TK\t") or arg2:find("^TS\t"))
+			and SquidBotsLite_InGroup and SquidBotsLite_InGroup(arg4) then
 			mt.OnAddon(arg4, arg2)
 		end
 	elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then

@@ -1,4 +1,4 @@
--- SquidBots Lite: the minimal take. No window: a thin bar of orders (a Release button joins it while
+-- SquidBots Manager: the minimal take. No window: a thin bar of orders (a Release button joins it while
 -- a bot lies dead) and "Bots" to recruit, the bots' roles and alerts drawn on the game's own party
 -- frames, and the offers bots whisper as small toasts above the bar, each with an Invite button.
 
@@ -26,6 +26,8 @@ local STRINGS = {
 		MAINTANK_BAR = "Main Tank", TIP_MAINTANK = "You tank: the off-tank bar opens, Main tank on (a running Dungeon clear stops). Your bots keep their boss strategies. Click again: Leave Tank.",
 		TIP_MAINTANK_SOLO = "Join a group first.",
 		TIP_RECRUIT = "Ask for a tank, a healer or damage. Offers pop up above this bar.",
+		KEYS_BAR = "Keys", TIP_KEYS = "Shows or hides the key spells bar: Heal please, CC please, Taunt please, and in full size each bot's big cooldowns.",
+		TIP_KEYS_MODE = "Right-click: small or full size.",
 		TIP_ALTS = "Your other characters: log them in as bots, summon them, open their sheet (gear, bags, quests, mounts).",
 		TIP_MOVE = "Shift-drag to move the bar, Ctrl + mouse wheel to resize it.",
 		TIP_PROFILES = "Right click: profiles (farm, strict follow, dungeon).",
@@ -47,6 +49,7 @@ local STRINGS = {
 		GATHER = "Gathering (whole group)",
 		DC_DISABLED = "Dungeon clear is disabled on this realm.",
 		DC_LINE = "Dungeon clear", DC_PAUSED = "paused", DC_STOPPED = "stopped",
+		CMD_UNKNOWN = "This realm does not know the command %s.",
 		DC_NOT_IN_DUNGEON = "Dungeon clear starts inside a dungeon, with a tank bot in your group: it leads, you follow.", DC_ABSENT = "No dungeon clear on this realm: click Dungeon again for the SquidBots dungeon mode.", DC_ON = "On", DC_OFF = "Off", DC_PAUSE_B = "Pause", DC_SKIP_B = "Skip",
 		DC_P_DYN = "Dynamic", DC_P_LEEROY = "Leeroy", DC_P_ADV = "Advanced",
 		DC_BOSSES_T = "Bosses", DC_REFRESH = "Refresh", DC_GO = "Go", DC_NEXT = "Next boss: %s", DC_NONE = "none",
@@ -73,7 +76,7 @@ local STRINGS = {
 		ALTS = "My alts", ALTS_REFRESH = "Refresh", ALTS_ADD = "Log in", ALTS_REMOVE = "Log out", ALTS_SUMMON = "Summon", ALTS_SHEET = "Sheet",
 		ALTS_LEVEL = "Level %d %s", ALTS_UNKNOWN = "Level ?", ALTS_NO_SPEC = "no spec",
 		TIP_SHEET = "Bot sheet: the gear, bags, quests and mounts of this alt.",
-		MISSIONS = "Missions", TEAMS = "Teams", T_LOGIN = "Log in (%d)", T_LOGOUT = "Log out", T_DELETE = "Delete", T_SAVE_GROUP = "Save my group as a team...",
+		MISSIONS = "Missions", GQUESTS = "Quests", TEAMS = "Teams", T_LOGIN = "Log in (%d)", T_LOGOUT = "Log out", T_DELETE = "Delete", T_SAVE_GROUP = "Save my group as a team...",
 		T_SAVE_ONLINE = "Save the logged-in alts as a team...", T_NAME = "Name of the team:", T_NONE = "No team yet.",
 		T_SAVED = "Team %s saved: %d characters.", T_STARTED = "Team %s: logging in %d characters, one a second.",
 		T_EMPTY = "Nobody to save: invite or log in your alts first.",
@@ -121,7 +124,7 @@ local STRINGS = {
 		BALANCE_DONE = "Group: %s.", BALANCE_MISSING = "No bot in the group can play %s.",
 		BALANCE_WAIT = "Asking the bots for their specializations...", BALANCE_RAID = "In a raid, the raid command already sets the roles: pick specializations bot by bot.",
 		SPECS_NOT_BOT = "not a bot", SPEC_ASK = "Ask the bot", TIP_ROLE = "Switch to %s.", TIP_NO_ROLE = "No specialization of this role.",
-		HELP = "SquidBots Manager: /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl dashboard, /sbl spec, /sbl keys, /sbl roles on|off, /sbl gm (GM only), /sbl reset. Key bindings: Esc > Key Bindings > SquidBots Manager.",
+		HELP = "SquidBots Manager: /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl gm (GM only), /sbl reset. Key bindings: Esc > Key Bindings > SquidBots Manager.",
 		SCALE_SET = "SquidBots Manager bar size: %s (this character).", SCALE_BAD = "Bar size: a number from 0.5 to 2, for example /sbl scale 1.2",
 		LANG_SET = "SquidBots Manager language: English.", CHANNEL_SET = "SquidBots Manager asks in: %s",
 	},
@@ -146,6 +149,8 @@ local STRINGS = {
 		MAINTANK_BAR = "Main Tank", TIP_MAINTANK = "Vous tankez : la barre des off-tanks s'ouvre, Main tank actif (un Dungeon clear en cours s'arrête). Vos bots gardent leurs stratégies de boss. Nouveau clic : Quitter tank.",
 		TIP_MAINTANK_SOLO = "Rejoignez d'abord un groupe.",
 		TIP_RECRUIT = "Demandez un tank, un soigneur ou des DPS. Les offres s'affichent au-dessus de la barre.",
+		KEYS_BAR = "Clés", TIP_KEYS = "Affiche ou cache la barre des sorts clés : soin, contrôle, provocation, et en grand les gros temps de recharge de chaque bot.",
+		TIP_KEYS_MODE = "Clic droit : petite ou grande taille.",
 		TIP_ALTS = "Vos autres personnages : connectez-les en bots, appelez-les, ouvrez leur fiche (équipement, sacs, quêtes, montures).",
 		TIP_MOVE = "Maj + glisser pour déplacer la barre, Ctrl + molette pour la redimensionner.",
 		TIP_PROFILES = "Clic droit : les profils (farm, suivi strict, donjon).",
@@ -167,6 +172,7 @@ local STRINGS = {
 		GATHER = "Récolte (tout le groupe)",
 		DC_DISABLED = "Dungeon clear est désactivé sur ce royaume.",
 		DC_LINE = "Dungeon clear", DC_PAUSED = "en pause", DC_STOPPED = "arrêté",
+		CMD_UNKNOWN = "Ce royaume ne connaît pas la commande %s.",
 		DC_NOT_IN_DUNGEON = "Dungeon clear se lance dans un donjon, avec un bot tank dans le groupe : il mène, vous suivez.", DC_ABSENT = "Pas de dungeon clear sur ce royaume : recliquez sur Donjon pour le mode donjon SquidBots.", DC_ON = "Démarrer", DC_OFF = "Arrêter", DC_PAUSE_B = "Pause", DC_SKIP_B = "Passer",
 		DC_P_DYN = "Dynamique", DC_P_LEEROY = "Leeroy", DC_P_ADV = "Avancé",
 		DC_BOSSES_T = "Boss", DC_REFRESH = "Actualiser", DC_GO = "Go", DC_NEXT = "Prochain boss : %s", DC_NONE = "aucun",
@@ -193,7 +199,7 @@ local STRINGS = {
 		ALTS = "Mes alts", ALTS_REFRESH = "Actualiser", ALTS_ADD = "Connecter", ALTS_REMOVE = "Déconnecter", ALTS_SUMMON = "Appeler", ALTS_SHEET = "Fiche",
 		ALTS_LEVEL = "Niveau %d %s", ALTS_UNKNOWN = "Niveau ?", ALTS_NO_SPEC = "sans spé",
 		TIP_SHEET = "Fiche du bot : l'équipement, les sacs, les quêtes et les montures de cet alt.",
-		MISSIONS = "Missions", TEAMS = "Équipes", T_LOGIN = "Connecter (%d)", T_LOGOUT = "Déconnecter", T_DELETE = "Supprimer", T_SAVE_GROUP = "Enregistrer mon groupe comme équipe...",
+		MISSIONS = "Missions", GQUESTS = "Quêtes", TEAMS = "Équipes", T_LOGIN = "Connecter (%d)", T_LOGOUT = "Déconnecter", T_DELETE = "Supprimer", T_SAVE_GROUP = "Enregistrer mon groupe comme équipe...",
 		T_SAVE_ONLINE = "Enregistrer les alts connectés comme équipe...", T_NAME = "Nom de l'équipe :", T_NONE = "Aucune équipe pour l'instant.",
 		T_SAVED = "Équipe %s enregistrée : %d personnages.", T_STARTED = "Équipe %s : connexion de %d personnages, un par seconde.",
 		T_EMPTY = "Personne à enregistrer : invitez ou connectez d'abord vos alts.",
@@ -241,7 +247,7 @@ local STRINGS = {
 		BALANCE_DONE = "Groupe : %s.", BALANCE_MISSING = "Aucun bot du groupe ne peut jouer %s.",
 		BALANCE_WAIT = "Demande de leurs spécialisations aux bots...", BALANCE_RAID = "En raid, la commande de raid répartit déjà les rôles : choisissez les spécialisations bot par bot.",
 		SPECS_NOT_BOT = "pas un bot", SPEC_ASK = "Demander au bot", TIP_ROLE = "Passer en %s.", TIP_NO_ROLE = "Aucune spécialisation de ce rôle.",
-		HELP = "SquidBots Manager : /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl dashboard, /sbl spec, /sbl keys, /sbl roles on|off, /sbl gm (MJ), /sbl reset. Raccourcis : Échap > Raccourcis > SquidBots Manager.",
+		HELP = "SquidBots Manager : /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl gm (MJ), /sbl reset. Raccourcis : Échap > Raccourcis > SquidBots Manager.",
 		SCALE_SET = "Taille de la barre SquidBots Manager : %s (ce personnage).", SCALE_BAD = "Taille de la barre : un nombre de 0,5 à 2, par exemple /sbl scale 1.2",
 		LANG_SET = "Langue de SquidBots Manager : français.", CHANNEL_SET = "SquidBots Manager demande dans : %s",
 	},
@@ -272,7 +278,7 @@ K.MAX_TOASTS = 8
 -- Captions in a smaller font than the game's small text, and buttons spaced by the widest caption of the
 -- current language (measured in game): English "Dungeon" needs more room than French "Donjon".
 K.CAPTION_SIZE, K.CAPTION_GAP, K.MIN_STEP, K.FALLBACK_STEP = 8, 3, 37, 52
-local BAR_ORDER = { "follow", "stay", "attack", "passive", "pull", "dungeon", "summon", "alts", "world", "recruit", "maintank", "release" }
+local BAR_ORDER = { "follow", "stay", "attack", "passive", "pull", "dungeon", "summon", "alts", "world", "recruit", "keys", "maintank", "release" }
 -- A member of unknown role is asked "co ?" this long after it shows up (a lfg recruit announces
 -- its role on its own first), and the "Strategies: ..." answer is hidden for K.PROBE_WINDOW seconds.
 K.PROBE_DELAY, K.PROBE_WINDOW, K.PROBE_RETRY = 3, 10, 30
@@ -301,6 +307,26 @@ local ui = {
 }
 SquidBotsLite_UI = ui
 ui.PANEL_BACKDROP = PANEL_BACKDROP
+
+-- ui.After(delay, fn): fn runs once, delay seconds later (0: the next frame). One frame runs them all: a frame
+-- made for each delay is never freed in 3.3.5.
+ui.timers, ui.timerFrame = {}, CreateFrame("Frame")
+ui.timerFrame:Hide()
+ui.timerFrame:SetScript("OnUpdate", function(self)
+	local now, due = GetTime(), {}
+	for i = #ui.timers, 1, -1 do
+		if ui.timers[i].at <= now then table.insert(due, 1, table.remove(ui.timers, i)) end
+	end
+	if #ui.timers == 0 then self:Hide() end
+	for _, timer in ipairs(due) do
+		local ok, err = pcall(timer.fn)
+		if not ok then geterrorhandler()(err) end
+	end
+end)
+function ui.After(delay, fn)
+	table.insert(ui.timers, { at = GetTime() + (delay or 0), fn = fn })
+	ui.timerFrame:Show()
+end
 
 -- A card: dark, a thin border that turns gold under the mouse.
 function ui.Card(frame)
@@ -475,7 +501,13 @@ end
 -- player clicked a button, the "To [Alt]: ..." echo only adds noise. Typed whispers are never hidden.
 local quietSent = {}
 function SquidBotsLite_QuietWhisper(text, name)
-	quietSent[string.lower(name) .. "" .. text] = GetTime() + 10
+	-- The echo comes back at once: 3 s is plenty, and a whisper typed by hand later is not hidden. Old keys go
+	-- (a bot gone offline never echoes).
+	local now = GetTime()
+	for key, until_ in pairs(quietSent) do
+		if until_ < now then quietSent[key] = nil end
+	end
+	quietSent[string.lower(name) .. "" .. text] = now + 3
 	SendChatMessage(text, "WHISPER", nil, name)
 end
 ChatFrame_AddMessageEventFilter("CHAT_MSG_WHISPER_INFORM", function(_, _, message, target)
@@ -529,7 +561,8 @@ local function FindChannel()
 	end
 	for _, want in ipairs(wanted) do
 		for _, channel in ipairs(joined) do
-			if string.lower(channel.name):find("^" .. string.lower(want)) then
+			-- A plain prefix: a channel name may hold "-", "." or "(", which a pattern would read.
+			if string.lower(channel.name):find(string.lower(want), 1, true) == 1 then
 				return channel.id, channel.name
 			end
 		end
@@ -545,6 +578,7 @@ local function SendLfg(message, after)
 	local id, name = FindChannel()
 	if id then
 		SendChatMessage(message, "CHANNEL", nil, id)
+		K.askedAt = GetTime()
 		Print(string.format(L.ASKED, name, message))
 		if after then after() end
 		return
@@ -568,6 +602,7 @@ joinWait:SetScript("OnUpdate", function(self)
 	if id then
 		self:Hide()
 		SendChatMessage(self.message, "CHANNEL", nil, id)
+		K.askedAt = GetTime()
 		Print(string.format(L.ASKED, name, self.message))
 		if self.after then self.after() end
 	elseif GetTime() > self.untilAt then
@@ -579,7 +614,7 @@ end)
 local function Ask(roles)
 	if SquidBotsLiteDB.gm then
 		for role in roles:gmatch("%a+") do
-			SendChatMessage(".playerbots coa " .. role, "SAY")
+			SquidBotsLite_Command(".playerbots coa " .. role)
 		end
 		return
 	end
@@ -748,8 +783,29 @@ local ShowAlts, ShowSpecs
 local dc = { module = nil, probeAt = nil, waitUntil = nil, pull = nil, PROBE_DELAY = 8, PROBE_WAIT = 5, LINE_KEEP = 6,
 	REPROBE_GAP = 10, ABSENT_KEEP = 60 }
 
+-- The player's dot commands (.dc, .playerbots, .coaworld) are whispered to oneself, never said: the server runs a
+-- command whatever the chat type, and one it lacks comes back as a whisper instead of being said in /say (an
+-- account key said aloud). The echo (sent and, without the command, received) is kept out of the chat.
+dc.sent = {}
+function SquidBotsLite_Command(text)
+	dc.sent[text] = GetTime()
+	SendChatMessage(text, "WHISPER", nil, UnitName("player"))
+end
+for _, event in ipairs({ "CHAT_MSG_WHISPER", "CHAT_MSG_WHISPER_INFORM" }) do
+	ChatFrame_AddMessageEventFilter(event, function(frame, kind, message, sender)
+		local at = message and dc.sent[message]
+		if not (at and sender == UnitName("player") and GetTime() - at < 10) then return end
+		-- Come back as a whisper: the realm does not have it. Said once, in the addon's words.
+		if kind == "CHAT_MSG_WHISPER" and frame == DEFAULT_CHAT_FRAME then
+			dc.sent[message] = nil
+			Print(string.format(L.CMD_UNKNOWN, message:match("^(%S+)") or message))
+		end
+		return true
+	end)
+end
+
 function dc.Send(args)
-	SendChatMessage(".dc " .. args, "SAY")
+	SquidBotsLite_Command(".dc " .. args)
 end
 
 -- ".dc on" needs to be inside a dungeon; the tank bot leads (a player tanking has no tank bot to lead).
@@ -853,9 +909,9 @@ local function RecruitMenu()
 			end)
 		end },
 		-- The server answers with a system message: raid built, or how long to wait (players: 30 min).
-		{ text = L.RAID_10, notCheckable = true, func = function() SendChatMessage(".playerbots coa raid 10", "SAY") end },
-		{ text = L.RAID_15, notCheckable = true, func = function() SendChatMessage(".playerbots coa raid 15", "SAY") end },
-		{ text = L.RAID_25, notCheckable = true, func = function() SendChatMessage(".playerbots coa raid 25", "SAY") end },
+		{ text = L.RAID_10, notCheckable = true, func = function() SquidBotsLite_Command(".playerbots coa raid 10") end },
+		{ text = L.RAID_15, notCheckable = true, func = function() SquidBotsLite_Command(".playerbots coa raid 15") end },
+		{ text = L.RAID_25, notCheckable = true, func = function() SquidBotsLite_Command(".playerbots coa raid 25") end },
 		{ text = L.ALTS, notCheckable = true, func = function() ShowAlts() end },
 		{ text = L.SPECS, notCheckable = true, func = function() ShowSpecs() end },
 		{ text = L.GEAR, notCheckable = true, func = function()
@@ -871,7 +927,7 @@ local function RecruitMenu()
 		} },
 	}
 	if SquidBotsLiteDB.gm then
-		table.insert(items, { text = L.REGEAR, notCheckable = true, func = function() SendChatMessage(".playerbots coa regear", "SAY") end })
+		table.insert(items, { text = L.REGEAR, notCheckable = true, func = function() SquidBotsLite_Command(".playerbots coa regear") end })
 	end
 	return items
 end
@@ -1008,7 +1064,17 @@ function who.Store()
 	SquidBotsLiteDB.botKind = SquidBotsLiteDB.botKind or {}
 	local realm = GetRealmName() or "?"
 	SquidBotsLiteDB.botKind[realm] = SquidBotsLiteDB.botKind[realm] or {}
-	return SquidBotsLiteDB.botKind[realm]
+	local store = SquidBotsLiteDB.botKind[realm]
+	-- Once a session: past 400 random bots met, they are forgotten (asked again when met); the alts stay.
+	if not who.pruned then
+		who.pruned = true
+		local randoms = 0
+		for _, kind in pairs(store) do if kind == "random" then randoms = randoms + 1 end end
+		if randoms > 400 then
+			for name, kind in pairs(store) do if kind == "random" then store[name] = nil end end
+		end
+	end
+	return store
 end
 
 function who.Supported()
@@ -1046,6 +1112,9 @@ end
 
 function who.OnAddon(prefix, message, channel, sender)
 	if prefix ~= "SQBA" or channel ~= "WHISPER" or not sender then return end
+	-- Only a group member that "WHO?" was just asked about: anyone on the realm can whisper an addon message.
+	local asked = who.askedName[sender]
+	if not (asked and GetTime() - asked < 60 and SquidBotsLite_InGroup(sender)) then return end
 	local kind = message and message:match("^IAM\t(%a+)")
 	if kind ~= "random" and kind ~= "alt" then return end
 	who.Store()[sender] = kind
@@ -1106,6 +1175,10 @@ local function IsCoaBot(name)
 	return knownBot[name] or who.Kind(name) ~= nil or (SquidBotsLiteDB.alts and SquidBotsLiteDB.alts[name]) == true
 end
 function SquidBotsLite_IsBot(name) return name and IsCoaBot(name) end
+-- The player, or a member of the player's party or raid (any subgroup).
+function SquidBotsLite_InGroup(name)
+	return name ~= nil and (name == UnitName("player") or UnitOf(name) ~= nil)
+end
 function SquidBotsLite_BotKind(name) return who.Kind(name) end
 
 -- The three trees of a WotLK class bot, named in the addon's language: no list to wait for.
@@ -1748,7 +1821,7 @@ Highlight = function()
 	local tanking = SquidBotsLite_MainTankShown and SquidBotsLite_MainTankShown()
 	for key, button in pairs(buttons) do
 		local active = key == state.order or (key == "passive" and state.passive) or (key == "pull" and not state.autoPull)
-			or (key == "maintank" and tanking)
+			or (key == "maintank" and tanking) or (key == "keys" and SquidBotsLiteDB and SquidBotsLiteDB.keyBarShown)
 		button.ring:SetVertexColor(active and 1 or 0.35, active and 0.82 or 0.35, active and 0 or 0.35)
 	end
 	local passive = buttons.passive
@@ -1839,7 +1912,7 @@ local function BarButton(key, icon, label, tip, onClick)
 	end)
 	button:SetScript("OnClick", function(self, mouse)
 		-- Right click anywhere on the bar: the profiles (farm, strict follow, dungeon...).
-		if mouse == "RightButton" then
+		if mouse == "RightButton" and key ~= "keys" then
 			ShowMenu(ProfileMenu())
 		else
 			onClick(self, mouse)
@@ -1850,7 +1923,7 @@ local function BarButton(key, icon, label, tip, onClick)
 		GameTooltip:SetText(L[self.label])
 		GameTooltip:AddLine(L[self.tip], 1, 1, 1, true)
 		-- Its key binding, when it has one in the game's Key Bindings window.
-		if key == "follow" or key == "stay" or key == "attack" or key == "pull" or key == "summon" then
+		if key == "follow" or key == "stay" or key == "attack" or key == "pull" or key == "summon" or key == "keys" then
 			local bound = GetBindingKey("SQUIDBOTSLITE_" .. string.upper(key))
 			if bound then
 				GameTooltip:AddLine(string.format(L.KEY, bound), 0.4, 0.8, 1)
@@ -1858,7 +1931,7 @@ local function BarButton(key, icon, label, tip, onClick)
 				GameTooltip:AddLine(L.NO_KEY, 0.4, 0.8, 1, true)
 			end
 		end
-		GameTooltip:AddLine(L.TIP_PROFILES, 0.6, 0.6, 0.6, true)
+		GameTooltip:AddLine(key == "keys" and L.TIP_KEYS_MODE or L.TIP_PROFILES, 0.6, 0.6, 0.6, true)
 		GameTooltip:AddLine(L.TIP_MOVE, 0.6, 0.6, 0.6, true)
 		GameTooltip:Show()
 	end)
@@ -1927,15 +2000,17 @@ local function RefreshTexts()
 end
 
 -- Party members lying dead, spirit not yet released (a ghost is already on its way back).
+-- Bots only (a player is never whispered "release"), in any subgroup of a raid.
 local function DeadMembers()
 	local dead = {}
-	for i = 1, 4 do
-		local unit = "party" .. i
+	local raid = GetNumRaidMembers()
+	for i = 1, raid > 0 and raid or 4 do
+		local unit = (raid > 0 and "raid" or "party") .. i
 		if UnitExists(unit) and UnitIsDead(unit) and not UnitIsGhost(unit) then
 			-- The name only: UnitName also returns the realm, "" for a member out of range or on a flight
 			-- path, and table.insert took it for a position (jealous-sound/azerothcore-wotlk-coa#5441).
 			local name = UnitName(unit)
-			table.insert(dead, name)
+			if name and name ~= UnitName("player") and IsCoaBot(name) then table.insert(dead, name) end
 		end
 	end
 	return dead
@@ -1991,6 +2066,17 @@ local function BuildBar()
 		{ "recruit", "Interface\\Icons\\Spell_Frost_SummonWaterElemental", "RECRUIT", "TIP_RECRUIT", function()
 			ShowMenu(RecruitMenu())
 		end },
+		-- 3.1.3: the key spells bar (KeySpells.lua), as /sbl keys; it comes back where and as it was left.
+		-- Right click: small or full size, shown.
+		{ "keys", "Interface\\Icons\\Spell_Holy_PowerWordShield", "KEYS_BAR", "TIP_KEYS", function(_, mouse)
+			local ks = SquidBotsLite_KeySpells
+			if not ks then return end
+			if mouse == "RightButton" then
+				ks.SetMode(ks.Mode() == "full" and "small" or "full")
+			else
+				SquidBotsLite_ToggleKeySpells()
+			end
+		end },
 		-- Whispered to the dead only: "release" tells a living bot to stop following and wait.
 		-- 2.9.4: the off-tank bar (MainTank.lua), the same as the Dungeon clear panel's Main Tank button.
 		{ "maintank", "Interface\\Icons\\INV_Shield_05", "MAINTANK_BAR", "TIP_MAINTANK", function()
@@ -2023,7 +2109,8 @@ end
 -- ---------------------------------------------------------------------------
 local function OverlayClick(self)
 	local name = self.unit and UnitName(self.unit)
-	if name then ShowMenu(BotMenu(name)) end
+	-- A player of the group gets no bot menu: its orders would be whispered to them.
+	if name and IsCoaBot(name) then ShowMenu(BotMenu(name)) end
 end
 
 -- Nothing told that the icon opens the bot's menu.
@@ -2325,9 +2412,11 @@ end
 
 local function RefreshToasts()
 	local now = GetTime()
+	-- In a raid too: a bot already invited to any subgroup has its offer gone.
 	local members = {}
-	for i = 1, 4 do
-		local name = UnitName("party" .. i)
+	local raid = GetNumRaidMembers()
+	for i = 1, raid > 0 and raid or 4 do
+		local name = UnitName((raid > 0 and "raid" or "party") .. i)
 		if name then members[name] = true end
 	end
 	for i = #toasts, 1, -1 do
@@ -2366,7 +2455,7 @@ local altsFrame, altRows, roster = nil, {}, {}
 local rosterAskedAt, refreshAt, hideRosterUntil
 
 local function BotCommand(text)
-	SendChatMessage(".playerbots bot " .. text, "SAY")
+	SquidBotsLite_Command(".playerbots bot " .. text)
 end
 
 local function AskRoster()
@@ -2606,9 +2695,9 @@ local function RefreshAlts()
 		row.alt = alt
 		if alt then
 			-- Logging in or out (2.9.4): shown at once as it will be, the toggle off until the server says so.
-			local online = alt.online
-			if alt.pending then online = alt.pending == "in" end
-			local name = online and ui.ClassName(alt.name) or ("|cff9d9d9d" .. alt.name .. "|r")
+			local isOn = alt.online
+			if alt.pending then isOn = alt.pending == "in" end
+			local name = isOn and ui.ClassName(alt.name) or ("|cff9d9d9d" .. alt.name .. "|r")
 			row.name:SetText(alt.linked and (name .. " |cff8888aa(" .. L.ALTS_LINKED .. ")|r") or name)
 			-- Level, class, spec; its gathering skill as an icon, and a gold word while it is out on a mission.
 			local line = AltLine(alt.name)
@@ -2622,12 +2711,12 @@ local function RefreshAlts()
 			row.info:SetText(line)
 			ShowXP(row.xp, alt.name)
 			ui.ClassIcon(row.icon, alt.name)
-			row.icon:SetDesaturated(not online)
-			row.icon:SetAlpha(online and 1 or 0.55)
+			row.icon:SetDesaturated(not isOn)
+			row.icon:SetAlpha(isOn and 1 or 0.55)
 			row.dot:SetTexture(alt.pending and "Interface\\FriendsFrame\\StatusIcon-Away"
-				or online and "Interface\\FriendsFrame\\StatusIcon-Online" or "Interface\\FriendsFrame\\StatusIcon-Offline")
-			row:SetBackdropColor(online and 0.10 or 0.07, online and 0.10 or 0.07, online and 0.12 or 0.08, 0.95)
-			ui.SetIcon(row.toggle, online and "Interface\\Icons\\Spell_ChargeNegative" or "Interface\\Icons\\Spell_ChargePositive",
+				or isOn and "Interface\\FriendsFrame\\StatusIcon-Online" or "Interface\\FriendsFrame\\StatusIcon-Offline")
+			row:SetBackdropColor(isOn and 0.10 or 0.07, isOn and 0.10 or 0.07, isOn and 0.12 or 0.08, 0.95)
+			ui.SetIcon(row.toggle, isOn and "Interface\\Icons\\Spell_ChargeNegative" or "Interface\\Icons\\Spell_ChargePositive",
 				not alt.pending)
 			if alt.online and not alt.pending then row.summon:Show() else row.summon:Hide() end
 			if alt.online and not alt.pending and SquidBotsLite_OpenSheet then row.sheet:Show() else row.sheet:Hide() end
@@ -2649,6 +2738,7 @@ local function AltsTexts()
 	altsFrame.teams:SetText(L.TEAMS)
 	altsFrame.dashboard:SetText(L.DASHBOARD)
 	altsFrame.missions:SetText(L.MISSIONS)
+	altsFrame.gquests:SetText(L.GQUESTS)
 	altsFrame.help:SetText(L.ALTS_HELP)
 end
 
@@ -2749,7 +2839,7 @@ local function SafeName(text)
 end
 
 local function AccountCommand(text)
-	SendChatMessage(".playerbots account " .. text, "SAY")
+	SquidBotsLite_Command(".playerbots account " .. text)
 end
 
 local linkStep = {}
@@ -2768,8 +2858,7 @@ StaticPopupDialogs.SQUIDBOTSLITE_ACCOUNT = {
 				StaticPopup_Show("SQUIDBOTSLITE_ACCOUNT")
 			end
 			-- The same dialog cannot show again while it is closing: the next frame asks for the key.
-			local f = CreateFrame("Frame")
-			f:SetScript("OnUpdate", function(frame) frame:SetScript("OnUpdate", nil); nextAsk() end)
+			ui.After(0, nextAsk)
 			return
 		elseif linkStep.kind == "keyfor" then
 			AccountCommand("link " .. linkStep.account .. " " .. value)
@@ -2853,14 +2942,16 @@ local function BuildAlts()
 	for _, def in ipairs({ { "dashboard", function() if SquidBotsLite_ShowDashboard then SquidBotsLite_ShowDashboard() end end },
 		-- Missions.lua: send a logged-in alt gathering on its own.
 		{ "missions", function() if SquidBotsLite_ShowMissions then SquidBotsLite_ShowMissions() end end },
+		-- GroupQuests.lua: the group's quests, one column per alt (3.1.2). Four buttons now: narrower.
+		{ "gquests", function() if SquidBotsLite_ShowGroupQuests then SquidBotsLite_ShowGroupQuests() end end },
 		{ "teams", TeamsMenu } }) do
 		local button = CreateFrame("Button", nil, altsFrame, "UIPanelButtonTemplate")
-		button:SetWidth(84)
+		button:SetWidth(72)
 		button:SetHeight(22)
 		button:SetPoint("TOPLEFT", x, -36)
 		button:SetScript("OnClick", def[2])
 		altsFrame[def[1]] = button
-		x = x + 88
+		x = x + 75
 	end
 	-- Alts.lua: the alts' quests and trainers panel and their log, two icons after the menus.
 	if SquidBotsLite_AltsButtons then SquidBotsLite_AltsButtons(altsFrame, x) end
@@ -3121,10 +3212,12 @@ end
 local function ProbeRoles()
 	if SquidBotsLiteDB.autoRoles == false then return end
 	local now = GetTime()
-	for i = 1, 4 do
-		local unit = "party" .. i
+	-- Every subgroup of a raid (the raid frames show a "?" for a role not known).
+	local raid = GetNumRaidMembers()
+	for i = 1, raid > 0 and raid or 4 do
+		local unit = (raid > 0 and "raid" or "party") .. i
 		local name = UnitName(unit)
-		if name and name ~= UNKNOWNOBJECT and not roleByName[name] and UnitIsConnected(unit)
+		if name and name ~= UNKNOWNOBJECT and name ~= UnitName("player") and not roleByName[name] and UnitIsConnected(unit)
 			and (not probedAt[name] or now - probedAt[name] >= K.PROBE_RETRY)
 			and LooksLikeBot(name) then
 			firstSeen[name] = firstSeen[name] or now
@@ -3197,13 +3290,16 @@ local function OnWhisper(message, sender)
 		end
 	end
 	-- A Wildcard Hero offers itself as "Hero" (class 10), in no class list above.
-	if not class and message:find("Hero", 1, true) then
+	if not class and message:find("%f[%a]Hero%f[%A]") then
 		class = SquidBotsLiteDB.lang == "fr" and "Héros" or "Hero"
 	end
 	local lower = string.lower(message)
 	if not class or not (lower:find("invite") or lower:find("service") or lower:find("ready") or lower:find("available") or lower:find("looking")) then
 		return
 	end
+	-- An offer answers the player's ask (within 10 minutes), or comes from a bot already known: any other
+	-- whisper with a level and a class is a player talking.
+	if not ((K.askedAt and GetTime() - K.askedAt < 600) or who.Kind(sender) ~= nil or knownBot[sender]) then return end
 	-- "I'll keep your tank alive" is a healer talking: the healer words win.
 	local role = (lower:find("heal") or lower:find("keep your tank alive")) and "heal"
 		or (lower:find("tank") and "tank")
@@ -3232,7 +3328,8 @@ local function OnWhisper(message, sender)
 			if offer.role == drop then table.remove(toasts, i) break end
 		end
 	end
-	if not bar:IsShown() then SetBarShown(true) end
+	-- Shown for the offer, without changing the player's /sbl hide choice.
+	if not bar:IsShown() then bar:Show() end
 	RefreshToasts()
 end
 
@@ -3350,14 +3447,14 @@ function dc.OnAddon(message)
 		dc.line:SetPoint("TOPLEFT", bar, "BOTTOMLEFT", 2, -2)
 		dc.line:SetJustifyH("LEFT")
 	end
-	local state, detail, stall = parts[7] or "", parts[8] or "", parts[5] or ""
+	local runState, detail, stall = parts[7] or "", parts[8] or "", parts[5] or ""
 	local text
 	if parts[2] ~= "1" then
 		text = L.DC_STOPPED
 		dc.hideAt = GetTime() + dc.LINE_KEEP
 	else
-		text = detail ~= "" and detail or state
-		if state == "paused" then text = L.DC_PAUSED .. (detail ~= "" and (" - " .. detail) or "") end
+		text = detail ~= "" and detail or runState
+		if runState == "paused" then text = L.DC_PAUSED .. (detail ~= "" and (" - " .. detail) or "") end
 		if stall ~= "" then text = text .. " |cffff5555(" .. stall .. ")|r" end
 		dc.hideAt = nil
 	end
@@ -3843,7 +3940,8 @@ events:SetScript("OnEvent", function(self, event, arg1, arg2)
 			dc.TickLine()
 		end)
 	elseif event == "CHAT_MSG_ADDON" then
-		if arg1 == "DC" and arg2 then dc.OnAddon(arg2) end
+		-- The tank's lines: from the group (or the realm to the player) only, never from anyone else.
+		if arg1 == "DC" and arg2 and SquidBotsLite_InGroup(arg4) then dc.OnAddon(arg2) end
 	elseif event == "CHAT_MSG_WHISPER" then
 		dc.OnWhisperBack(arg1, arg2)
 		OnWhisper(arg1, arg2)
@@ -3896,8 +3994,12 @@ SlashCmdList["SQUIDBOTSLITE"] = function(message)
 		AltsTexts()
 		RefreshAlts()
 		SpecsTexts()
+		-- The key binding names of the other bars, in the new language without a reload.
+		if SquidBotsLite_MainTankBindingNames then SquidBotsLite_MainTankBindingNames() end
+		if SquidBotsLite_KeySpells and SquidBotsLite_KeySpells.BindingNames then SquidBotsLite_KeySpells.BindingNames() end
 		Print(L.LANG_SET)
 	elseif command == "channel" then
+		rest = strtrim(rest or "")
 		SquidBotsLiteDB.channel = rest
 		Print(string.format(L.CHANNEL_SET, rest ~= "" and rest or table.concat(CHANNELS, ", ")))
 	elseif command == "missions" then
@@ -3906,7 +4008,9 @@ SlashCmdList["SQUIDBOTSLITE"] = function(message)
 		ShowAlts()
 	elseif command == "dashboard" or command == "dash" then
 		if SquidBotsLite_ShowDashboard then SquidBotsLite_ShowDashboard() end
-	elseif command == "quests" and CoACompanionBots_ToggleBotQuests then
+	elseif command == "quests" then
+		if SquidBotsLite_ShowGroupQuests then SquidBotsLite_ShowGroupQuests() end
+	elseif command == "botquests" and CoACompanionBots_ToggleBotQuests then
 		CoACompanionBots_ToggleBotQuests()
 	elseif command == "dc" then
 		dc.ShowPanel()
@@ -3958,7 +4062,10 @@ SlashCmdList["SQUIDBOTSLITE"] = function(message)
 		end
 	elseif command == "help" or command == "?" then
 		Print(L.HELP)
-	else
+	elseif command == "" then
 		SetBarShown(not bar:IsShown())
+	else
+		-- A command mistyped: the help, not a bar shown or hidden without a word.
+		Print(L.HELP)
 	end
 end
