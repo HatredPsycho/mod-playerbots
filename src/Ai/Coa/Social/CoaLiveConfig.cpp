@@ -114,9 +114,14 @@ void PlayerbotAIConfig::LoadCoaLiveConfig()
     coaLiveHealRequest = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.HealRequest.Enable", true);
     coaLiveCcRequest = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.CcRequest.Enable", true);
     coaLiveTauntRequest = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.TauntRequest.Enable", true);
+    coaLiveWhisperEscape = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaLive.WhisperEscape.Enable", true);
     coaKeySpells = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaKeySpells.Enable", true);
     coaQuestLog = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaQuestLog.Enable", true);
     coaCursedFormUpkeep = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaCursedFormUpkeep", true);
+    // CoA.ValidationMode: the same check, under the name a server's qualification tool already writes.
+    coaStartupCheckOnly = sConfigMgr->GetOption<bool>("AiPlayerbot.StartupCheckOnly", false, false) ||
+                          sConfigMgr->GetOption<bool>("CoA.ValidationMode", false, false);
+    coaCapsAddon = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaCaps.Addon", true);
     // Shared with the other CoA data files (in the .dist once).
     coaLiveDataDir = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaDataDir", "", false);
     coaLiveDataFiles = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaDataFiles", true, false);

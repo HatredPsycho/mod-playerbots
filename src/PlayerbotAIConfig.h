@@ -746,9 +746,12 @@ public:
     bool coaLiveHealRequest;       // AiPlayerbot.CoaLive.HealRequest.Enable: "heal please", the healers bring it to full
     bool coaLiveCcRequest;         // AiPlayerbot.CoaLive.CcRequest.Enable: "cc please", one bot CCs the player's target
     bool coaLiveTauntRequest;      // AiPlayerbot.CoaLive.TauntRequest.Enable: "taunt please", the tank taunts it
+    bool coaLiveWhisperEscape;     // AiPlayerbot.CoaLive.WhisperEscape.Enable: a long whisper talk ends on an excuse
     bool coaKeySpells;             // AiPlayerbot.CoaKeySpells.Enable: the addon's key spells bar (keyspells, keepcd)
     bool coaQuestLog;              // AiPlayerbot.CoaQuestLog.Enable: the addon's group Quests tab (qlog, turnin)
     bool coaCursedFormUpkeep;      // AiPlayerbot.CoaCursedFormUpkeep: a Bloodmage Eternal tank keeps its Cursed Form
+    bool coaStartupCheckOnly = false;  // AiPlayerbot.StartupCheckOnly (or CoA.ValidationMode): load, no bot at all
+    bool coaCapsAddon = true;      // AiPlayerbot.CoaCaps.Addon: the addon's "CAPS?" (is Dungeon Clear built in)
     // ---- end of CoA Live ----
 
     // ---- CoA World (LoadCoaWorldConfig, CoaWorldConfig.cpp) ----

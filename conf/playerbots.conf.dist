@@ -82,6 +82,18 @@
 # Enable or disable Playerbots module
 AiPlayerbot.Enabled = 1
 
+# Startup check: the module loads its settings, data and AI contexts, then creates, deletes, renames and logs in no
+# bot, and its world updates do nothing. For a server that qualifies a build before opening it. CoA.ValidationMode = 1
+# does the same.
+# Default: 0 (off)
+AiPlayerbot.StartupCheckOnly = 0
+
+# The SquidBots addon asks what this server has ("SQBW\tCAPS?"): the bots' version and whether Dungeon Clear is
+# built in. Without Dungeon Clear the addon says so on its Dungeon features instead of acting on nothing. Whether
+# Dungeon Clear is built in is also written once in the log at startup. 0: no answer, as on an older server.
+# Default: 1 (on)
+AiPlayerbot.CoaCaps.Addon = 1
+
 # Enable randombot system
 AiPlayerbot.RandomBotAutologin = 1
 
@@ -1604,6 +1616,22 @@ AiPlayerbot.AltLootMasterDistance = 30
 # Default: "32,72,77,97"
 AiPlayerbot.CrashingBotRaces = "32,72,77,97"
 
+# How random bots use a race, one line per race id, for a server that adds races (CoA Bots 3.1.4). Without a line,
+# a race keeps the module's own rules. Fields, all optional, separated by spaces:
+#   bots=1|0        1: random bots use the race even without CoACustomRaces.BotsEnable; 0: never. ExcludedBotRaces and
+#                   CrashingBotRaces above always win.
+#   gender=male|female|any   a race with one usable model; any: a coin even where the module keeps one gender.
+#   side=alliance|horde|dbc  the side of an added race (dbc: ChrRaces.dbc, the default). Base races keep theirs.
+#   look=full|simple         simple: the first face and hair variant only and no facial hair (missing textures).
+#   names=human|orc|dwarf|nightelf|undead|tauren|gnome|troll|bloodelf|draenei|generic   the name pool.
+#   classes=1,2,5            the classes bots of the race may have (default: every class of playercreateinfo).
+# A race with one id per side takes both in one key: AiPlayerbot.BotRace.20/29 = "...". A line with an unknown
+# field or value is ignored as a whole, an id this server does not have is skipped, with an error at startup. The start position, the race mask and the racials come from the core's data. Restart after
+# a change.
+# Example:
+# AiPlayerbot.BotRace.85 = "bots=1 gender=female side=horde look=simple names=orc"
+# AiPlayerbot.BotRace.96 = "gender=male side=alliance"
+
 # Authored combat rotations for the Conquest of Azeroth specializations.
 # Off: CoA bots are driven by the runtime classifier alone, which picks a spell
 # every tick from what the bot knows.
@@ -3065,6 +3093,28 @@ AiPlayerbot.CoaWorld.Guilds.OrderMaxQuality = 3
 
 AiPlayerbot.CoaWorld.Guilds.OrderAuctionMaxGold = 50
 
+#    AiPlayerbot.CoaWorld.Guilds.OrderCombined
+#        Description: An order is filled from several places, each for what is still missing: the guild bank, the
+#                     guildmates' stock, a crafter (cash on delivery), then the auction house ("5 from our bags,
+#                     15 bought"). One answer in /g, one order of the day. 0: the first place that has it, as before.
+#        Default:     1 (enabled)
+
+AiPlayerbot.CoaWorld.Guilds.OrderCombined = 1
+
+#    AiPlayerbot.CoaWorld.Guilds.OrderGuildBank
+#        Description: An order is served from the guild bank first: an online guildmate takes the items out with its
+#                     rank's rights and daily withdrawals (the bank's log shows it) and mails them free.
+#        Default:     1 (enabled)
+
+AiPlayerbot.CoaWorld.Guilds.OrderGuildBank = 1
+
+#    AiPlayerbot.CoaWorld.Guilds.OrderPersonalBank
+#        Description: The guildmates' own banks count with their bags for an order (with
+#                     AiPlayerbot.CoaEconomy.GuildStock.Enable, which keeps materials there).
+#        Default:     1 (enabled)
+
+AiPlayerbot.CoaWorld.Guilds.OrderPersonalBank = 1
+
 #    AiPlayerbot.CoaWorld.Guilds.Gear
 #        Description: The guild equips the player: at login or a level-up, a guildmate mails a piece of gear of
 #                     the player's level that is clearly better than what they wear in that slot, for their spec.
@@ -3390,6 +3440,22 @@ AiPlayerbot.CoaWorld.CapitalRaid.RewardSilverPerLevel = 50
 
 AiPlayerbot.CoaWorld.Guilds.PlayerGuildOnline = 1
 AiPlayerbot.CoaWorld.Guilds.PlayerGuildOnlinePercent = 40
+
+#    AiPlayerbot.CoaWorld.Guilds.PlayerGuildProfessions
+#        Description: In a real player's guild, the bot members brought online first are those with a profession
+#                     nobody online has (mining, herbalism, skinning, the crafts, cooking, first aid), and the only
+#                     one online with a profession stays. Which bots come, never how many.
+#        Default:     1 (enabled)
+
+AiPlayerbot.CoaWorld.Guilds.PlayerGuildProfessions = 1
+
+#    AiPlayerbot.CoaWorld.Guilds.PlayerGuildTeach
+#        Description: With PlayerGuildProfessions, a profession no member of a real player's guild has is learned by
+#                     an online bot member with a free slot (one a minute per guild, at its level's skill, with the
+#                     trainer's recipes when AiPlayerbot.AutoLearnTradeskillSpells is on).
+#        Default:     1 (enabled)
+
+AiPlayerbot.CoaWorld.Guilds.PlayerGuildTeach = 1
 AiPlayerbot.CoaWorld.Events.Addon = 1
 
 # Quality a looted item must reach to be written to the "playerbots.loot" logger:
@@ -4079,6 +4145,17 @@ AiPlayerbot.CoaLive.CcRequest.Enable = 1
 #                     0 - off
 
 AiPlayerbot.CoaLive.TauntRequest.Enable = 1
+
+#    AiPlayerbot.CoaLive.WhisperEscape.Enable
+#        Description: A random bot chatting by whisper with a real player answers 5 to 8 whispers, then gives an
+#                     excuse that fits what it is doing ("sorry, dungeon queue popped", "bg just popped", "kinda busy
+#                     rn", "gotta go afk") and answers that player no more for 20 to 40 minutes. The talk starts again
+#                     after 10 minutes without a whisper. Lines of the bank 3_1_4 or later; with no excuse line, the
+#                     talk goes on as before. Off: the bot answers every whisper, as before.
+#        Default:     1 - on
+#                     0 - off
+
+AiPlayerbot.CoaLive.WhisperEscape.Enable = 1
 
 #    AiPlayerbot.CoaKeySpells.Enable
 #        Description: The SquidBots addon's key spells bar, for any bot of the player's group: the bot's spells with
@@ -5472,6 +5549,43 @@ AiPlayerbot.CoaEconomy.AHBot.Enable = 1
 #    EmptyOldAuctions  1 = do it at the next start if not done yet, 0 = never (default). Read at start-up.
 AiPlayerbot.CoaEconomy.AHBot.EmptyOldAuctions = 0
 
+# Auction house bot, floor of common crafting materials: the house seller keeps about ninety common materials of
+# levels 1 to 60 on offer in the Alliance and Horde houses (cloth, ore, bars, stone, herbs, leather, hides, elemental
+# and enchanting materials). For each one with fewer than Stacks auctions (players' and bots' counted), it lists full
+# stacks at the market price, never under the lowest price per item another seller asks; nothing when the offer is
+# already there. Inside its quota (AuctionHouseBot.*.MaxItems); a new realm's launch curve holds back what nobody can
+# reach yet. Read again by ".reload config" and ".ahbot reload".
+#    Enable  1 = on (default), 0 = off.
+#    Stacks  Auctions of each material the house makes sure of, 1 to 5 (default 2).
+AiPlayerbot.CoaEconomy.AHBot.MaterialFloor.Enable = 1
+AiPlayerbot.CoaEconomy.AHBot.MaterialFloor.Stacks = 2
+
+# Auction house bot, buyer of crafting materials (3.1.4): the house buyer (AuctionHouseBot.Buyer.Enabled) looks first at
+# the materials of the floor above that players and bots list, and pays up to PricePercent of the house's own value
+# for them (other goods: AuctionHouseBot.Buyer.AcceptablePriceModifier), never more than 90 % of the lowest price the
+# house asks itself (Buyer.ArbitrageMarginPercent). A player who farms and lists near the house price sells to the
+# bots. Read again by ".reload config" and ".ahbot reload".
+# Guards: it buys a farmer's stack at its own buyout only (never a bid, never more than asked), nothing beyond the
+# realm's launch curve, and nothing an NPC vendor sells in unlimited stock at 75 % of the vendor price or more (no
+# gold from buying at a vendor to sell to the house; this guard holds for every item the house buys). A limited vendor
+# stock (a few a day) is paid the normal price, unless buying all of it each day would bring over 10 gold a day. One account, all its characters
+# together, sells it at most PerAccountPerDay auctions and GoldPerAccountPerDay gold of materials a day.
+#    Enable                1 = on (default), 0 = off.
+#    PricePercent          Share of the house's value it pays per item, 10 to 100 (default 90).
+#    PerAccountPerDay      Material auctions bought from one account a day (default 10; 0 = no cap).
+#    GoldPerAccountPerDay  Gold paid to one account a day for materials (default 50; 0 = no cap).
+#    PlayerMatchesHouse    1 = a player's stack (not a bot's) at or under the cheapest price the house asks for it
+#                          sells at its own price (an auction addon's undercut sells), except an item that account
+#                          bought from the house in the last 24 hours (default); 0 = players too get PricePercent.
+#    BuyFromBots           0 = a random bot's material auction is never bought by it (default: it rewards players who
+#                          farm; bots sell to players, other bots and vendors); 1 = bots' stacks too, at PricePercent.
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.Enable = 1
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.PricePercent = 90
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.PerAccountPerDay = 10
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.GoldPerAccountPerDay = 50
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.PlayerMatchesHouse = 1
+AiPlayerbot.CoaEconomy.AHBot.MaterialBuyer.BuyFromBots = 0
+
 # Auction house bot, CoA sellable filter: the bot only lists goods a CoA player could really sell.
 # Read again by ".ahbot reload". Each rule below only counts when Filter.Enable = 1.
 #    Enable            1 = on (default), 0 = off.
@@ -5714,6 +5828,38 @@ AiPlayerbot.CoaEconomy.Materials.PerVisit = 5
 AiPlayerbot.CoaEconomy.Artisans.Stock.Enable = 1
 AiPlayerbot.CoaEconomy.Artisans.Stock.MaxStacks = 2
 AiPlayerbot.CoaEconomy.Artisans.Stock.BuyBelowPercent = 90
+
+# Guild stock: bots keep a little of what they gather and make, for a guildmate's order (a player who asks their guild
+# for 20 bars may get 5 from a member's stock, free, and the rest crafted or bought). Gatherers keep Kinds kinds of
+# their level band (one cloth for everyone, then ore and bars for a miner, herbs for a herbalist, leather for a
+# skinner), artisans one stack of each intermediate they make from their own materials (bars, bolts of cloth, cured
+# leather). Up to Stacks stacks of each, bags and bank together. At an auction house visit the stock goes to the bot's
+# own bank (an artisan keeps one stack of its reagents in the bags to craft with), and what is held beyond the stock
+# is surplus, listed at the auction house for the bot's gold. An artisan's stock purchases at the auction house stay within the guild's daily share: only an
+# item with at least Buy.MinListings auctions, never more than Buy.MaxSharePercent of them for one guild, and at
+# most Buy.PerDay purchases a day for the whole guild, so players always find materials. Needs BotAuctions.
+#    Enable               1 = on (default), 0 = off. Read at start-up (restart to change it).
+#    Kinds                Kinds of gathered materials kept by a gatherer, 1 to 6 (default 3).
+#    Stacks               Stacks kept of each, bags and bank, 1 to 5 (default 2).
+#    Bank                 1 = the stock lies in the bot's own bank (default), 0 = bags only.
+#    CraftsPerVisit       Intermediates made per auction house visit, 0 to 10 (default 2).
+#    Buy.MinListings      Auctions of an item needed before a bot buys it for its stock (default 8).
+#    Buy.MaxSharePercent  Most of an item's auctions one guild buys in a day, in percent (default 25).
+#    Buy.PerDay           Stock purchases a day for a whole guild (default 10).
+#    Buy.PlayerMatchesHouse  1 = a player's lot (not a bot's) at or under the cheapest price the house asks for it is
+#                         bought even over Artisans.Stock.BuyBelowPercent, except an item that account bought from the
+#                         house or a bot in the last 24 hours (default); 0 = BuyBelowPercent for every lot.
+#    Buy.PlayerMinListings   Auctions of the item needed for such a player's lot (default 3; MinListings otherwise).
+AiPlayerbot.CoaEconomy.GuildStock.Enable = 1
+AiPlayerbot.CoaEconomy.GuildStock.Kinds = 3
+AiPlayerbot.CoaEconomy.GuildStock.Stacks = 2
+AiPlayerbot.CoaEconomy.GuildStock.Bank = 1
+AiPlayerbot.CoaEconomy.GuildStock.CraftsPerVisit = 2
+AiPlayerbot.CoaEconomy.GuildStock.Buy.MinListings = 8
+AiPlayerbot.CoaEconomy.GuildStock.Buy.MaxSharePercent = 25
+AiPlayerbot.CoaEconomy.GuildStock.Buy.PerDay = 10
+AiPlayerbot.CoaEconomy.GuildStock.Buy.PlayerMatchesHouse = 1
+AiPlayerbot.CoaEconomy.GuildStock.Buy.PlayerMinListings = 3
 
 # Artisans' rare recipes: bots learn only what profession trainers teach, so no artisan ever made the recipes players
 # find (Lionheart Helm, Flarecore Robe...). With this on, an artisan also knows a few of the recipes of its professions
