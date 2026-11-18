@@ -1,8 +1,8 @@
 # SquidBots Lite: origin and upstream tracking
 
 `SquidBotsLite.lua`, `Missions.lua`, `Alts.lua`, `Dashboard.lua`, `MainTank.lua`, `World.lua`, `TalentTree.lua`,
-`TalentLayouts.lua`, `KeySpells.lua`, `GroupQuests.lua` and `Bindings.xml` follow
-[Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon), last taken `10e6539` (3.1.3, 2026-11-15).
+`TalentLayouts.lua`, `KeySpells.lua`, `GroupQuests.lua`, `AltsList.lua`, `Minimap.lua` and `Bindings.xml` follow
+[Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon), last taken `e21db09` (3.1.4.1, 2026-11-18).
 The Dungeon clear panel is the upstream one and talks to the separate module `mod-dungeon-clear`.
 
 Our deviations:

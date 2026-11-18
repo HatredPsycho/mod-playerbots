@@ -50,7 +50,8 @@ local STRINGS = {
 		DC_DISABLED = "Dungeon clear is disabled on this realm.",
 		DC_LINE = "Dungeon clear", DC_PAUSED = "paused", DC_STOPPED = "stopped",
 		CMD_UNKNOWN = "This realm does not know the command %s.",
-		DC_NOT_IN_DUNGEON = "Dungeon clear starts inside a dungeon, with a tank bot in your group: it leads, you follow.", DC_ABSENT = "No dungeon clear on this realm: click Dungeon again for the SquidBots dungeon mode.", DC_ON = "On", DC_OFF = "Off", DC_PAUSE_B = "Pause", DC_SKIP_B = "Skip",
+		DC_NOT_IN_DUNGEON = "Dungeon clear starts inside a dungeon, with a tank bot in your group: it leads, you follow.", DC_ABSENT = "No dungeon clear on this realm: click Dungeon again for the SquidBots dungeon mode.", DC_NOT_INSTALLED = "Dungeon Clear not installed on this server: click Dungeon again for the SquidBots dungeon mode.",
+		TIP_DUNGEON_NODC = "Dungeon mode: bots stick to you, avoid ground effects, engage with you. Dungeon Clear is not installed on this server.", DC_ON = "On", DC_OFF = "Off", DC_PAUSE_B = "Pause", DC_SKIP_B = "Skip",
 		DC_P_DYN = "Dynamic", DC_P_LEEROY = "Leeroy", DC_P_ADV = "Advanced",
 		DC_BOSSES_T = "Bosses", DC_REFRESH = "Refresh", DC_GO = "Go", DC_NEXT = "Next boss: %s", DC_NONE = "none",
 		DC_NO_LIST = "No list yet: Refresh, inside a dungeon with a tank bot in your group.",
@@ -88,7 +89,7 @@ local STRINGS = {
 		ALTS_IN = "logging in...", ALTS_OUT = "logging out...",
 		ALTS_WAIT = "Asking the server...", ALTS_EMPTY = "No other character on this account.",
 		ALTS_NO_REPLY = "No answer from the server: does it run the bot module?", ALTS_MORE = "%d more not shown.",
-		ALTS_HELP = "Click a logged-in alt for its sheet. Hover an icon to see what it does.",
+		ALTS_HELP = "Click a logged-in alt for its sheet, right-click an alt to hide it.",
 		ALTS_COUNT = "%d / %d logged in", ALTS_MISSION = "out: %d min, %d items", TIP_ALTS_REFRESH = "Ask the server for your characters again.",
 		TIP_ALT_ADD = "It joins your group as your bot.", TIP_ALT_REMOVE = "Logs it out of the game.",
 		TIP_ALT_SUMMON = "Brings it to you: an alt logs in where it logged out.",
@@ -124,7 +125,7 @@ local STRINGS = {
 		BALANCE_DONE = "Group: %s.", BALANCE_MISSING = "No bot in the group can play %s.",
 		BALANCE_WAIT = "Asking the bots for their specializations...", BALANCE_RAID = "In a raid, the raid command already sets the roles: pick specializations bot by bot.",
 		SPECS_NOT_BOT = "not a bot", SPEC_ASK = "Ask the bot", TIP_ROLE = "Switch to %s.", TIP_NO_ROLE = "No specialization of this role.",
-		HELP = "SquidBots Manager: /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl gm (GM only), /sbl reset. Key bindings: Esc > Key Bindings > SquidBots Manager.",
+		HELP = "SquidBots Manager: /sbl (show/hide), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <name>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl minimap (its button), /sbl gm (GM only), /sbl reset. Key bindings: Esc > Key Bindings > SquidBots Manager.",
 		SCALE_SET = "SquidBots Manager bar size: %s (this character).", SCALE_BAD = "Bar size: a number from 0.5 to 2, for example /sbl scale 1.2",
 		LANG_SET = "SquidBots Manager language: English.", CHANNEL_SET = "SquidBots Manager asks in: %s",
 	},
@@ -173,7 +174,9 @@ local STRINGS = {
 		DC_DISABLED = "Dungeon clear est désactivé sur ce royaume.",
 		DC_LINE = "Dungeon clear", DC_PAUSED = "en pause", DC_STOPPED = "arrêté",
 		CMD_UNKNOWN = "Ce royaume ne connaît pas la commande %s.",
-		DC_NOT_IN_DUNGEON = "Dungeon clear se lance dans un donjon, avec un bot tank dans le groupe : il mène, vous suivez.", DC_ABSENT = "Pas de dungeon clear sur ce royaume : recliquez sur Donjon pour le mode donjon SquidBots.", DC_ON = "Démarrer", DC_OFF = "Arrêter", DC_PAUSE_B = "Pause", DC_SKIP_B = "Passer",
+		DC_NOT_IN_DUNGEON = "Dungeon clear se lance dans un donjon, avec un bot tank dans le groupe : il mène, vous suivez.", DC_NOT_INSTALLED = "Dungeon Clear n'est pas installé sur ce serveur : recliquez sur Donjon pour le mode donjon SquidBots.",
+		TIP_DUNGEON_NODC = "Mode donjon : les bots restent avec vous, évitent les zones au sol, engagent avec vous. Dungeon Clear n'est pas installé sur ce serveur.",
+		DC_ABSENT = "Pas de dungeon clear sur ce royaume : recliquez sur Donjon pour le mode donjon SquidBots.", DC_ON = "Démarrer", DC_OFF = "Arrêter", DC_PAUSE_B = "Pause", DC_SKIP_B = "Passer",
 		DC_P_DYN = "Dynamique", DC_P_LEEROY = "Leeroy", DC_P_ADV = "Avancé",
 		DC_BOSSES_T = "Boss", DC_REFRESH = "Actualiser", DC_GO = "Go", DC_NEXT = "Prochain boss : %s", DC_NONE = "aucun",
 		DC_NO_LIST = "Pas encore de liste : Actualiser, dans un donjon avec un bot tank dans le groupe.",
@@ -211,7 +214,7 @@ local STRINGS = {
 		ALTS_IN = "connexion...", ALTS_OUT = "déconnexion...",
 		ALTS_WAIT = "Demande au serveur...", ALTS_EMPTY = "Aucun autre personnage sur ce compte.",
 		ALTS_NO_REPLY = "Pas de réponse du serveur : a-t-il le module des bots ?", ALTS_MORE = "%d de plus, non affichés.",
-		ALTS_HELP = "Cliquez sur un alt connecté pour sa fiche. Survolez une icône pour son rôle.",
+		ALTS_HELP = "Clic : la fiche d'un alt connecté. Clic droit : cacher un alt.",
 		ALTS_COUNT = "%d / %d connectés", ALTS_MISSION = "parti : %d min, %d objets", TIP_ALTS_REFRESH = "Redemander vos personnages au serveur.",
 		TIP_ALT_ADD = "Il rejoint votre groupe comme bot.", TIP_ALT_REMOVE = "Le déconnecte du jeu.",
 		TIP_ALT_SUMMON = "L'amène à vous : un alt se connecte là où il s'était déconnecté.",
@@ -247,7 +250,7 @@ local STRINGS = {
 		BALANCE_DONE = "Groupe : %s.", BALANCE_MISSING = "Aucun bot du groupe ne peut jouer %s.",
 		BALANCE_WAIT = "Demande de leurs spécialisations aux bots...", BALANCE_RAID = "En raid, la commande de raid répartit déjà les rôles : choisissez les spécialisations bot par bot.",
 		SPECS_NOT_BOT = "pas un bot", SPEC_ASK = "Demander au bot", TIP_ROLE = "Passer en %s.", TIP_NO_ROLE = "Aucune spécialisation de ce rôle.",
-		HELP = "SquidBots Manager : /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl gm (MJ), /sbl reset. Raccourcis : Échap > Raccourcis > SquidBots Manager.",
+		HELP = "SquidBots Manager : /sbl (afficher/cacher), /sbl show, /sbl hide, /sbl scale 0.5-2, /sbl lang fr|en, /sbl channel <nom>, /sbl alts, /sbl dashboard, /sbl quests, /sbl spec, /sbl keys, /sbl missions, /sbl world, /sbl dc, /sbl bot <name>, /sbl icons, /sbl raidframes on|off, /sbl questask, /sbl sheettrade on|off, /sbl roles on|off, /sbl minimap (son bouton), /sbl gm (MJ), /sbl reset. Raccourcis : Échap > Raccourcis > SquidBots Manager.",
 		SCALE_SET = "Taille de la barre SquidBots Manager : %s (ce personnage).", SCALE_BAD = "Taille de la barre : un nombre de 0,5 à 2, par exemple /sbl scale 1.2",
 		LANG_SET = "Langue de SquidBots Manager : français.", CHANNEL_SET = "SquidBots Manager demande dans : %s",
 	},
@@ -822,7 +825,7 @@ end
 
 function dc.Tick()
 	if buttons.dungeon then
-		buttons.dungeon.tip = (dc.module == "on" or dc.module == "off") and "TIP_DUNGEON_DC" or "TIP_DUNGEON"
+		buttons.dungeon.tip = (dc.module == "on" or dc.module == "off") and "TIP_DUNGEON_DC" or dc.noDc and "TIP_DUNGEON_NODC" or "TIP_DUNGEON"
 	end
 	-- The Dungeon button clicked while the answer was not known: the panel as soon as it is.
 	if dc.openOnAnswer and dc.module then
@@ -831,8 +834,13 @@ function dc.Tick()
 			dc.ShowPanel()
 		else
 			dc.absentAt = GetTime()
-			Print(L.DC_ABSENT)
+			Print(dc.noDc and L.DC_NOT_INSTALLED or L.DC_ABSENT)
 		end
+	end
+	-- 3.1.4: the server's capabilities (SQBW CAPS?), asked with the first probe; no answer (older server): as before.
+	if not dc.capsAsked and dc.probeAt and GetTime() >= dc.probeAt and SquidBotsLite_World then
+		dc.capsAsked = true
+		SquidBotsLite_World.Send("CAPS?", "caps")
 	end
 	if dc.module or not dc.probeAt then return end
 	local now = GetTime()
@@ -842,6 +850,19 @@ function dc.Tick()
 		SendChatMessage(".dc status", "WHISPER", nil, UnitName("player"))
 	elseif now > dc.waitUntil then
 		dc.module, dc.waitUntil = "absent", nil
+	end
+end
+
+-- 3.1.4 (SquidBot 3c454edf): SQBW CAPS, "dc=0": no Dungeon Clear on this server, for sure (no probe, no panel,
+-- the Dungeon button says so and offers the SquidBots dungeon mode). "dc=1": the module is there, its ".dc status"
+-- probe tells on or off; a probe that missed it ("absent") is made again.
+function SquidBotsLite_OnCaps(caps)
+	if caps.dc == "0" then
+		dc.noDc, dc.module, dc.waitUntil = true, "absent", nil
+		if dc.panel then dc.panel:Hide() end
+	elseif caps.dc == "1" then
+		dc.noDc = nil
+		if dc.module == "absent" then dc.module, dc.waitUntil, dc.probeAt = nil, nil, GetTime() end
 	end
 end
 
@@ -859,6 +880,8 @@ end
 -- old dungeon mode. open: the panel opens on the answer.
 function dc.Reprobe(open)
 	if open then dc.openOnAnswer = true end
+	-- The server said it has no Dungeon Clear: no probe again (the answer is said by dc.Tick).
+	if dc.noDc then return end
 	if dc.module == "on" or dc.module == "off" or dc.Probing() then return end
 	local now = GetTime()
 	-- Not before the first probe (the chat is not ready right after loading), nor too often on its own.
@@ -2684,21 +2707,26 @@ local function RefreshAlts()
 	if not altsFrame then return end
 	NoteGroup()
 	-- 25 alts for a raid: the list scrolls (wheel or bar), K.ALT_ROWS at a time.
-	altsFrame:SetHeight(K.ALT_TOP + math.max(1, math.min(#roster, K.ALT_ROWS)) * K.ALT_ROW_H + 44)
-	FauxScrollFrame_Update(altsFrame.scroll, #roster, K.ALT_ROWS, K.ALT_ROW_H)
+	-- After 3.1.4: the list as the player sorts it, the hidden alts out (AltsList.lua); the count stays the roster's.
+	local AL = SquidBotsLite_AltsList
+	local view = AL and AL.View(roster) or roster
+	if altsFrame.sort then altsFrame.sort:SetText(AL and AL.SortLabel() or "") end
+	altsFrame:SetHeight(K.ALT_TOP + math.max(1, math.min(#view, K.ALT_ROWS)) * K.ALT_ROW_H + 44)
+	FauxScrollFrame_Update(altsFrame.scroll, #view, K.ALT_ROWS, K.ALT_ROW_H)
 	local offset = FauxScrollFrame_GetOffset(altsFrame.scroll)
 	local online = 0
 	for _, alt in ipairs(roster) do if alt.online then online = online + 1 end end
 	altsFrame.count:SetText(#roster > 0 and string.format(L.ALTS_COUNT, online, #roster) or "")
 	for i, row in ipairs(altRows) do
-		local alt = roster[i + offset]
+		local alt = view[i + offset]
 		row.alt = alt
 		if alt then
 			-- Logging in or out (2.9.4): shown at once as it will be, the toggle off until the server says so.
 			local isOn = alt.online
 			if alt.pending then isOn = alt.pending == "in" end
 			local name = isOn and ui.ClassName(alt.name) or ("|cff9d9d9d" .. alt.name .. "|r")
-			row.name:SetText(alt.linked and (name .. " |cff8888aa(" .. L.ALTS_LINKED .. ")|r") or name)
+			if alt.linked then name = name .. " |cff8888aa(" .. L.ALTS_LINKED .. ")|r" end
+			row.name:SetText(name .. (AL and AL.NameSuffix(alt.name) or ""))
 			-- Level, class, spec; its gathering skill as an icon, and a gold word while it is out on a mission.
 			local line = AltLine(alt.name)
 			local skill = SquidBotsLiteDB.missionSkill and SquidBotsLiteDB.missionSkill[alt.name]
@@ -2708,7 +2736,7 @@ local function RefreshAlts()
 				line = line .. "  |cffffd100" .. string.format(L.ALTS_MISSION, mission.minutes, mission.items) .. "|r"
 			end
 			if alt.pending then line = line .. "  |cffffd100" .. (alt.pending == "in" and L.ALTS_IN or L.ALTS_OUT) .. "|r" end
-			row.info:SetText(line)
+			row.info:SetText(line .. (AL and AL.InfoSuffix(alt.name) or ""))
 			ShowXP(row.xp, alt.name)
 			ui.ClassIcon(row.icon, alt.name)
 			row.icon:SetDesaturated(not isOn)
@@ -2772,6 +2800,22 @@ local function GroupNames()
 	return names
 end
 
+-- After 3.1.4: the alts of the group that are offline (their names stay in the group), to log in at once.
+local function GroupOfflineAlts()
+	local names, me = {}, UnitName("player")
+	local raid = GetNumRaidMembers()
+	local db = SquidBotsLiteDB
+	for i = 1, (raid > 0 and raid or 4) do
+		local unit = (raid > 0 and "raid" or "party") .. i
+		local n = UnitName(unit)
+		if n and n ~= me and n ~= UNKNOWNOBJECT and not UnitIsConnected(unit)
+			and ((db.alts and db.alts[n]) or (db.altsUnsure and db.altsUnsure[n])) then
+			table.insert(names, n)
+		end
+	end
+	return names
+end
+
 local function OnlineAltNames()
 	local names = {}
 	for _, alt in ipairs(roster) do
@@ -2809,6 +2853,13 @@ end
 
 local function TeamsMenu()
 	local items = { { text = L.TEAMS, isTitle = true, notCheckable = true } }
+	local AL = SquidBotsLite_AltsList
+	local offline = GroupOfflineAlts()
+	table.insert(items, { text = string.format(AL.T("GROUP_LOGIN"), #offline), notCheckable = true, disabled = #offline == 0,
+		func = function()
+			QueueBots("add", offline)
+			Print(string.format(AL.T("GROUP_STARTED"), #offline))
+		end })
 	local names = {}
 	for name in pairs(SquidBotsLiteDB.teams or {}) do table.insert(names, name) end
 	table.sort(names)
@@ -2822,9 +2873,11 @@ local function TeamsMenu()
 				Print(string.format(L.T_STARTED, name, #members))
 			end },
 			{ text = L.T_LOGOUT, notCheckable = true, func = function() QueueBots("remove", members) end },
+			AL.TeamItems(name)[1], AL.TeamItems(name)[2],
 			{ text = L.T_DELETE, notCheckable = true, func = function() SquidBotsLiteDB.teams[name] = nil end },
 		} })
 	end
+	table.insert(items, { text = AL.T("NEW"), notCheckable = true, func = function() AL.EditTeam(nil) end })
 	table.insert(items, { text = L.T_SAVE_GROUP, notCheckable = true, func = function() SaveTeam(GroupNames()) end })
 	table.insert(items, { text = L.T_SAVE_ONLINE, notCheckable = true, func = function() SaveTeam(OnlineAltNames()) end })
 	ShowMenu(items)
@@ -2890,9 +2943,11 @@ local function AccountsMenu()
 	for _, name in ipairs(names) do
 		table.insert(items, { text = name, hasArrow = true, notCheckable = true, menuList = {
 			{ text = L.A_LOGIN_ALL, notCheckable = true, func = function()
+				SquidBotsLite_AltsList.AccountLogin(name)
 				BotCommand("addaccount " .. name)
 				refreshAt = GetTime() + K.AFTER_TOGGLE + 2
 			end },
+			SquidBotsLite_AltsList.AccountItem(name, RefreshAlts),
 			{ text = L.A_UNLINK, notCheckable = true, func = function()
 				AccountCommand("unlink " .. name)
 				SquidBotsLiteDB.linked[name] = nil
@@ -2960,7 +3015,8 @@ local function BuildAlts()
 	altsFrame.refresh.icon:SetTexCoord(0, 1, 0, 1)
 	altsFrame.refresh:SetPoint("TOPRIGHT", -18, -36)
 	altsFrame.count = altsFrame:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
-	altsFrame.count:SetPoint("RIGHT", altsFrame.refresh, "LEFT", -8, 0)
+	-- On the title's line, left of the close button: the icons of the menu row fill it up to Refresh.
+	altsFrame.count:SetPoint("TOPRIGHT", -36, -17)
 	ui.Rule(altsFrame, -66)
 	altsFrame.status = altsFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	altsFrame.status:SetPoint("TOPLEFT", 20, -K.ALT_TOP - 8)
@@ -3059,12 +3115,17 @@ local function BuildAlts()
 			if info.xp then GameTooltip:AddLine(string.format(L.ALTS_XP, info.xp, info.rest or 0), 0.8, 0.5, 1) end
 			if info.gold then GameTooltip:AddLine(string.format(L.ALTS_GOLD, info.gold), 1, 0.82, 0) end
 			if alt.linked then GameTooltip:AddLine(L.ALTS_FROM_LINKED, 0.55, 0.55, 0.85, true) end
+			SquidBotsLite_AltsList.Tooltip(alt.name)
 			GameTooltip:AddLine(L.ALTS_LOOK, 0.6, 0.6, 0.6, true)
 			if alt.online and SquidBotsLite_OpenSheet then GameTooltip:AddLine(L.ALTS_TIP_CLICK, 0.4, 0.8, 1) end
 			GameTooltip:Show()
 		end)
 		row:SetScript("OnLeave", function() GameTooltip:Hide() end)
-		row:SetScript("OnMouseUp", function(self)
+		row:SetScript("OnMouseUp", function(self, button)
+			if button == "RightButton" then
+				if self.alt then ShowMenu(SquidBotsLite_AltsList.RowItems(self.alt, RefreshAlts)) end
+				return
+			end
 			if self.alt and self.alt.online and SquidBotsLite_OpenSheet then
 				SquidBotsLiteDB.sheetOpened = true
 				SquidBotsLite_OpenSheet(self.alt.name)
@@ -3098,7 +3159,12 @@ local function BuildAlts()
 	altsFrame.footer:SetPoint("BOTTOMRIGHT", -16, 34)
 	altsFrame.help = altsFrame:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	altsFrame.help:SetPoint("BOTTOMLEFT", 18, 16)
-	altsFrame.help:SetWidth(430)
+	altsFrame.help:SetWidth(360)
+	altsFrame.sort = CreateFrame("Button", nil, altsFrame, "UIPanelButtonTemplate")
+	altsFrame.sort:SetWidth(136)
+	altsFrame.sort:SetHeight(20)
+	altsFrame.sort:SetPoint("BOTTOMRIGHT", -16, 9)
+	altsFrame.sort:SetScript("OnClick", function() ShowMenu(SquidBotsLite_AltsList.SortItems(roster, RefreshAlts)) end)
 	altsFrame.help:SetJustifyH("LEFT")
 	ui.FlattenAll(altsFrame)
 	altsFrame:Hide()
@@ -3173,6 +3239,7 @@ local function OnSystem(message)
 			SquidBotsLiteDB.linkedAlts = SquidBotsLiteDB.linkedAlts or {}
 			SquidBotsLiteDB.linkedAlts[added] = true
 		end
+		if message:find("^addaccount: ") then SquidBotsLite_AltsList.NoteAccount(added) end
 	end
 	-- "Linked accounts:" then "- name" lines, or "No linked accounts."
 	if message == "No linked accounts." then SquidBotsLiteDB.linked = {} end
@@ -4047,6 +4114,8 @@ SlashCmdList["SQUIDBOTSLITE"] = function(message)
 		SquidBotsLiteCharDB.point = nil
 		PlaceBar()
 		SetBarShown(true)
+	elseif command == "minimap" and SquidBotsLite_MinimapToggle then
+		SquidBotsLite_MinimapToggle()
 	elseif command == "show" then
 		SetBarShown(true)
 	elseif command == "hide" then
