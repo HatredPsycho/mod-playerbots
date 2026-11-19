@@ -538,6 +538,9 @@ public:
     bool autoLearnQuestSpells;
     bool autoTeleportForLevel;
     bool randomBotGroupNearby;
+    bool flyOnlyOutOfSight;
+    bool teleportOnlyOutOfSight;
+    bool standOffObjects;
     int32 enableRandomBotTrading;
     uint32 tweakValue;  // Debugging config
 

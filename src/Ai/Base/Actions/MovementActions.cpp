@@ -16,6 +16,7 @@
 #include "Event.h"
 #include "FleeManager.h"
 #include "GameObject.h"
+#include "CoaRealPlayerSight.h"
 #include "LastMovementValue.h"
 #include "LootObjectStack.h"
 #include "Map.h"
@@ -1089,9 +1090,14 @@ void MovementAction::UpdateMovementState()
         const bool wantsSwim = liquidState == LIQUID_MAP_IN_WATER || liquidState == LIQUID_MAP_UNDER_WATER;
         const bool wantsFly = bot->HasIncreaseMountedFlightSpeedAura() || bot->HasFlyAura();
         const bool canWaterWalk = bot->HasWaterWalkAura();
-        const bool isMasterFlying = master ? master->HasUnitMovementFlag(MOVEMENTFLAG_FLYING) : true;
-        const bool isMasterSwimming = master ? master->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING) : true;
+        const bool ledByRealPlayer = master && master->GetSession() && !master->GetSession()->IsBot();
+        const bool flyHidden = sPlayerbotAIConfig.flyOnlyOutOfSight && !ledByRealPlayer;
         const bool isFlying = bot->HasUnitMovementFlag(MOVEMENTFLAG_FLYING);
+        bool isMasterFlying = master ? master->HasUnitMovementFlag(MOVEMENTFLAG_FLYING) : true;
+        // Only a bot that could take off or is in the air asks who sees it (the answer is cached for 1.5 s).
+        if (flyHidden && isMasterFlying && (wantsFly || isFlying))
+            isMasterFlying = !CoaRealPlayerSight::SeenByRealPlayer(bot);
+        const bool isMasterSwimming = master ? master->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING) : true;
         const bool isSwimming = bot->HasUnitMovementFlag(MOVEMENTFLAG_SWIMMING);
         const bool isWaterWalking = bot->HasUnitMovementFlag(MOVEMENTFLAG_WATERWALKING);
         const bool hasGravityDisabled = bot->HasUnitMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY);
@@ -1142,6 +1148,16 @@ void MovementAction::UpdateMovementState()
             bot->RemoveUnitMovementFlag(MOVEMENTFLAG_DISABLE_GRAVITY);
             bot->RemoveUnitMovementFlag(MOVEMENTFLAG_FLYING);
             movementFlagsUpdated = true;
+        }
+        else if (!isMasterFlying && isFlying && flyHidden && !onGroundZ)
+        {
+            // Seen in the air: glide down to the ground first, still flying; the flags drop once it has landed
+            // (branch below), so it never falls in front of the player.
+            if (bot->GetMotionMaster()->GetCurrentMovementGeneratorType() != EFFECT_MOTION_TYPE)
+            {
+                bot->StopMoving();
+                bot->GetMotionMaster()->MoveLand(0, bot->GetPositionX(), bot->GetPositionY(), gZ + 0.5f);
+            }
         }
         else if (!isMasterFlying && isFlying && onGroundZ)
         {
