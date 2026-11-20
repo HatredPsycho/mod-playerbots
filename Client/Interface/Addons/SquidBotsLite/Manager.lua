@@ -5,6 +5,15 @@
 
 local STRINGS = {
 	en = {
+		ALTS_COL = "Group alts", ALTS_COL_LEVEL = "Level %d", ALTS_COL_TIP = "Click: its sheet, on the same tab.", ALTS_COL_SHOWN = "Its sheet is the one shown.",
+		ALTS_COL_DROP = "Drop an item of the bags here: it goes to this alt.",
+		GA_MENU = "Give to alt", GA_MENU_OLD = "Give to alt (needs the server's update)", GA_MENU_NONE = "Give to alt (no other alt in the group)",
+		GA_NOTALT = "Give to alt: only between your own alts, never a recruited bot.", GA_BOUND_SHORT = "bound", GA_BOUND = "%s is bound: it cannot go to another alt.", GA_OLD = "Give to alt needs the server's update (CoA Bots 3.1.6).",
+		GA_SENT = "%s: sent to %s...", GA_DONE = "%s gave %s to %s.", GA_ERR = "%s could not give %s: %s.",
+		GA_R_bound = "it is bound", GA_R_notalt = "only to your own alts", GA_R_notgroup = "the alt is not in your group", GA_R_full = "its bags are full",
+		GA_R_missing = "it does not have that many", GA_R_off = "option off on the server",
+		TRUST = "Trust: %s", TRUST_NEXT = "%d / %d - next: %s", TRUST_MAX = "%d - highest rank",
+		TR_stranger = "Stranger", TR_acquaintance = "Acquaintance", TR_companion = "Companion", TR_friend = "Friend", TR_trusted = "Trusted", TR_sworn = "Sworn",
 		TITLE = "Bot sheet", GEAR = "Gear", BAGS = "Bags", QUESTS = "Quests", INFO = "Info", REFRESH = "Refresh",
 		BEST_GEAR = "Best gear", BEST_GEAR_ASK = "%s gets free gear for its level, replacing what it wears. Players who earn their gear may not want this. Sure?",
 		BEST_GEAR_TIP = "Free gear for its level from the server, replacing what it wears (cannot be undone). A server can turn it off for alts (AiPlayerbot.AutoGearCommandAltBots = 0).",
@@ -31,7 +40,7 @@ local STRINGS = {
 		BULK_TOOMANY = "Too many unticked items for one order: untick fewer, or sell those one by one.",
 		BULK_H_SERVER = "The bot leaves out quest items, what it would wear, what it keeps and what has a use.",
 		NO_VENDOR = "Nothing sold: the bot sells only standing right next to a vendor (Summon it there, or walk it there with Follow).", LINK = "Link in chat",
-		UNEQUIP = "Unequip", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat.",
+		UNEQUIP = "Unequip", ITEM_LOADING = "Loading the item from the server...", ITEM_HINT = "Click an item for what to do with it. Shift-click: link it in chat.",
 		GEAR_HINT = "Right-click a piece to take it off.",
 		CMP_WORN = "Worn by %s", CMP_ILVL = "Item level %s compared with what %s wears (%d)", CMP_NONE = "%s: nothing known in that slot (Gear tab, in range).",
 		CMP_LEVEL = "%s is level %d: this needs %d.", CMP_ASKING = "Asking %s...", CMP_V_equip = "Upgrade for %s: that slot is empty.",
@@ -89,6 +98,15 @@ local STRINGS = {
 		SPELL_HINT = "Each spell at the highest rank the bot knows, without professions, mounts and pets. Shift-click: link it in chat.",
 	},
 	fr = {
+		ALTS_COL = "Alts du groupe", ALTS_COL_LEVEL = "Niveau %d", ALTS_COL_TIP = "Clic : sa fiche, sur le même onglet.", ALTS_COL_SHOWN = "C'est sa fiche qui est affichée.",
+		ALTS_COL_DROP = "Déposez ici un objet des sacs : il va à cet alt.",
+		GA_MENU = "Donner à un alt", GA_MENU_OLD = "Donner à un alt (mise à jour du serveur requise)", GA_MENU_NONE = "Donner à un alt (aucun autre alt dans le groupe)",
+		GA_NOTALT = "Donner à un alt : seulement entre vos propres alts, jamais un bot recruté.", GA_BOUND_SHORT = "lié", GA_BOUND = "%s est lié : il ne peut pas aller à un autre alt.", GA_OLD = "Donner à un alt demande la mise à jour du serveur (CoA Bots 3.1.6).",
+		GA_SENT = "%s : envoyé à %s...", GA_DONE = "%s a donné %s à %s.", GA_ERR = "%s n'a pas pu donner %s : %s.",
+		GA_R_bound = "il est lié", GA_R_notalt = "seulement à vos propres alts", GA_R_notgroup = "l'alt n'est pas dans votre groupe", GA_R_full = "ses sacs sont pleins",
+		GA_R_missing = "il n'en a pas autant", GA_R_off = "option désactivée sur le serveur",
+		TRUST = "Confiance : %s", TRUST_NEXT = "%d / %d - suivant : %s", TRUST_MAX = "%d - rang le plus haut",
+		TR_stranger = "Inconnu", TR_acquaintance = "Connaissance", TR_companion = "Compagnon", TR_friend = "Ami", TR_trusted = "De confiance", TR_sworn = "Lié par serment",
 		TITLE = "Fiche du bot", GEAR = "Équipement", BAGS = "Sacs", QUESTS = "Quêtes", INFO = "Infos", REFRESH = "Actualiser",
 		BEST_GEAR = "Meilleur équipement", BEST_GEAR_ASK = "%s reçoit un équipement gratuit de son niveau, à la place de ce qu'il porte. Les joueurs qui gagnent leur équipement n'en voudront peut-être pas. Sûr ?",
 		BEST_GEAR_TIP = "Équipement gratuit de son niveau donné par le serveur, à la place de ce qu'il porte (impossible à annuler). Un serveur peut le désactiver pour les alts (AiPlayerbot.AutoGearCommandAltBots = 0).",
@@ -115,7 +133,7 @@ local STRINGS = {
 		BULK_TOOMANY = "Trop d'objets décochés pour un seul ordre : décochez-en moins, ou vendez-les un par un.",
 		BULK_H_SERVER = "Le bot laisse de côté les objets de quête, ce qu'il porterait, ce qu'il garde et ce qui s'utilise.",
 		NO_VENDOR = "Rien vendu : le bot ne vend que collé à un marchand (appelez-le devant le marchand, ou amenez-le avec Suivre).", LINK = "Lien dans le chat",
-		UNEQUIP = "Retirer", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat.",
+		UNEQUIP = "Retirer", ITEM_LOADING = "Chargement de l'objet depuis le serveur...", ITEM_HINT = "Cliquez un objet pour choisir quoi en faire. Maj-clic : lien dans le chat.",
 		GEAR_HINT = "Clic droit sur une pièce pour la retirer.",
 		CMP_WORN = "Porté par %s", CMP_ILVL = "Niveau d'objet %s par rapport à ce que porte %s (%d)", CMP_NONE = "%s : rien de connu à cet emplacement (onglet Équipement, à portée).",
 		CMP_LEVEL = "%s est niveau %d : il faut le niveau %d.", CMP_ASKING = "Question à %s...", CMP_V_equip = "Mieux pour %s : cet emplacement est vide.",
@@ -244,6 +262,77 @@ end
 -- Listings: "c", "quests all", "stats" come back as one whisper per line
 -- ---------------------------------------------------------------------------
 local Render
+-- 3.1.6: items this client has never seen (an alt's bags, its gear) are asked of the realm through a hidden tooltip as
+-- soon as the list arrives, a few at a time; until then the slot shows a watch. When they arrive the sheet is drawn
+-- again, and a tooltip still hovered is filled again: the 3.3.5 client does neither by itself (no
+-- GET_ITEM_INFO_RECEIVED), hence "Retrieving item information" until a Refresh.
+local ItemCache = { list = {}, state = {}, PER_TICK = 4, TICK = 0.25, RETRY = 2, TRIES = 3,
+	WAIT_ICON = "Interface\\Icons\\INV_Misc_PocketWatch_01" }
+function ItemCache.Want(id)
+	id = tonumber(id)
+	if not id or id == 0 or GetItemInfo(id) or ItemCache.state[id] then return end
+	ItemCache.state[id] = { tries = 0, at = 0 }
+	table.insert(ItemCache.list, id)
+	if not ItemCache.frame then
+		ItemCache.frame = CreateFrame("Frame")
+		ItemCache.frame.wait = 0
+		ItemCache.frame:SetScript("OnUpdate", function(self, elapsed)
+			self.wait = self.wait - elapsed
+			if self.wait > 0 then return end
+			self.wait = ItemCache.TICK
+			ItemCache.Tick()
+		end)
+	end
+	ItemCache.frame:Show()
+end
+function ItemCache.Waiting(id) return id and ItemCache.state[id] ~= nil end
+-- The icon of an item: its own once known, a watch while asked, else what the client can guess.
+function ItemCache.Icon(id, fallback)
+	return select(10, GetItemInfo(id)) or (ItemCache.Waiting(id) and ItemCache.WAIT_ICON)
+		or (GetItemIcon and GetItemIcon(id)) or fallback or "Interface\\Icons\\INV_Misc_QuestionMark"
+end
+function ItemCache.Tick()
+	local now, asked, got, keep = GetTime(), 0, false, {}
+	for _, id in ipairs(ItemCache.list) do
+		local s = ItemCache.state[id]
+		if GetItemInfo(id) then
+			ItemCache.state[id], got = nil, true
+		elseif s.tries >= ItemCache.TRIES and now >= s.at then
+			-- Unknown to the realm too: given up, the slot falls back to the client's guess.
+			ItemCache.state[id], got = nil, true
+		else
+			if now >= s.at and asked < ItemCache.PER_TICK then
+				if not ItemCache.scan then
+					ItemCache.scan = CreateFrame("GameTooltip", "SquidBotsLiteItemScan", UIParent, "GameTooltipTemplate")
+				end
+				ItemCache.scan:SetOwner(UIParent, "ANCHOR_NONE")
+				ItemCache.scan:SetHyperlink("item:" .. id)
+				ItemCache.scan:Hide()
+				s.tries, s.at, asked = s.tries + 1, now + ItemCache.RETRY, asked + 1
+			end
+			table.insert(keep, id)
+		end
+	end
+	ItemCache.list = keep
+	if #keep == 0 and ItemCache.frame then ItemCache.frame:Hide() end
+	if not got then return end
+	if Render and sheet and sheet:IsShown() then Render() end
+	local hover = ItemCache.hover
+	if hover and GameTooltip:IsOwned(hover) and hover:GetScript("OnEnter") then hover:GetScript("OnEnter")(hover) end
+end
+-- A tooltip for an item maybe not known yet: its name and "Loading..." until it is, then the real one.
+function ItemCache.Tooltip(owner, id, link)
+	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+	ItemCache.hover = owner
+	if GetItemInfo(id) or not link then
+		GameTooltip:SetHyperlink(link and link:match("|H(item:[^|]+)|h") or ("item:" .. id))
+	else
+		ItemCache.Want(id)
+		GameTooltip:SetText(link)
+		GameTooltip:AddLine(T("ITEM_LOADING"), 0.6, 0.6, 0.6)
+	end
+	GameTooltip:Show()
+end
 -- 3.1: whether an item is an upgrade for the sheet's alt, by its own answer (the compare block, further down).
 local IconVerdict
 
@@ -276,6 +365,7 @@ local function ParseBags(lines)
 			local id = tonumber(link:match("|Hitem:(%d+)"))
 			local count = tonumber(line:match("|h|rx(%d+)")) or 1
 			table.insert(list, { link = link, id = id, count = count, soulbound = line:find("(soulbound)", 1, true) ~= nil })
+			ItemCache.Want(id)
 		end
 	end
 	return list
@@ -1101,6 +1191,83 @@ function BagSlots.Menu(slot)
 	if SquidBotsLite_WatchMenu then SquidBotsLite_WatchMenu() end
 end
 
+-- 3.1.6: the logged-in alts of the group, in a column left of the sheet (8 at most). A click shows that alt's sheet
+-- on the same tab; the alt shown has a gold frame and an arrow. Recruited bots are not in it: alts only.
+local ALT_COL_W, ALT_COL_ROWS, ALT_ROW_H = 120, 8, 32
+local altCol
+
+local function GroupAlts()
+	local list, me = {}, UnitName("player")
+	local raid = GetNumRaidMembers() > 0
+	for i = 1, raid and GetNumRaidMembers() or GetNumPartyMembers() do
+		local unit = (raid and "raid" or "party") .. i
+		local name = UnitName(unit)
+		local A = SquidBotsLite_Alts
+		if name and name ~= me and ((SquidBotsLite_BotKind and SquidBotsLite_BotKind(name) == "alt") or (A and A.IsAlt and A.IsAlt(name))) then
+			table.insert(list, { name = name, unit = unit })
+			if #list >= ALT_COL_ROWS then break end
+		end
+	end
+	return list
+end
+SquidBotsLite_GroupAlts = GroupAlts
+
+-- 3.1.6: Give to alt (CoA Bots 3.1.6, HELLO's 7th field): an item of this alt's bags goes straight into the bags of
+-- another logged-in alt, both in the group; never to a recruited bot. "give <itemId> <count> <alt>" whispered to the
+-- holder, which takes its unbound copies wherever they are; GIVE done <itemId> <count> <alt>, or
+-- GIVE err <itemId> <bound|notalt|notgroup|full|missing|off> (missing: fewer than asked, nothing given).
+-- From the item's menu, or dragged onto an alt of the column.
+local dragGive
+-- Bound: refused, except an heirloom (quality 7, bound to the account: the user's go of 18/11). The bot's bag list marks
+-- both "(soulbound)"; the realm checks again.
+local function GiveBound(item)
+	return item.soulbound and select(3, GetItemInfo(item.link)) ~= 7
+end
+local function CanGiveToAlt()
+	local A = SquidBotsLite_Alts
+	return A and A.hello and A.hello.give and A.IsAlt and A.IsAlt(current) and A.Send and true or false
+end
+
+local function GiveToAlt(item, to)
+	if not current or not item or not to or to == current then return end
+	if GiveBound(item) then Print(string.format(T("GA_BOUND"), item.link)) return end
+	local A = SquidBotsLite_Alts
+	if not (A and A.IsAlt and A.IsAlt(current) and A.IsAlt(to)) then Print(T("GA_NOTALT")) return end
+	if not CanGiveToAlt() then Print(T("GA_OLD")) return end
+	local n = item.count or 1
+	SquidBotsLite_Alts.Send(current, "give " .. item.id .. " " .. n .. " " .. to)
+	Print(string.format(T("GA_SENT"), item.link .. (n > 1 and (" x" .. n) or ""), to))
+end
+
+function SquidBotsLite_OnGive(name, f)
+	local id = tonumber(f[3] or "") or 0
+	local link = select(2, GetItemInfo(id)) or ("item:" .. id)
+	if f[2] == "done" then
+		local n = tonumber(f[4] or "") or 1
+		Print(string.format(T("GA_DONE"), name, link .. (n > 1 and (" x" .. n) or ""), f[5] or "?"))
+		if sheet and sheet:IsShown() and tab == "bags" and bagMode == "bags" and (name == current or f[5] == current) then Ask("bags", "c") end
+	elseif f[2] == "err" then
+		Print(string.format(T("GA_ERR"), name, link, T("GA_R_" .. (f[4] or "")) or (f[4] or "?")))
+	end
+end
+
+-- The item's menu line: a sub-menu of the other alts of the group, or why not.
+local function GiveToAltItem(item)
+	local others = {}
+	for _, a in ipairs(GroupAlts()) do
+		if a.name ~= current then
+			local to = a.name
+			table.insert(others, { text = to, notCheckable = true, func = function() CloseDropDownMenus(); GiveToAlt(item, to) end })
+		end
+	end
+	local line = { text = T("GA_MENU"), notCheckable = true }
+	if GiveBound(item) then line.text, line.disabled = T("GA_MENU") .. " (" .. T("GA_BOUND_SHORT") .. ")", true
+	elseif not CanGiveToAlt() then line.text, line.disabled = T("GA_MENU_OLD"), true
+	elseif #others == 0 then line.text, line.disabled = T("GA_MENU_NONE"), true
+	else line.hasArrow, line.menuList = true, others end
+	return line
+end
+
 local function ItemMenu(item)
 	local link = SendableLink(item)
 	if bagMode == "bank" then
@@ -1123,6 +1290,9 @@ local function ItemMenu(item)
 		{ text = T("DESTROY"), notCheckable = true, func = function() Destroy(item, link) end },
 		{ text = T("LINK"), notCheckable = true, func = function() InsertLink(link) end },
 	}
+	-- 3.1.6: Give to alt, for an alt's sheet only.
+	local A = SquidBotsLite_Alts
+	if A and A.IsAlt and A.IsAlt(current) then table.insert(menu, 3, GiveToAltItem(item)) end
 	if AltBags(current) and select(9, GetItemInfo(item.link)) == "INVTYPE_BAG" then
 		table.insert(menu, 5, { text = T("BS_PUT"), notCheckable = true,
 			func = function() BagSlots.Equip(current, item.link:match("|H(item:[^|]+)|h"), nil) end })
@@ -1231,8 +1401,11 @@ local function BuildGear(page)
 		b.slot = slot
 		b:SetScript("OnEnter", function(self)
 			local unit = current and UnitOf(current)
-			if unit and GetInventoryItemLink(unit, self.slot) then
+			local link = unit and GetInventoryItemLink(unit, self.slot)
+			if link then
 				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+				ItemCache.hover = self
+				if not GetItemInfo(link) then ItemCache.Want(link:match("item:(%d+)")) end
 				GameTooltip:SetInventoryItem(unit, self.slot)
 				GameTooltip:Show()
 			end
@@ -1294,6 +1467,47 @@ local function BuildGear(page)
 	page.best:SetScript("OnLeave", function() GameTooltip:Hide() end)
 end
 
+-- 3.1.6: the item dragged to an alt follows the cursor in a frame of its own: the client's cursor icon (SetCursor) is
+-- reset as soon as the cursor crosses the world, and GetMouseFocus() is then the world, so the drag was lost. The alt
+-- is the row of the column under the cursor when the button is released, wherever the cursor went meanwhile;
+-- released anywhere else, nothing happens (the item never left the bot's bags; the selection is left as it is).
+local dragIcon
+local function DragTarget()
+	if not altCol or not altCol:IsShown() then return end
+	for _, row in ipairs(altCol.rows) do
+		if row:IsShown() and row.alt and MouseIsOver(row) then return row.alt end
+	end
+end
+local function EndDragGive()
+	local item = dragGive
+	dragGive = nil
+	if dragIcon then dragIcon:Hide() end
+	local to = item and DragTarget()
+	if to then GiveToAlt(item, to) end
+end
+local function StartDragGive(item)
+	if not dragIcon then
+		dragIcon = CreateFrame("Frame", nil, UIParent)
+		dragIcon:SetFrameStrata("TOOLTIP")
+		dragIcon:SetWidth(32)
+		dragIcon:SetHeight(32)
+		dragIcon:EnableMouse(false)
+		dragIcon.tex = dragIcon:CreateTexture(nil, "OVERLAY")
+		dragIcon.tex:SetAllPoints()
+		dragIcon:SetScript("OnUpdate", function(self)
+			local x, y = GetCursorPosition()
+			local s = UIParent:GetEffectiveScale()
+			self:ClearAllPoints()
+			self:SetPoint("CENTER", UIParent, "BOTTOMLEFT", x / s + 14, y / s - 14)
+			-- Released where no frame of ours heard it: ended here all the same.
+			if dragGive and not IsMouseButtonDown("LeftButton") then EndDragGive() end
+		end)
+	end
+	dragGive = item
+	dragIcon.tex:SetTexture(ItemCache.Icon(item.id))
+	dragIcon:Show()
+end
+
 local function BuildBags(page)
 	page.buttons = {}
 	for i = 1, BAG_COLS * BAG_ROWS do
@@ -1301,11 +1515,12 @@ local function BuildBags(page)
 		b:SetPoint("TOPLEFT", 14 + ((i - 1) % BAG_COLS) * 46, -math.floor((i - 1) / BAG_COLS) * 46)
 		b:SetScript("OnEnter", function(self)
 			if self.item then
-				GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-				GameTooltip:SetHyperlink(self.item.link:match("|H(item:[^|]+)|h"))
+				ItemCache.Tooltip(self, self.item.id, self.item.link)
 				-- The link shows the item as written ("Binds when equipped"), not the bot's copy of it.
-				if self.item.soulbound then GameTooltip:AddLine(T("SOULBOUND"), 1, 0.25, 0.25) end
-				GameTooltip:Show()
+				if self.item.soulbound then
+					GameTooltip:AddLine(T("SOULBOUND"), 1, 0.25, 0.25)
+					GameTooltip:Show()
+				end
 			end
 		end)
 		b.bound = {}
@@ -1328,6 +1543,14 @@ local function BuildBags(page)
 			elseif IsShiftKeyDown() then InsertLink(SendableLink(self.item)) else ItemMenu(self.item) end
 		end)
 		b:SetScript("OnReceiveDrag", DropOnBags)
+		-- 3.1.6: dragged onto an alt of the column, the item goes to that alt (Give to alt).
+		b:RegisterForDrag("LeftButton")
+		b:SetScript("OnDragStart", function(self)
+			if self.item and bagMode == "bags" and CanGiveToAlt() and not GiveBound(self.item) and not CursorHasItem() then
+				StartDragGive(self.item)
+			end
+		end)
+		b:SetScript("OnDragStop", EndDragGive)
 		-- 3.1: a small tick box in the corner, the same as Ctrl+click.
 		b.box = CreateFrame("CheckButton", nil, b, "UICheckButtonTemplate")
 		b.box:SetWidth(16)
@@ -1405,12 +1628,13 @@ local function BuildBags(page)
 	page.note:SetPoint("TOP", 0, -120)
 	page.hint = page:CreateFontString(nil, "OVERLAY", "GameFontDisableSmall")
 	page.hint:SetPoint("TOPLEFT", 14, -282)
-	page.hint:SetWidth(430)
+	page.hint:SetWidth(476)
 	page.hint:SetJustifyH("LEFT")
 	page.trade = CreateFrame("Button", nil, page, "UIPanelButtonTemplate")
 	page.trade:SetWidth(130)
 	page.trade:SetHeight(22)
-	page.trade:SetPoint("TOPLEFT", 14, -336)
+	-- Under the help text, whatever its height (font, UI scale, language): no height is set on it, so it fits its lines.
+	page.trade:SetPoint("TOPLEFT", page.hint, "BOTTOMLEFT", 0, -8)
 	page.trade:SetScript("OnClick", function()
 		local unit = current and UnitOf(current)
 		if unit then InitiateTrade(unit) end
@@ -1539,6 +1763,57 @@ local function BuildInfo(page)
 		b:SetScript("OnClick", def[2])
 		page.buttons[i] = b
 	end
+	-- 3.1.6: trust (CoA Bots 3.1.6, HELLO's 9th field): a named rank and a bar, shown only.
+	page.trustRank = page:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	page.trustRank:SetPoint("TOPLEFT", 14, -330)
+	local bar = CreateFrame("StatusBar", nil, page)
+	bar:SetWidth(348)
+	bar:SetHeight(16)
+	bar:SetPoint("TOPLEFT", 14, -350)
+	bar:SetStatusBarTexture("Interface\\TargetingFrame\\UI-StatusBar")
+	bar:SetStatusBarColor(0.25, 0.65, 1)
+	bar.bg = bar:CreateTexture(nil, "BACKGROUND")
+	bar.bg:SetAllPoints()
+	bar.bg:SetTexture(0, 0, 0, 0.6)
+	bar.text = bar:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+	bar.text:SetPoint("CENTER")
+	page.trust = bar
+end
+
+-- 3.1.6: "trust" -> TRUST <rankKey> <value> <low> <high> <nextRankKey|->, per bot (recruited bots answer too).
+local trust = {}
+local function RankName(key)
+	if not key or key == "" or key == "-" then return "" end
+	return T("TR_" .. key) or (key:sub(1, 1):upper() .. key:sub(2))
+end
+function SquidBotsLite_OnTrust(name, f)
+	-- TRUST err off: the option is off on the realm, nothing to show.
+	if f[2] == "err" then
+		trust[name] = nil
+		if name == current and Render then Render() end
+		return
+	end
+	trust[name] = { rank = f[2], value = tonumber(f[3] or "") or 0, low = tonumber(f[4] or "") or 0,
+		high = tonumber(f[5] or "") or 0, nxt = f[6] }
+	if name == current and Render then Render() end
+end
+local function RenderTrust(page)
+	local t = current and trust[current]
+	if not t then
+		page.trustRank:SetText("")
+		page.trust:Hide()
+		return
+	end
+	page.trustRank:SetText(string.format(T("TRUST"), RankName(t.rank)))
+	local top = t.high > t.low and t.high or t.low + 1
+	page.trust:SetMinMaxValues(t.low, top)
+	page.trust:SetValue(math.min(math.max(t.value, t.low), top))
+	if not t.nxt or t.nxt == "-" or t.nxt == "" then
+		page.trust.text:SetText(string.format(T("TRUST_MAX"), t.value))
+	else
+		page.trust.text:SetText(string.format(T("TRUST_NEXT"), t.value, t.high, RankName(t.nxt)))
+	end
+	page.trust:Show()
 end
 
 local STRAT_ROWS = 13
@@ -2241,6 +2516,8 @@ local function RenderGear(page)
 	page.best:SetText(T("BEST_GEAR"))
 	for slot, b in pairs(page.slots) do
 		local texture = unit and GetInventoryItemTexture(unit, slot)
+		local link = texture and GetInventoryItemLink(unit, slot)
+		if link and not GetItemInfo(link) then ItemCache.Want(link:match("item:(%d+)")) end
 		b.icon:SetTexture(texture)
 		if texture then b.icon:Show() else b.icon:Hide() end
 		SetQuality(b, texture and GetInventoryItemQuality(unit, slot))
@@ -2306,7 +2583,7 @@ local function RenderBags(page)
 		local item = list[bagOffset + i]
 		b.item = item
 		if item then
-			b.icon:SetTexture((GetItemIcon and GetItemIcon(item.id)) or select(10, GetItemInfo(item.id)) or "Interface\\Icons\\INV_Misc_QuestionMark")
+			b.icon:SetTexture(ItemCache.Icon(item.id))
 			b.icon:Show()
 			SetQuality(b, select(3, GetItemInfo(item.id)))
 			b.count:SetText(item.count > 1 and item.count or "")
@@ -2349,10 +2626,95 @@ local function RenderInfo(page)
 	end
 	page.text:SetText(text)
 	for _, b in ipairs(page.buttons) do b:SetText(T(b.label)) end
+	RenderTrust(page)
+end
+
+
+local function BuildAltColumn()
+	altCol = CreateFrame("Frame", nil, sheet)
+	altCol:SetWidth(ALT_COL_W)
+	altCol:SetPoint("TOPRIGHT", sheet, "TOPLEFT", 2, 0)
+	altCol:SetBackdrop(BACKDROP)
+	altCol:SetBackdropColor(0.04, 0.04, 0.05, 1)
+	altCol:EnableMouse(true)
+	altCol.title = altCol:CreateFontString(nil, "OVERLAY", "GameFontNormalSmall")
+	altCol.title:SetPoint("TOP", 0, -12)
+	altCol.rows = {}
+	for i = 1, ALT_COL_ROWS do
+		local b = CreateFrame("Button", nil, altCol)
+		b:SetWidth(ALT_COL_W - 18)
+		b:SetHeight(ALT_ROW_H)
+		b:SetPoint("TOP", 0, -28 - (i - 1) * (ALT_ROW_H + 3))
+		b:SetBackdrop({ bgFile = "Interface\\Buttons\\WHITE8X8", edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border",
+			tile = false, edgeSize = 12, insets = { left = 3, right = 3, top = 3, bottom = 3 } })
+		b:SetHighlightTexture("Interface\\QuestFrame\\UI-QuestTitleHighlight", "ADD")
+		b.altColumn = true
+		b.label = b:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+		b.label:SetPoint("TOPLEFT", 8, -5)
+		b.label:SetPoint("RIGHT", -16, 0)
+		b.label:SetJustifyH("LEFT")
+		b.info = b:CreateFontString(nil, "OVERLAY", "GameFontHighlightSmall")
+		b.info:SetPoint("BOTTOMLEFT", 8, 5)
+		b.arrow = b:CreateTexture(nil, "OVERLAY")
+		b.arrow:SetWidth(14)
+		b.arrow:SetHeight(14)
+		b.arrow:SetPoint("RIGHT", -4, 0)
+		b.arrow:SetTexture("Interface\\ChatFrame\\ChatFrameExpandArrow")
+		b:SetScript("OnClick", function(self)
+			if self.alt and self.alt ~= current then SquidBotsLite_OpenSheet(self.alt) end
+		end)
+		b:SetScript("OnEnter", function(self)
+			if not self.alt then return end
+			GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+			GameTooltip:AddLine(self.alt, 1, 1, 1)
+			GameTooltip:AddLine(self.alt == current and T("ALTS_COL_SHOWN") or T("ALTS_COL_TIP"), 0.7, 0.7, 0.7, true)
+			if self.alt ~= current and CanGiveToAlt() then GameTooltip:AddLine(T("ALTS_COL_DROP"), 0.7, 0.7, 0.7, true) end
+			GameTooltip:Show()
+		end)
+		b:SetScript("OnLeave", function() GameTooltip:Hide() end)
+		altCol.rows[i] = b
+	end
+	-- Raid or party changes: the column follows while the sheet is up.
+	altCol:RegisterEvent("PARTY_MEMBERS_CHANGED")
+	altCol:RegisterEvent("RAID_ROSTER_UPDATE")
+	altCol:SetScript("OnEvent", function() if sheet:IsShown() and Render then Render() end end)
+end
+
+local function RenderAltColumn()
+	if not altCol then return end
+	local alts = GroupAlts()
+	if #alts == 0 then altCol:Hide() return end
+	altCol:Show()
+	altCol.title:SetText(T("ALTS_COL"))
+	altCol:SetHeight(40 + #alts * (ALT_ROW_H + 3))
+	for i, b in ipairs(altCol.rows) do
+		local a = alts[i]
+		b.alt = a and a.name
+		if a then
+			local _, token = UnitClass(a.unit)
+			local color = token and RAID_CLASS_COLORS and RAID_CLASS_COLORS[token]
+			b.label:SetText(a.name)
+			if color then b.label:SetTextColor(color.r, color.g, color.b) else b.label:SetTextColor(1, 0.82, 0) end
+			b.info:SetText(string.format(T("ALTS_COL_LEVEL"), UnitLevel(a.unit) or 0))
+			if a.name == current then
+				b:SetBackdropColor(0.30, 0.22, 0, 0.95)
+				b:SetBackdropBorderColor(1, 0.82, 0, 1)
+				b.arrow:Show()
+			else
+				b:SetBackdropColor(0, 0, 0, 0.6)
+				b:SetBackdropBorderColor(0.35, 0.35, 0.35, 0.8)
+				b.arrow:Hide()
+			end
+			b:Show()
+		else
+			b:Hide()
+		end
+	end
 end
 
 Render = function()
 	if not sheet or not sheet:IsShown() then return end
+	RenderAltColumn()
 	sheet.title:SetText("SquidBots Manager - " .. T("TITLE") .. " : " .. (current or "?")
 		.. (readOnly.on and ("  |cffaaaaaa(" .. T("READ_ONLY") .. ")|r") or ""))
 	local info = SquidBotsLiteDB.altInfo and current and SquidBotsLiteDB.altInfo[current] or {}
@@ -2425,6 +2787,10 @@ local function Load()
 		Ask("nc", "nc ?")
 	else
 		Ask("stats", "stats")
+		local A = SquidBotsLite_Alts
+		-- Asked when an alt's HELLO said trust, or when no alt said HELLO at all (a group of recruited bots only:
+		-- they answer trust but never HELLO); an older realm ignores it.
+		if current and A and A.Send and (not A.hello or A.hello.trust) then A.Send(current, "trust") end
 	end
 	Render()
 end
@@ -2454,6 +2820,9 @@ local function Build()
 		self.moved = true
 	end)
 	table.insert(UISpecialFrames, "SquidBotsLiteSheet")
+	-- 3.1.6: the alts column left of it stays on screen too.
+	sheet:SetClampRectInsets(-ALT_COL_W, 0, 0, 0)
+	BuildAltColumn()
 	sheet.title = sheet:CreateFontString(nil, "OVERLAY", "GameFontNormal")
 	sheet.title:SetPoint("TOP", 0, -14)
 	local close = CreateFrame("Button", nil, sheet, "UIPanelCloseButton")
@@ -2727,7 +3096,7 @@ function SquidBotsLite_OpenSheet(name, tabKey, ro)
 	if not sheet.moved then
 		sheet:ClearAllPoints()
 		if alts and alts:IsShown() then
-			sheet:SetPoint("TOPLEFT", alts, "TOPRIGHT", 4, 0)
+			sheet:SetPoint("TOPLEFT", alts, "TOPRIGHT", ALT_COL_W + 2, 0)
 		else
 			sheet:SetPoint("CENTER", 120, 0)
 		end
