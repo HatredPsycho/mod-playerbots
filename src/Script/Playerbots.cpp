@@ -4,6 +4,9 @@
  * or (at your option) any later version.
  */
 
+#include "CoaBotMute.h"
+#include "CoaStarterWeapon.h"
+#include "CoaTrust.h"
 #include "CoaWorldGuilds.h"
 #include "CoaWorldAiBudget.h"
 #include <chrono>
@@ -39,7 +42,7 @@
 
 
 // Shown to players at login: bump it with every CoA Bots release.
-static constexpr char const* COA_BOTS_VERSION = "3.1.5";
+static constexpr char const* COA_BOTS_VERSION = "3.1.6";
 
 // For ".playerbots version", which still answers when a host removed the login message.
 char const* CoaBotsVersion() { return COA_BOTS_VERSION; }
@@ -551,6 +554,9 @@ public:
 
         if (sPlayerbotAIConfig.coaBossKnowledge)
             CoaBossKnowledge::Load();
+        CoaTrust::Load();
+        CoaBotMute::Load();
+        CoaStarterWeapon::Load();  // the self-found bots that got their starting weapon once  // the players who muted their bots (AiPlayerbot.CoaMute.Enable), table playerbots_coa_mute  // the trust of the players in their bots (AiPlayerbot.CoaTrust.Enable), table playerbots_coa_trust
 
         LOG_INFO("server.loading", "Playerbots World Thread Processor initialized");
     }
@@ -565,6 +571,7 @@ public:
         sRandomPlayerbotMgr.CoaReleaseOrphanGroups();
         CoaRegroupUpdate();  // raid check after ".playerbots coa raid" (RC11c), world thread
         CityDuels::Update(diff);
+        CoaTrust::Flush(diff);  // the changed trust scores, every minute
     }
 
     void OnShutdown() override
@@ -572,6 +579,7 @@ public:
         // Command server sessions run on detached threads that would otherwise outlive the world thread processor.
         PlayerbotCommandServer::instance().Stop();
         CityDuels::ReleaseAll(false);
+        CoaTrust::Flush(0, true);
     }
 };
 
@@ -602,6 +610,7 @@ public:
     {
         if (player)
             GuildTaskMgr::instance().CheckKillTask(player, victim);
+        CoaTrust::OnKill(player, victim);  // the trust of a player in the bots that fought with him
     }
 
     void OnPlayerbotCheckPetitionAccount(Player* player, bool& found) override

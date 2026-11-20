@@ -672,6 +672,13 @@ AiPlayerbot.CoaSelfFound = 0
 # Default: 59 (at 60 bots are geared as usual for the endgame)
 AiPlayerbot.CoaSelfFoundMaxLevel = 59
 
+# With AiPlayerbot.CoaSelfFound = 1, a random bot left with no weapon at all (none worn, none in its bags; a fishing
+# pole is no weapon) gets the starting weapon of its class, once in its life (table playerbots_coa_starter_weapon):
+# sold or destroyed, it never comes back. Nothing else is given. Checked at each refresh and when a bot drops its
+# fishing pole. 0: nothing is ever given (as before 3.1.6).
+# Default: 1 (enabled)
+AiPlayerbot.CoaSelfFound.StarterWeapon = 1
+
 # Self-found random bots in dungeons: share of the random bots (0 to 100 percent, picked by character whatever
 # its level, always the same ones) that wear only what they loot, earn from quests or are traded from level 10 on.
 # No gear, gems, enchantments, level roll or level bracket is given to them, and the autogear and bis commands are
@@ -3732,13 +3739,36 @@ AiPlayerbot.CoaLive.Social.InviteCooldownMinutes = 60
 #        Description: City Life. A random bot visiting a capital (AiPlayerbot.RpgStatusProbWeight.GoCity)
 #                     now and then takes a station instead of a plain NPC: it sits at the inn, has a
 #                     word with a banker or an auctioneer, hammers at an anvil or a forge, strikes a
-#                     training dummy, and stays a few minutes (3 bots per station at most), so that
-#                     capitals look full. Works without AiPlayerbot.CoaLive.Enable.
-#                     Read again by ".reload config".
+#                     training dummy, reads its mail at a mailbox, sits on a bench or a chair, and stays
+#                     a few minutes (3 bots per station at most, one per seat), so that capitals look
+#                     full. It never takes the same kind of stop twice in a row.
+#                     Works without AiPlayerbot.CoaLive.Enable. Read again by ".reload config".
 #        Default:     1 - on
 #                     0 - off
 
 AiPlayerbot.CoaLive.City.Enable = 1
+
+#    AiPlayerbot.CoaLive.City.PostChancePct
+#    AiPlayerbot.CoaLive.City.PostMinMinutes
+#    AiPlayerbot.CoaLive.City.PostMaxMinutes
+#        Description: Long posts of City Life: at the inn, a seat, a forge or a dummy, this many stops in a
+#                     hundred last PostMinMinutes to PostMaxMinutes instead of a few minutes, and the city
+#                     visit lasts as long as the post, so that one meets the same faces at the same places.
+#                     PostChancePct = 0: no long post (as before 3.1.6).
+#        Default:     25, 20, 60
+
+AiPlayerbot.CoaLive.City.PostChancePct = 25
+AiPlayerbot.CoaLive.City.PostMinMinutes = 20
+AiPlayerbot.CoaLive.City.PostMaxMinutes = 60
+
+#    AiPlayerbot.CoaLive.City.FishingPct
+#        Description: City Life: this many stops in a hundred, a bot that knows fishing goes fishing at the
+#                     water of the city (within 60 yards) instead, for 4 to 15 minutes, and its visit ends
+#                     there. Needs AiPlayerbot.CoaLive.Immersion.Enable, and counts in its cap
+#                     (FishingPerThousand). 0: no fishing in the cities (as before 3.1.6).
+#        Default:     10
+
+AiPlayerbot.CoaLive.City.FishingPct = 10
 
 #    AiPlayerbot.CoaLive.Sheath.Enable
 #        Description: Bots draw their weapon in a fight (the ranged one for a ranged bot) and put it
@@ -4202,6 +4232,69 @@ AiPlayerbot.CoaQuestLog.Enable = 1
 
 AiPlayerbot.CoaCursedFormUpkeep = 1
 
+#    AiPlayerbot.CoaPetPassiveOnStay
+#        Description: A bot told "stay" sets its pets and guardians passive, so they do not run off to fight
+#                     while it holds its place; "follow" gives each one back the stance it had before.
+#        Default:     1 - on
+#                     0 - off, the pets keep their stance (as before 3.1.6)
+
+AiPlayerbot.CoaPetPassiveOnStay = 1
+
+#    AiPlayerbot.CoaHearthWithMaster
+#        Description: When a player uses his hearthstone, his bots standing within 30 yards of him, out of combat
+#                     and with their own hearthstone ready, cast theirs with him. When he is gone, their
+#                     hearthstone goes on cooldown and they arrive a moment after him, next to him. A bot whose
+#                     hearthstone is on cooldown stays where it is.
+#        Default:     1 - on
+#                     0 - off, the bots stay where they are (as before 3.1.6)
+
+AiPlayerbot.CoaHearthWithMaster = 1
+
+#    AiPlayerbot.CoaMute.Enable
+#        Description: The Mute button of the SquidBots addon: a player silences the chatter of all his bots at
+#                     once, alts and recruited ("mute on|off"), kept between sessions (table playerbots_coa_mute).
+#                     A muted bot says no living chat line, whispers nothing unasked and says no random line; it
+#                     still answers its master's orders and questions.
+#        Default:     1 - on
+#                     0 - off, the button is greyed
+
+AiPlayerbot.CoaMute.Enable = 1
+
+#    AiPlayerbot.CoaGiveToAlt.Enable
+#        Description: "Give to alt" of the SquidBots addon: an alt gives items of its bags to another alt of the
+#                     same player, bag to bag ("give <itemId> <count> <alt>"). Both alts in their master's group,
+#                     never a recruited bot. Items bound to a character are refused; bound to the account is fine.
+#                     An alt gone offline in between gets the items by mail.
+#        Default:     1 - on
+#                     0 - off, the addon greys it
+
+AiPlayerbot.CoaGiveToAlt.Enable = 1
+
+#    AiPlayerbot.CoaTrust.Enable
+#        Description: The trust of a player in each of his bots, shown in the addon's Info tab as a rank and a
+#                     bar: +1 for a monster killed together, +25 for a boss, +100 for a raid boss (the bot and
+#                     its master both there). Ranks: stranger, acquaintance (100), companion (500), friend (1500),
+#                     trusted (4000), sworn (10000). Shown only: no rank opens or locks anything. Kept in the
+#                     table playerbots_coa_trust of the playerbots database.
+#        Default:     1 - on
+#                     0 - off, the scores stop growing and the addon hides the bar
+
+AiPlayerbot.CoaTrust.Enable = 1
+
+#    AiPlayerbot.CoaTrust.Kill
+#    AiPlayerbot.CoaTrust.Boss
+#    AiPlayerbot.CoaTrust.RaidBoss
+#    AiPlayerbot.CoaTrust.Ranks
+#        Description: The trust gained for a monster, a boss (dungeon or world) and a raid boss killed together
+#                     (0: none), and where each of the six ranks starts (stranger, acquaintance, companion,
+#                     friend, trusted, sworn): six rising numbers from 0. A wrong list keeps the default ranks.
+#        Default:     1, 25, 100, 0,100,500,1500,4000,10000
+
+AiPlayerbot.CoaTrust.Kill = 1
+AiPlayerbot.CoaTrust.Boss = 25
+AiPlayerbot.CoaTrust.RaidBoss = 100
+AiPlayerbot.CoaTrust.Ranks = 0,100,500,1500,4000,10000
+
 # Bots' minimum and maximum level when teleporting in and out of a zone, according to the new RPG strategy
 # Format: AiPlayerbot.ZoneBracket.zoneID = minLevel,maxLevel
 #
@@ -4538,7 +4631,9 @@ AiPlayerbot.MinRandomBotTeleportInterval = 600
 AiPlayerbot.MaxRandomBotTeleportInterval = 2400
 
 # Whether a random bot's bags are emptied at each random teleport (the refresh, every 600 to 2400 seconds above).
-# Self-found bots always keep their bags. Food and potions are only topped up, so kept bags never pile them up.
+# No effect on a self-found realm (AiPlayerbot.CoaSelfFound = 1): there the bags are never emptied, at any level,
+# and the bots sell their surplus at vendors; self-found bots elsewhere keep theirs too. Food and potions are only
+# topped up, so kept bags never pile them up.
 #    0 - keep the bags: meant for when bots sell their loot at vendors
 #    1 - empty the bags at each refresh
 # Default: 1 (enabled)
@@ -5938,10 +6033,10 @@ AiPlayerbot.CoaCombat.BreathGuard.Enable = 1
 #     Description: Stuck combat breaker outside a Dungeon Clear run. A grouped bot in a dungeon or raid, in combat
 #                  with nothing hitting it, no target, and nothing reachable coming for it, has its combat cleared
 #                  after the timeout below. Never during a raid boss encounter. Always on inside a Dungeon Clear run.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.StuckCombat.Enable = 0
+AiPlayerbot.CoaCombat.StuckCombat.Enable = 1
 
 # AiPlayerbot.CoaCombat.StuckCombat.TimeoutSeconds
 #     Description: How long (seconds, 0-120) the stuck combat must last before it is cleared. 0 disables the breaker,
@@ -5954,18 +6049,18 @@ AiPlayerbot.CoaCombat.StuckCombat.TimeoutSeconds = 15
 #     Description: Combat purge outside a Dungeon Clear run. A few known creatures hold a party in a combat that can
 #                  never end (Shadowfang Keep: [DND] Vial Bunny; Dire Maul West: Crystal Totem). After 60 s their
 #                  combat is cleared and the bots stop targeting them. Always on inside a Dungeon Clear run.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.CombatPurge.Enable = 0
+AiPlayerbot.CoaCombat.CombatPurge.Enable = 1
 # AiPlayerbot.CoaCombat.SunkenTemple.Enable
 #     Description: Sunken Temple, Avatar of Hakkar, outside a Dungeon Clear run: the bots peel a channelling Hakkari
 #                  Suppressor, loot Hakkari Blood from the Bloodkeepers and douse the four Eternal Flames. Always on
 #                  inside a Dungeon Clear run.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.SunkenTemple.Enable = 0
+AiPlayerbot.CoaCombat.SunkenTemple.Enable = 1
 # AiPlayerbot.CoaCombat.Telegraph.Enable
 #     Description: The bots step out of a ground marker that announces a hit (CoA kits' "Dest Area" markers, for
 #                  example Targorr the Dread's Berserker Leap in the Stockade), melee on the boss included, inside
@@ -5994,10 +6089,10 @@ AiPlayerbot.CoaCombat.OffTank.Enable = 0
 #     Description: Item set bonuses and raid tokens count in the bots' choice of gear. A set piece is worth the set
 #                  bonus it unlocks with the pieces already worn (and swapping it out costs that bonus); a raid token
 #                  is rolled Need only when one of the pieces it gives the bot's class is an upgrade.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.GearScore.Enable = 0
+AiPlayerbot.CoaCombat.GearScore.Enable = 1
 # AiPlayerbot.CoaCombat.LootNeedWaitSeconds
 #     Description: Only with AiPlayerbot.LootNeedRollLevel = 2 ("Bots need items"). A bot that wants an item waits
 #                  for the real players who may roll on it to vote first, and never rolls Need against a player's
@@ -6021,20 +6116,20 @@ AiPlayerbot.CoaCombat.MoltenCore.Enable = 1
 #     Description: The CoA Combat fixes to the bots' Blackwing Lair strategy: tank swaps on Firemaw (Scorched) and
 #                  Ebonroc (Shadow of Ebonroc), the raid behind Chromaggus and the Red affliction cured first, no
 #                  area spells near Nefarian's Dominion clones. The stock strategy is unchanged when this is 0.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.BlackwingLair.Enable = 0
+AiPlayerbot.CoaCombat.BlackwingLair.Enable = 1
 
 #
 # AiPlayerbot.CoaCombat.ZulGurub.Enable
 #     Description: The CoA Combat fixes to the bots' Zul'Gurub strategy: Mandokir's CoA gaze, Hakkar's CoA heart and
 #                  the poison pools during Blood Siphon, kill orders on Thekal's zealots and Jin'do's totems, the
 #                  prey of Gri'lek runs. The stock strategy is unchanged when this is 0.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.ZulGurub.Enable = 0
+AiPlayerbot.CoaCombat.ZulGurub.Enable = 1
 
 #
 # AiPlayerbot.CoaCombat.AhnQiraj.Enable
@@ -6042,19 +6137,19 @@ AiPlayerbot.CoaCombat.ZulGurub.Enable = 0
 #                  everyone inside an active obelisk's shelter against Ossirian's Fury of the Sands, Sartura's
 #                  Phantom Dancers killed first and kept at a distance. The stock strategies are unchanged when this
 #                  is 0.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.AhnQiraj.Enable = 0
+AiPlayerbot.CoaCombat.AhnQiraj.Enable = 1
 
 #
 # AiPlayerbot.CoaCombat.LootNeedMinUpgradePct
 #     Description: Only where bots may roll Need (AiPlayerbot.LootNeedRollLevel = 2). A bot keeps its Need on a
 #                  weapon or a piece of armor only when it scores at least this many percent above the piece it
 #                  wears in that slot (gear score); a smaller upgrade is rolled Greed. An empty slot always counts.
-#     Default:     0 - (Off: any upgrade is a Need)
+#     Default:     10 (since 3.1.6; 0: any upgrade is a Need)
 
-AiPlayerbot.CoaCombat.LootNeedMinUpgradePct = 0
+AiPlayerbot.CoaCombat.LootNeedMinUpgradePct = 10
 
 #
 # AiPlayerbot.CoaCombat.LootNeedEpicOnly
@@ -6071,10 +6166,10 @@ AiPlayerbot.CoaCombat.LootNeedEpicOnly = 0
 #                  that deals all its damage at once after 60 s (more than a damage dealer's health in mythic). Every
 #                  bot that can remove a curse removes it first, and the melee damage dealers keep out of the
 #                  casters' 5 yd. Works in a group led by a player and in Dungeon Clear runs.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.CallOfTheGrave.Enable = 0
+AiPlayerbot.CoaCombat.CallOfTheGrave.Enable = 1
 
 #
 # AiPlayerbot.CoaCombat.PlayerLed.Enable
@@ -6082,10 +6177,10 @@ AiPlayerbot.CoaCombat.CallOfTheGrave.Enable = 0
 #                  opened the "Main Tank" bar is the main tank of the bots' raid strategies (before the raid frame's
 #                  main tank and the first bot tank), and the bots stand down on a boss by its own boss flags when no
 #                  Dungeon Clear run is going.
-#     Default:     0 - (Disabled)
-#                  1 - (Enabled)
+#     Default:     1 - (Enabled, since 3.1.6)
+#                  0 - (Disabled)
 
-AiPlayerbot.CoaCombat.PlayerLed.Enable = 0
+AiPlayerbot.CoaCombat.PlayerLed.Enable = 1
 
 # AiPlayerbot.CoaCombat.BenchKeyOnly
 #     Description: Bench only, leave at 0. With 1, the breath guard, the stuck combat breaker, the combat purge and

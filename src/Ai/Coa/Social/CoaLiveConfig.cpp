@@ -8,6 +8,7 @@
 // CoaBotSurnameList and CoaLive.*. Called by PlayerbotAIConfig::Initialize(); a new setting of the session goes here.
 
 #include "PlayerbotAIConfig.h"
+#include "CoaTrustRules.h"
 
 #include "CoaFreshStartRules.h"
 #include "CoaSurnameRules.h"
@@ -122,6 +123,29 @@ void PlayerbotAIConfig::LoadCoaLiveConfig()
     coaStartupCheckOnly = sConfigMgr->GetOption<bool>("AiPlayerbot.StartupCheckOnly", false, false) ||
                           sConfigMgr->GetOption<bool>("CoA.ValidationMode", false, false);
     coaCapsAddon = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaCaps.Addon", true);
+    coaPetPassiveOnStay = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaPetPassiveOnStay", true);
+    coaHearthWithMaster = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaHearthWithMaster", true);
+    coaLiveCityPostChancePct = std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.City.PostChancePct", 25), 100);
+    coaLiveCityPostMinMinutes = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.City.PostMinMinutes", 20);
+    coaLiveCityPostMaxMinutes = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.City.PostMaxMinutes", 60);
+    coaMute = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaMute.Enable", true);
+    coaSelfFoundStarterWeapon = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaSelfFound.StarterWeapon", true);
+    coaGiveToAlt = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaGiveToAlt.Enable", true);
+    coaTrust = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaTrust.Enable", true);
+    coaTrustKill = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTrust.Kill", 1);
+    coaTrustBoss = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTrust.Boss", 25);
+    coaTrustRaidBoss = sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaTrust.RaidBoss", 100);
+    coaTrustRanks = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaTrust.Ranks", "0,100,500,1500,4000,10000");
+    {
+        uint32 from[6] = {};
+        if (!CoaTrustRules::ParseRanks(coaTrustRanks, from))
+        {
+            LOG_ERROR("server.loading", "AiPlayerbot.CoaTrust.Ranks: \"{}\" is not six rising numbers from 0: the "
+                      "default ranks are used.", coaTrustRanks);
+            coaTrustRanks = "0,100,500,1500,4000,10000";
+        }
+    }
+    coaLiveCityFishingPct = std::min<uint32>(sConfigMgr->GetOption<uint32>("AiPlayerbot.CoaLive.City.FishingPct", 10), 100);
     // Shared with the other CoA data files (in the .dist once).
     coaLiveDataDir = sConfigMgr->GetOption<std::string>("AiPlayerbot.CoaDataDir", "", false);
     coaLiveDataFiles = sConfigMgr->GetOption<bool>("AiPlayerbot.CoaDataFiles", true, false);
