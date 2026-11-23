@@ -812,6 +812,49 @@ inline std::uint64_t BotBudget(std::uint64_t money, std::uint32_t maxPercent, fl
     return std::uint64_t(double(money) * maxPercent / 100.0 * (1.0 - 0.7 * std::clamp(thrift, 0.0f, 1.0f)));
 }
 
+// 3.2 (BotAuctions.Shop): a bot with no loot to sell still goes to the auction house to buy, when its visit budget
+// reaches ShopThreshold, level x copperPerLevel (a green weapon for a few gold), and its last visit is
+// intervalSeconds old.
+inline std::uint64_t ShopThreshold(std::uint32_t level, std::uint32_t copperPerLevel)
+{
+    return std::uint64_t(level) * copperPerLevel;
+}
+
+inline bool WantsToShop(std::uint64_t budget, std::uint32_t level, std::uint32_t copperPerLevel)
+{
+    return budget > 0 && budget >= ShopThreshold(level, copperPerLevel);
+}
+
+// 3.2 (RemoteSell): a bot lists from afar only what brings more than the vendor once the house's cut is taken
+// (the deposit comes back with the sale).
+inline bool RemoteSellBeatsVendor(std::uint64_t buyout, std::uint32_t cutPercent, std::uint64_t vendorValue)
+{
+    return buyout * (100 - std::min<std::uint32_t>(cutPercent, 100)) / 100 > vendorValue;
+}
+
+// 3.2 (RemoteBuy, RemoteSell): when a bot's next turn comes. Its first one is spread over the interval by spread01
+// (a hash of its guid), so a realm starting does not see every bot trade at once.
+inline std::uint32_t FirstRemoteTurn(std::uint32_t now, float spread01, std::uint32_t intervalSeconds)
+{
+    return now + std::uint32_t(std::clamp(spread01, 0.0f, 0.999f) * float(intervalSeconds));
+}
+
+// 3.2: a wander lasts 5 minutes from its start, whatever its target: an auctioneer picked late in it was never
+// reached (12 picked, 0 reached on the bench). A bot on its way to a trade NPC (an auctioneer, or a vendor it has
+// business with) keeps that goal past the end of the wander, up to KEEP_TRADE_GOAL_MS after it picked it; a path
+// that really fails still drops it.
+constexpr std::uint32_t KEEP_TRADE_GOAL_MS = 3 * 60 * 1000;
+
+inline bool KeepsTradeGoal(bool tradeNpc, bool reached, std::uint32_t sincePickMs)
+{
+    return tradeNpc && !reached && sincePickMs < KEEP_TRADE_GOAL_MS;
+}
+
+inline bool ShopDue(std::uint32_t now, std::uint32_t lastVisit, std::uint32_t intervalSeconds)
+{
+    return !lastVisit || now >= lastVisit + intervalSeconds;
+}
+
 // ---- Artisans (Craft/CoaArtisans, Craft/CoaCraftOrders) ----
 
 inline bool IsProfitable(std::uint64_t productValue, std::uint64_t materialCost, std::uint32_t minProfitPercent)
