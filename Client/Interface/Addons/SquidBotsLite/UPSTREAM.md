@@ -2,7 +2,7 @@
 
 `SquidBotsLite.lua`, `Missions.lua`, `Alts.lua`, `Dashboard.lua`, `MainTank.lua`, `World.lua`, `TalentTree.lua`,
 `TalentLayouts.lua`, `KeySpells.lua`, `GroupQuests.lua`, `AltsList.lua`, `Minimap.lua` and `Bindings.xml` follow
-[Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon), last taken `0490819` (3.1.6, 2026-11-20).
+[Zyth45/squidbots-addon](https://github.com/Zyth45/squidbots-addon), last taken `a42b7aa` (3.2, 2026-11-23).
 The Dungeon clear panel is the upstream one and talks to the separate module `mod-dungeon-clear`.
 
 Our deviations:
